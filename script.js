@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 綁定 DOM 元素
     const orderDateInput = document.getElementById('order-date');
+    const mealTypeInput = document.getElementById('meal-type');
     const restaurantNameInput = document.getElementById('restaurant-name');
     const cutoffTimeInput = document.getElementById('cutoff-time');
 
@@ -75,15 +76,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = "https://script.google.com/macros/s/AKfycbz7W96yP5KcrzwaMwqFuOP6vEn13jWBw-dwrLH16L7cSq4QOlesnJIdJlvjbSwe3fgl/exec";
     let memoryOrders = []; // 用於暫存雲端資料
 
+    // 日期格式標準化工具：將任何格式的日期統一轉為 YYYY-MM-DD
+    function normalizeDate(raw) {
+        if (!raw) return '';
+        // 已經是 YYYY-MM-DD 格式
+        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        // ISO 字串 (含T) 或其他可被 Date 解析的字串
+        try {
+            const d = new Date(raw);
+            if (!isNaN(d.getTime())) {
+                // 用 UTC+8 (台灣時區) 來避免時區偏移導致日期少一天
+                const local = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+                const yyyy = local.getUTCFullYear();
+                const mm = String(local.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(local.getUTCDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+        } catch (e) {}
+        return String(raw);
+    }
+
     async function fetchFromCloud() {
         if (!API_URL.startsWith("http")) return; // 防止未設定時報錯
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
             if (Array.isArray(data)) {
-                memoryOrders = data;
+                // 全面清洗雲端回傳的資料，防止格式不一致
+                memoryOrders = data.map(o => {
+                    o.date = normalizeDate(o.date);
+                    o.mealType = o.mealType || '午餐';
+                    o.price = Number(o.price) || 0;
+                    o.paid = o.paid === true || o.paid === 'TRUE';
+                    return o;
+                }).filter(o => o.date); // 過濾掉日期無效的空行
+
                 updateDatalists();
                 updateGrandTotal();
+                handleFormState();
 
                 // 若正在瀏覽表格，立刻觸發畫面刷新
                 if (!document.getElementById('excel-modal').classList.contains('hidden')) {
@@ -200,21 +230,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 鎖單檢查
-    function isDateLocked(dateStr) {
+    // 鎖單檢查 (包含日期與餐期)
+    function isSessionLocked(dateStr, mealTypeStr) {
         const todayStr = getTodayString();
         if (dateStr < todayStr) return true; // 過去日期一律鎖死
 
         if (dateStr === todayStr) {
-            const cutoffTimeStr = cutoffTimeInput.value;
-            if (!cutoffTimeStr) return false;
+            const orders = getOrders();
+            const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
+            if (sessionOrders.length > 0) {
+                const groupCutoff = sessionOrders[0].cutoffTime || cutoffTimeInput.value;
+                if (!groupCutoff) return false;
 
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, '0');
-            const mm = String(now.getMinutes()).padStart(2, '0');
-            const currentTimeStr = `${hh}:${mm}`;
+                const now = new Date();
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const currentTimeStr = `${hh}:${mm}`;
 
-            if (currentTimeStr >= cutoffTimeStr) return true;
+                if (currentTimeStr >= groupCutoff) return true;
+            }
         }
         return false;
     }
@@ -222,7 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 處理主表單狀態 (包含解鎖、上鎖、與餐廳名稱鎖定)
     function handleFormState() {
         const selectedDate = orderDateInput.value;
-        const locked = isDateLocked(selectedDate);
+        const selectedMealType = mealTypeInput.value;
+        const locked = isSessionLocked(selectedDate, selectedMealType);
 
         // 鎖單視覺與按鈕控制
         if (locked) {
@@ -240,28 +275,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 餐廳與時間設定鎖定：
-        // 如果該日期已經有訂單，表示今日規則已經開跑，帶入並全面禁止修改！
         const orders = getOrders();
-        const anyOrderToday = orders.find(o => o.date === selectedDate);
+        const anyOrder = orders.find(o => o.date === selectedDate && o.mealType === selectedMealType);
 
-        if (anyOrderToday) {
-            if (anyOrderToday.restaurant) {
-                restaurantNameInput.value = anyOrderToday.restaurant;
+        if (anyOrder) {
+            if (anyOrder.restaurant) {
+                restaurantNameInput.value = anyOrder.restaurant;
+            }
+            if (anyOrder.cutoffTime) {
+                cutoffTimeInput.value = anyOrder.cutoffTime;
             }
             restaurantNameInput.disabled = true;
-            restaurantNameInput.title = "今日已開單，為了防止混淆不可更改餐廳";
+            restaurantNameInput.title = "今日此餐期已開單，不可更改餐廳";
             restaurantNameInput.style.background = "#f1f5f9";
             restaurantNameInput.style.color = "#64748b";
 
             cutoffTimeInput.disabled = true;
-            cutoffTimeInput.title = "今日已開單，時間規則不可隨意更改";
+            cutoffTimeInput.title = "今日此餐期已開單，時間規則不可隨意更改";
             cutoffTimeInput.style.background = "#f1f5f9";
             cutoffTimeInput.style.color = "#64748b";
             cutoffTimeInput.style.borderBottom = "1px dashed #cbd5e1";
         } else {
-            // 不隨便清空 restaurantNameInput.value，保持使用者輸入的狀態
             restaurantNameInput.disabled = false;
-            restaurantNameInput.title = "請輸入今日要叫的餐廳名稱";
+            restaurantNameInput.title = "請輸入此餐期要叫的餐廳名稱";
             restaurantNameInput.style.background = "transparent";
             restaurantNameInput.style.color = "var(--text-main)";
 
@@ -274,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     orderDateInput.addEventListener('change', handleFormState);
+    mealTypeInput.addEventListener('change', handleFormState);
     cutoffTimeInput.addEventListener('change', () => {
         const settings = getSettings();
         settings.cutoffTime = cutoffTimeInput.value;
@@ -288,25 +325,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = parseFloat(itemPriceInput.value);
         const item = itemNameInput.value.trim();
         const date = orderDateInput.value;
+        const mealType = mealTypeInput.value;
         const restaurant = restaurantNameInput.value.trim();
 
-        if (isDateLocked(date)) {
-            showToast("該日期已鎖定，無法新增訂單！", "error");
+        if (isSessionLocked(date, mealType)) {
+            showToast("此餐期已鎖定，無法新增訂單！", "error");
             return;
         }
 
         if (!name || isNaN(price) || price <= 0 || !item || !restaurant) {
-            showToast("請確實填寫姓名、餐點、金額，並確定今日餐廳已填寫！", "error");
+            showToast("請確實填寫姓名、餐點、金額，並確定餐廳已填寫！", "error");
             return;
         }
 
         const newOrder = {
             id: Date.now().toString(),
             date: date,
+            mealType: mealType,
             name: name,
             item: item,
             price: price,
             restaurant: restaurant,
+            cutoffTime: cutoffTimeInput.value,
             paid: false // 新單預設未付款
         };
 
@@ -470,92 +510,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
         weekDates.forEach(({ dateString, dayLabel }) => {
             const dayOrders = allOrders.filter(o => o.date === dateString);
-            const isLocked = isDateLocked(dateString);
-
+            
             if (dayOrders.length === 0) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:#64748b;">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:#94a3b8; background:#f8fafc;">無訂餐紀錄</td>`;
                 tbody.appendChild(tr);
             } else {
-                let dayTotal = 0;
-                const dailyRest = dayOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
+                // 將每日訂單依照 mealType 再次分群
+                const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))];
+                
+                mealTypes.forEach(mType => {
+                    const sessionOrders = dayOrders.filter(o => (o.mealType || '午餐') === mType);
+                    if(sessionOrders.length === 0) return;
+                    
+                    const isLocked = isSessionLocked(dateString, mType);
+                    let sessionTotal = 0;
+                    const sessionRest = sessionOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
 
-                dayOrders.forEach((order, index) => {
-                    dayTotal += order.price;
-                    const tr = document.createElement('tr');
-                    if (order.paid) tr.classList.add('row-paid');
+                    sessionOrders.forEach((order, index) => {
+                        sessionTotal += order.price;
+                        const tr = document.createElement('tr');
+                        if (order.paid) tr.classList.add('row-paid');
 
-                    if (index === 0) {
-                        const tdDate = document.createElement('td');
-                        tdDate.rowSpan = dayOrders.length + 1;
-                        tdDate.innerHTML = `<b>${order.date}</b> <span style="font-size:0.8em; color:#64748b; margin-left: 0.25rem;">${dayLabel}</span><br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${dailyRest}</span>`;
-                        tdDate.style.verticalAlign = 'middle';
-                        tdDate.style.backgroundColor = '#ffffff';
-                        tr.appendChild(tdDate);
-                    }
+                        if (index === 0) {
+                            const tdDate = document.createElement('td');
+                            tdDate.rowSpan = sessionOrders.length + 1;
+                            const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
+                            tdDate.innerHTML = `<b>${order.date}</b> <span style="font-size:0.8em; color:#64748b; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
+                            tdDate.style.verticalAlign = 'middle';
+                            tdDate.style.backgroundColor = '#ffffff';
+                            tr.appendChild(tdDate);
+                        }
 
-                    tr.innerHTML += `
-                        <td>${order.name}</td>
-                        <td>${order.item}</td>
-                        <td class="amount-value">$${order.price}</td>
-                    `;
+                        tr.innerHTML += `
+                            <td>${order.name}</td>
+                            <td>${order.item}</td>
+                            <td class="amount-value">$${order.price}</td>
+                        `;
 
-                    // Paid Checkbox
-                    const tdPaid = document.createElement('td');
-                    tdPaid.style.textAlign = 'center';
-                    const chk = document.createElement('input');
-                    chk.type = 'checkbox';
-                    chk.className = 'paid-checkbox';
-                    chk.checked = order.paid;
-                    chk.addEventListener('change', (e) => togglePaid(order.id, e.target.checked));
-                    tdPaid.appendChild(chk);
-                    tr.appendChild(tdPaid);
+                        // Paid Checkbox
+                        const tdPaid = document.createElement('td');
+                        tdPaid.style.textAlign = 'center';
+                        const chk = document.createElement('input');
+                        chk.type = 'checkbox';
+                        chk.className = 'paid-checkbox';
+                        chk.checked = order.paid;
+                        chk.addEventListener('change', (e) => togglePaid(order.id, e.target.checked));
+                        tdPaid.appendChild(chk);
+                        tr.appendChild(tdPaid);
 
-                    // 編輯與刪除按鈕
-                    const tdAction = document.createElement('td');
-                    tdAction.className = 'action-value';
-                    tdAction.style.whiteSpace = 'nowrap';
-                    if (!isLocked) {
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'edit-record-btn';
-                        editBtn.title = '修改此紀錄';
-                        editBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
-                        editBtn.addEventListener('click', () => {
-                            personNameInput.value = order.name;
-                            itemNameInput.value = order.item;
-                            itemPriceInput.value = order.price;
-                            orderDateInput.value = order.date;
+                        // 編輯與刪除按鈕
+                        const tdAction = document.createElement('td');
+                        tdAction.className = 'action-value';
+                        tdAction.style.whiteSpace = 'nowrap';
+                        if (!isLocked) {
+                            const editBtn = document.createElement('button');
+                            editBtn.className = 'edit-record-btn';
+                            editBtn.title = '修改此紀錄';
+                            editBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+                            editBtn.addEventListener('click', () => {
+                                personNameInput.value = order.name;
+                                itemNameInput.value = order.item;
+                                itemPriceInput.value = order.price;
+                                orderDateInput.value = order.date;
+                                mealTypeInput.value = order.mealType || '午餐';
 
-                            excelModal.classList.add('hidden');
+                                excelModal.classList.add('hidden');
 
-                            const orders = getOrders();
-                            const newOrders = orders.filter(o => o.id !== order.id);
-                            saveOrders(newOrders);
-                            handleFormState();
-                            renderOrders();
-                            updateGrandTotal();
-                            personNameInput.focus();
-                        });
-                        tdAction.appendChild(editBtn);
+                                const orders = getOrders();
+                                const newOrders = orders.filter(o => o.id !== order.id);
+                                saveOrders(newOrders);
+                                handleFormState();
+                                renderOrders();
+                                updateGrandTotal();
+                                personNameInput.focus();
+                            });
+                            tdAction.appendChild(editBtn);
 
-                        const delBtn = document.createElement('button');
-                        delBtn.className = 'delete-record-btn';
-                        delBtn.title = '刪除此紀錄';
-                        delBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
-                        delBtn.addEventListener('click', () => deleteOrder(order.id));
-                        tdAction.appendChild(delBtn);
-                    } else {
-                        tdAction.innerHTML = '<span style="font-size:0.8rem;color:#cbd5e1;">鎖定</span>';
-                    }
-                    tr.appendChild(tdAction);
+                            const delBtn = document.createElement('button');
+                            delBtn.className = 'delete-record-btn';
+                            delBtn.title = '刪除此紀錄';
+                            delBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+                            delBtn.addEventListener('click', () => deleteOrder(order.id));
+                            tdAction.appendChild(delBtn);
+                        } else {
+                            tdAction.innerHTML = '<span style="font-size:0.8rem;color:#cbd5e1;">鎖定</span>';
+                        }
+                        tr.appendChild(tdAction);
 
-                    tbody.appendChild(tr);
+                        tbody.appendChild(tr);
+                    });
+
+                    // 該餐期小計
+                    const subTr = document.createElement('tr');
+                    subTr.innerHTML = `<td colspan="2" style="text-align:right; color:#64748b; background:#f8fafc; font-size:0.9rem;">${mType} 小計</td><td class="amount-value" style="font-weight:bold; color:var(--primary); background:#f8fafc;">$${sessionTotal}</td><td colspan="2" style="background:#f8fafc;"></td>`;
+                    tbody.appendChild(subTr);
                 });
-
-                // 單日小計
-                const subTr = document.createElement('tr');
-                subTr.innerHTML = `<td colspan="2" style="text-align:right; color:#64748b; background:#f8fafc; font-size:0.9rem;">單日小計</td><td class="amount-value" style="font-weight:bold; color:var(--primary); background:#f8fafc;">$${dayTotal}</td><td colspan="2" style="background:#f8fafc;"></td>`;
-                tbody.appendChild(subTr);
             }
         });
 
@@ -570,37 +620,46 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCallerTable(weekDates, allOrders) {
         const table = document.createElement('table');
         table.className = 'excel-table';
-        table.innerHTML = `<thead><tr><th>日期 / 餐廳</th><th>餐點明細匯總 (唸給老闆聽)</th><th class="amount-col">金額小計</th></tr></thead>`;
+        table.innerHTML = `<thead><tr><th>日期 / 餐期 / 餐廳</th><th>餐點明細匯總 (唸給老闆聽)</th><th class="amount-col">金額小計</th></tr></thead>`;
         const tbody = document.createElement('tbody');
 
         weekDates.forEach(({ dateString, dayLabel }) => {
             const dayOrders = allOrders.filter(o => o.date === dateString);
             if (dayOrders.length === 0) return;
 
-            const dailyRest = dayOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
-            let dayTotal = 0;
+            const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))];
+                
+            mealTypes.forEach(mType => {
+                const sessionOrders = dayOrders.filter(o => (o.mealType || '午餐') === mType);
+                if(sessionOrders.length === 0) return;
+                
+                const sessionRest = sessionOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
+                let sessionTotal = 0;
 
-            const itemMap = {};
-            dayOrders.forEach(o => {
-                dayTotal += o.price;
-                const itemName = o.item || '未填寫餐點';
-                if (!itemMap[itemName]) itemMap[itemName] = { count: 0, total: 0 };
-                itemMap[itemName].count++;
-                itemMap[itemName].total += o.price;
+                const itemMap = {};
+                sessionOrders.forEach(o => {
+                    sessionTotal += o.price;
+                    const itemName = o.item || '未填寫餐點';
+                    if (!itemMap[itemName]) itemMap[itemName] = { count: 0, total: 0 };
+                    itemMap[itemName].count++;
+                    itemMap[itemName].total += o.price;
+                });
+
+                const itemsArr = Object.entries(itemMap).map(([name, data]) => `<div style="padding:0.2rem 0;">⭐ <b>${name}</b> <span style="color:#64748b;">x ${data.count}</span></div>`);
+
+                const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="vertical-align:top; width:30%;">
+                        <b>${dateString}</b> <span style="font-size:0.8em; color:#64748b;">${dayLabel}</span> ${mTypeBadge}<br>
+                        <span style="color:var(--primary); font-weight:600; font-size:1.1rem;">${sessionRest}</span>
+                    </td>
+                    <td style="vertical-align:top;">${itemsArr.join('')}</td>
+                    <td class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:#0f172a;">$${sessionTotal}</td>
+                `;
+                tbody.appendChild(tr);
             });
-
-            const itemsArr = Object.entries(itemMap).map(([name, data]) => `<div style="padding:0.2rem 0;">⭐ <b>${name}</b> <span style="color:#64748b;">x ${data.count}</span></div>`);
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="vertical-align:top; width:30%;">
-                    <b>${dateString}</b> <span style="font-size:0.8em; color:#64748b;">${dayLabel}</span><br>
-                    <span style="color:var(--primary); font-weight:600; font-size:1.1rem;">${dailyRest}</span>
-                </td>
-                <td style="vertical-align:top;">${itemsArr.join('')}</td>
-                <td class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:#0f172a;">$${dayTotal}</td>
-            `;
-            tbody.appendChild(tr);
         });
 
         if (tbody.children.length === 0) {
@@ -689,7 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dynamicTableContainer.appendChild(table);
     }
 
-    // CSV 匯出邏輯 (改採真實資料匯出，徹底解決表格 rowspan 導致的跑版問題)
+    // CSV 匯出邏輯
     exportCsvBtn.addEventListener('click', () => {
         const { weekOrders } = getWeekData(currentViewDate);
         if (weekOrders.length === 0) return alert('本週無資料可匯出');
@@ -697,34 +756,37 @@ document.addEventListener('DOMContentLoaded', () => {
         let csv = '\uFEFF';
 
         if (currentActiveTab === 'tab-details') {
-            csv += "日期,餐廳,姓名,餐點名稱,金額,付款狀態\r\n";
+            csv += "日期,餐期,餐廳,姓名,餐點名稱,金額,付款狀態\r\n";
             weekOrders.forEach(o => {
+                const m = (o.mealType || '午餐').replace(/"/g, '""');
                 const r = (o.restaurant || '未指定').replace(/"/g, '""');
                 const n = (o.name || '').replace(/"/g, '""');
                 const i = (o.item || '').replace(/"/g, '""');
                 const p = o.paid ? '已付清' : '未付';
-                csv += `"${o.date}","${r}","${n}","${i}","${o.price}","${p}"\r\n`;
+                csv += `"${o.date}","${m}","${r}","${n}","${i}","${o.price}","${p}"\r\n`;
             });
         } else if (currentActiveTab === 'tab-caller') {
-            csv += "日期,餐廳,餐點明細匯總,當日總計金額\r\n";
-            const dateOrders = {};
+            csv += "日期,餐期,餐廳,餐點明細匯總,該餐期總計金額\r\n";
+            const sessionMap = {};
             weekOrders.forEach(o => {
-                if (!dateOrders[o.date]) dateOrders[o.date] = [];
-                dateOrders[o.date].push(o);
+                const sKey = `${o.date}_${o.mealType || '午餐'}`;
+                if (!sessionMap[sKey]) sessionMap[sKey] = [];
+                sessionMap[sKey].push(o);
             });
-            Object.keys(dateOrders).forEach(date => {
-                const dayOrders = dateOrders[date];
-                const restName = (dayOrders.find(o => o.restaurant)?.restaurant || '未指定').replace(/"/g, '""');
-                let dayTotal = 0;
+            Object.values(sessionMap).forEach(sessionOrders => {
+                const date = sessionOrders[0].date;
+                const mType = (sessionOrders[0].mealType || '午餐').replace(/"/g, '""');
+                const restName = (sessionOrders.find(o => o.restaurant)?.restaurant || '未指定').replace(/"/g, '""');
+                let sessionTotal = 0;
                 const itemMap = {};
-                dayOrders.forEach(o => {
-                    dayTotal += o.price;
+                sessionOrders.forEach(o => {
+                    sessionTotal += o.price;
                     const item = o.item || '未填寫';
                     if (!itemMap[item]) itemMap[item] = 0;
                     itemMap[item]++;
                 });
                 const summaryStr = Object.entries(itemMap).map(([k, v]) => `${k} x ${v}`).join(' / ');
-                csv += `"${date}","${restName}","${summaryStr}","${dayTotal}"\r\n`;
+                csv += `"${date}","${mType}","${restName}","${summaryStr}","${sessionTotal}"\r\n`;
             });
         } else if (currentActiveTab === 'tab-person') {
             csv += "姓名,點餐次數,本週總花費,已繳交,尚欠款,結清狀態\r\n";

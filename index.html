@@ -26,6 +26,16 @@
                     <label for="order-date">日期：</label>
                     <input type="date" id="order-date" class="date-input">
                 </div>
+                <div class="setting-item">
+                    <label for="meal-type">餐期：</label>
+                    <select id="meal-type" class="date-input" style="flex:1; border:none; background:transparent; font-size:1rem; outline:none; color:var(--text-main); font-weight:600; font-family:inherit;">
+                        <option value="早餐">早餐</option>
+                        <option value="午餐" selected>午餐</option>
+                        <option value="下午茶">下午茶</option>
+                        <option value="晚餐">晚餐</option>
+                        <option value="宵夜">宵夜</option>
+                    </select>
+                </div>
                 <!-- 每日指定餐廳 -->
                 <div class="setting-item">
                     <label for="restaurant-name">今日餐廳：</label>
