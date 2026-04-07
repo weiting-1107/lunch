@@ -16,6 +16,7 @@
     --locked-border: #fca5a5;
     --locked-text: #b91c1c;
     --modal-overlay: rgba(15, 23, 42, 0.4);
+    --bg-main: #f1f5f9;
 }
 
 [data-theme="dark"] {
@@ -35,6 +36,7 @@
     --locked-text: #fca5a5;
     --modal-overlay: rgba(0, 0, 0, 0.7);
     --success: #34d399;
+    --bg-main: #1e293b;
 }
 
 * {
@@ -534,6 +536,8 @@ header p {
 .total-label { text-align: right; }
 .modal-total-cell { font-size: 1.25rem !important; font-weight: 700 !important; color: var(--success) !important; text-align: right; font-family: monospace; }
 .excel-subtotal { background: var(--input-bg) !important; font-size: 0.9rem; color: var(--text-muted); }
+
+.excel-table td { background-color: var(--card-bg); color: var(--text-main); }
 
 /* Table buttons */
 .delete-record-btn, .edit-record-btn {

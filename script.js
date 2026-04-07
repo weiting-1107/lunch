@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             orderFormContainer.classList.add('locked-form');
             submitOrderBtn.disabled = true;
             submitOrderBtn.innerHTML = '已截止鎖定';
-            submitOrderBtn.style.background = '#94a3b8';
+            submitOrderBtn.style.background = 'var(--text-muted)';
         } else {
             lockedWarning.classList.add('hidden');
             orderFormContainer.classList.remove('locked-form');
@@ -287,14 +287,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             restaurantNameInput.disabled = true;
             restaurantNameInput.title = "今日此餐期已開單，不可更改餐廳";
-            restaurantNameInput.style.background = "#f1f5f9";
-            restaurantNameInput.style.color = "#64748b";
+            restaurantNameInput.style.background = "var(--input-bg)";
+            restaurantNameInput.style.color = "var(--text-muted)";
 
             cutoffTimeInput.disabled = true;
             cutoffTimeInput.title = "今日此餐期已開單，時間規則不可隨意更改";
-            cutoffTimeInput.style.background = "#f1f5f9";
-            cutoffTimeInput.style.color = "#64748b";
-            cutoffTimeInput.style.borderBottom = "1px dashed #cbd5e1";
+            cutoffTimeInput.style.background = "var(--input-bg)";
+            cutoffTimeInput.style.color = "var(--text-muted)";
+            cutoffTimeInput.style.borderBottom = "1px dashed var(--border)";
         } else {
             restaurantNameInput.disabled = false;
             restaurantNameInput.title = "請輸入此餐期要叫的餐廳名稱";
@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (dayOrders.length === 0) {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:#64748b;">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:#94a3b8; background:#f8fafc;">無訂餐紀錄</td>`;
+                tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">無訂餐紀錄</td>`;
                 tbody.appendChild(tr);
             } else {
                 // 將每日訂單依照 mealType 再次分群
@@ -536,9 +536,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             const tdDate = document.createElement('td');
                             tdDate.rowSpan = sessionOrders.length + 1;
                             const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
-                            tdDate.innerHTML = `<b>${order.date}</b> <span style="font-size:0.8em; color:#64748b; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
+                            tdDate.innerHTML = `<b>${order.date}</b> <span style="font-size:0.8em; color:var(--text-muted); margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
                             tdDate.style.verticalAlign = 'middle';
-                            tdDate.style.backgroundColor = '#ffffff';
+                            tdDate.style.backgroundColor = 'var(--card-bg)';
                             tr.appendChild(tdDate);
                         }
 
@@ -594,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             delBtn.addEventListener('click', () => deleteOrder(order.id));
                             tdAction.appendChild(delBtn);
                         } else {
-                            tdAction.innerHTML = '<span style="font-size:0.8rem;color:#cbd5e1;">鎖定</span>';
+                            tdAction.innerHTML = '<span style="font-size:0.8rem;color:var(--border);">鎖定</span>';
                         }
                         tr.appendChild(tdAction);
 
@@ -603,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // 該餐期小計
                     const subTr = document.createElement('tr');
-                    subTr.innerHTML = `<td colspan="2" style="text-align:right; color:#64748b; background:#f8fafc; font-size:0.9rem;">${mType} 小計</td><td class="amount-value" style="font-weight:bold; color:var(--primary); background:#f8fafc;">$${sessionTotal}</td><td colspan="2" style="background:#f8fafc;"></td>`;
+                    subTr.innerHTML = `<td colspan="2" style="text-align:right; color:var(--text-muted); background:var(--input-bg); font-size:0.9rem;">${mType} 小計</td><td class="amount-value" style="font-weight:bold; color:var(--primary); background:var(--input-bg);">$${sessionTotal}</td><td colspan="2" style="background:var(--input-bg);"></td>`;
                     tbody.appendChild(subTr);
                 });
             }
@@ -645,25 +645,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     itemMap[itemName].total += o.price;
                 });
 
-                const itemsArr = Object.entries(itemMap).map(([name, data]) => `<div style="padding:0.2rem 0;">⭐ <b>${name}</b> <span style="color:#64748b;">x ${data.count}</span></div>`);
+                const itemsArr = Object.entries(itemMap).map(([name, data]) => `<div style="padding:0.2rem 0;">⭐ <b>${name}</b> <span style="color:var(--text-muted);">x ${data.count}</span></div>`);
 
                 const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="vertical-align:top; width:30%;">
-                        <b>${dateString}</b> <span style="font-size:0.8em; color:#64748b;">${dayLabel}</span> ${mTypeBadge}<br>
+                        <b>${dateString}</b> <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span> ${mTypeBadge}<br>
                         <span style="color:var(--primary); font-weight:600; font-size:1.1rem;">${sessionRest}</span>
                     </td>
                     <td style="vertical-align:top;">${itemsArr.join('')}</td>
-                    <td class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:#0f172a;">$${sessionTotal}</td>
+                    <td class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:var(--text-main);">$${sessionTotal}</td>
                 `;
                 tbody.appendChild(tr);
             });
         });
 
         if (tbody.children.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding: 2rem;">本週無任何訂餐紀錄</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding: 2rem;">本週無任何訂餐紀錄</td></tr>`;
         }
 
         table.appendChild(tbody);
@@ -687,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (Object.keys(personMap).length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding: 2rem;">本週無任何訂餐紀錄</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding: 2rem;">本週無任何訂餐紀錄</td></tr>`;
         }
 
         Object.entries(personMap).forEach(([name, data]) => {
@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.innerHTML = `
                 <td style="font-weight:600; font-size:1.1rem;">${name}</td>
                 <td style="text-align:center;">${data.count} 筆</td>
-                <td class="amount-value" style="color:#64748b;">$${data.total}</td>
+                <td class="amount-value" style="color:var(--text-muted);">$${data.total}</td>
                 <td class="amount-value" style="color:var(--success);">$${data.paidTotal}</td>
                 <td class="amount-value" style="color:var(--danger); font-weight:700;">$${remains}</td>
                 <td class="status-cell" style="text-align:center; font-weight:600; vertical-align:middle;">
