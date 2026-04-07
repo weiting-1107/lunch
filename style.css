@@ -539,17 +539,43 @@ header p {
 
 .excel-table td { background-color: var(--card-bg); color: var(--text-main); }
 
+/* 餐期下拉選單 */
+.meal-type-select {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    outline: none;
+    color: var(--text-main);
+    font-weight: 600;
+    font-family: inherit;
+}
+
 /* 深色模式：全面覆蓋表格與 Modal 內部所有寫死的淺色背景 */
 [data-theme="dark"] .modal-body,
 [data-theme="dark"] .modal-content { color: var(--text-main); }
-[data-theme="dark"] .excel-table td { background-color: var(--card-bg) !important; color: var(--text-main) !important; }
-[data-theme="dark"] .excel-table th { background-color: var(--table-header-bg) !important; color: var(--text-main) !important; }
+
+[data-theme="dark"] .excel-table td,
+[data-theme="dark"] .excel-table td[style] { background-color: var(--card-bg) !important; color: var(--text-main) !important; }
+
+[data-theme="dark"] .excel-table th,
+[data-theme="dark"] .excel-table th[style] { background-color: var(--table-header-bg) !important; color: var(--text-main) !important; }
+
 [data-theme="dark"] .excel-table tfoot th { background-color: var(--table-foot-bg) !important; }
+
 [data-theme="dark"] .row-paid td { color: var(--text-muted) !important; }
-[data-theme="dark"] .modal-controls { background: var(--input-bg); border-color: var(--border); }
-[data-theme="dark"] .week-nav-btn { background: var(--card-bg); border-color: var(--border); color: var(--text-muted); }
-[data-theme="dark"] select { background-color: var(--input-bg) !important; color: var(--text-main) !important; }
-[data-theme="dark"] input[type="date"] { color-scheme: dark; }
+
+[data-theme="dark"] .modal-controls { background: var(--input-bg) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .week-nav-btn { background: var(--card-bg) !important; border-color: var(--border) !important; color: var(--text-muted) !important; }
+
+[data-theme="dark"] .meal-type-select,
+[data-theme="dark"] select,
+[data-theme="dark"] select option { background-color: var(--input-bg) !important; color: var(--text-main) !important; }
+
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="time"] { color-scheme: dark; }
+
+[data-theme="dark"] .setting-item { background: var(--input-bg); border-color: var(--border); }
 
 /* Table buttons */
 .delete-record-btn, .edit-record-btn {
