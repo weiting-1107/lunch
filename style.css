@@ -96,6 +96,12 @@ h1 {
     display: flex;
     gap: 0.5rem;
 }
+.header-actions-left {
+    position: absolute;
+    left: 0;
+    display: flex;
+    gap: 0.5rem;
+}
 
 .theme-toggle {
     background: transparent;
