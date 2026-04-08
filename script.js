@@ -65,16 +65,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const dynamicTableContainer = document.getElementById('dynamic-table-container');
 
     // Datalists
-    const nameHistoryDl = document.getElementById('name-history');
     const itemHistoryDl = document.getElementById('item-history');
+    const restaurantHistoryDl = document.getElementById('restaurant-history');
 
-    // 狀態管理
+    // 狀態與資料快取 (對應新的 Apps Script 五大表)
+    let memoryOrders = [];
+    let memoryUsers = [];
+    let memoryRestaurants = [];
+    let memoryVotes = [];
+    let memoryConfig = {};
+    let isSyncing = false; // ★ 新增：防止寫入期間被 10 秒自動刷新覆蓋 UI
+
     let currentViewDate = new Date();
     const SETTINGS_KEY = 'lunch_settings';
 
     // ★★★ 雲端資料庫與同步設定 ★★★
     const API_URL = "https://script.google.com/macros/s/AKfycbz7W96yP5KcrzwaMwqFuOP6vEn13jWBw-dwrLH16L7cSq4QOlesnJIdJlvjbSwe3fgl/exec";
-    let memoryOrders = []; // 用於暫存雲端資料
 
     // 日期格式標準化工具：將任何格式的日期統一轉為 YYYY-MM-DD
     function normalizeDate(raw) {
@@ -92,32 +98,86 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dd = String(local.getUTCDate()).padStart(2, '0');
                 return `${yyyy}-${mm}-${dd}`;
             }
-        } catch (e) {}
+        } catch (e) { }
         return String(raw);
+    }
+
+    // 時間格式標準化工具：將任何格式的時間統一轉為 HH:MM
+    function normalizeTime(raw) {
+        if (!raw) return '';
+        const str = String(raw);
+        // 已經是 HH:MM 格式
+        if (/^\d{2}:\d{2}$/.test(str)) return str;
+        
+        // 解決 Google Sheets 1899-12-30 日期格式陷阱：從字串直接萃取時間
+        const isoMatch = String(str).match(/T(\d{2}):(\d{2})/);
+        if (isoMatch) return `${isoMatch[1]}:${isoMatch[2]}`;
+        
+        // 嘗試從 Date 字串中提取時間 (處理 Google Sheets 自動轉換日期問題)
+        try {
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) {
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                return `${hh}:${mm}`;
+            }
+        } catch (e) {}
+        // 嘗試匹配 HH:MM:SS 格式
+        const match = String(str).match(/(\d{1,2}):(\d{2})/);
+        if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+        return '';
     }
 
     async function fetchFromCloud() {
         if (!API_URL.startsWith("http")) return; // 防止未設定時報錯
+        if (isSyncing) return; // ★ 如果正在寫入，跳過本次自動刷新，避免畫面閃爍或吃掉剛新增的資料
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
-            if (Array.isArray(data)) {
-                // 全面清洗雲端回傳的資料，防止格式不一致
-                memoryOrders = data.map(o => {
-                    o.date = normalizeDate(o.date);
-                    o.mealType = o.mealType || '午餐';
-                    o.price = Number(o.price) || 0;
-                    o.paid = o.paid === true || o.paid === 'TRUE';
-                    return o;
-                }).filter(o => o.date); // 過濾掉日期無效的空行
+            if (data) {
+                // 如果是新版結構 (有 orders 屬性)
+                if (data.orders) {
+                    memoryOrders = data.orders.map(o => {
+                        o.date = normalizeDate(o.date);
+                        o.mealType = o.mealType || '午餐';
+                        o.price = Number(o.price) || 0;
+                        o.paid = o.paid === true || o.paid === 'TRUE';
+                        o.cutoffTime = normalizeTime(o.cutoffTime);
+                        return o;
+                    }).filter(o => o.date);
+                    
+                    memoryUsers = data.users || [];
+                    memoryRestaurants = data.restaurants || [];
+                    memoryVotes = data.votes || [];
+                    memoryConfig = {};
+                    (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
+
+                } else if (Array.isArray(data)) {
+                    // 相容舊版陣列
+                    memoryOrders = data.map(o => {
+                        o.date = normalizeDate(o.date);
+                        o.mealType = o.mealType || '午餐';
+                        o.price = Number(o.price) || 0;
+                        o.paid = o.paid === true || o.paid === 'TRUE';
+                        o.cutoffTime = normalizeTime(o.cutoffTime);
+                        return o;
+                    }).filter(o => o.date);
+                }
 
                 updateDatalists();
                 updateGrandTotal();
                 handleFormState();
+                renderVotingSection(); // ★ 新增：每次刷新時更新投票區
 
                 // 若正在瀏覽表格，立刻觸發畫面刷新
                 if (!document.getElementById('excel-modal').classList.contains('hidden')) {
                     renderOrders();
+                }
+                
+                // 動態渲染系統維護畫面 (若開啟的話)
+                const settingsModal = document.getElementById('settings-modal');
+                if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                    renderSettingsTab();
                 }
             }
         } catch (err) {
@@ -138,21 +198,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return memoryOrders;
     }
 
+    async function saveCloudData(action, dataArray) {
+        if (!API_URL.startsWith("http")) return;
+        isSyncing = true;
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action, data: dataArray })
+            });
+        } catch (err) {
+            showToast('雲端儲存失敗', 'error');
+        } finally {
+            isSyncing = false;
+        }
+    }
+
     function saveOrders(orders) {
         memoryOrders = orders;
         updateDatalists();
+        saveCloudData("saveOrders", orders);
+    }
+    
+    function saveUsers(users) {
+        memoryUsers = users;
+        saveCloudData("saveUsers", users);
+        updateDatalists();
+        if (typeof renderVotingSection === 'function') renderVotingSection();
+    }
 
-        if (!API_URL.startsWith("http")) {
-            console.warn("尚未設置 API_URL，無法同步至雲端");
-            return;
-        }
+    function saveRestaurants(rests) {
+        memoryRestaurants = rests;
+        saveCloudData("saveRestaurants", rests);
+        updateDatalists();
+        if (typeof renderVotingSection === 'function') renderVotingSection();
+    }
 
-        // 覆蓋寫入至 Google Sheets
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' }, // 避開 CORS 限制
-            body: JSON.stringify(orders)
-        }).catch(() => showToast('雲端儲存失敗，請檢查網路連線', 'error'));
+    function saveVotes(votes) {
+        memoryVotes = votes;
+        saveCloudData("saveVotes", votes);
     }
 
     // 將設定維持在 LocalStorage，因為個人設定不需要全公司同步
@@ -174,15 +257,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // 更新 Datalist 記憶快選
     function updateDatalists() {
         const orders = getOrders();
-        const names = [...new Set(orders.map(o => o.name).filter(Boolean))];
-        const items = [...new Set(orders.map(o => o.item).filter(Boolean))];
-
-        nameHistoryDl.innerHTML = '';
-        names.forEach(n => {
-            const opt = document.createElement('option');
-            opt.value = n;
-            nameHistoryDl.appendChild(opt);
+        
+        // 更新人員下拉選單 (從 Users DB)
+        const oldName = personNameInput.value;
+        const oldVoteName = document.getElementById('vote-person')?.value;
+        personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
+        const votePersonSel = document.getElementById('vote-person');
+        if (votePersonSel) votePersonSel.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
+        
+        memoryUsers.forEach(u => {
+            personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+            if (votePersonSel) votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
         });
+        personNameInput.value = oldName || "";
+        if (votePersonSel) votePersonSel.value = oldVoteName || "";
+
+        // 更新餐廳 Datalist (從 Restaurants DB)
+        restaurantHistoryDl.innerHTML = '';
+        memoryRestaurants.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.name;
+            restaurantHistoryDl.appendChild(opt);
+        });
+
+        // 歷史餐點
+        const items = [...new Set(orders.map(o => o.item).filter(Boolean))];
 
         itemHistoryDl.innerHTML = '';
         items.forEach(i => {
@@ -259,32 +358,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMealType = mealTypeInput.value;
         const locked = isSessionLocked(selectedDate, selectedMealType);
 
-        // 鎖單視覺與按鈕控制
-        if (locked) {
-            lockedWarning.classList.remove('hidden');
-            orderFormContainer.classList.add('locked-form');
-            submitOrderBtn.disabled = true;
-            submitOrderBtn.innerHTML = '已截止鎖定';
-            submitOrderBtn.style.background = 'var(--text-muted)';
-        } else {
-            lockedWarning.classList.add('hidden');
-            orderFormContainer.classList.remove('locked-form');
-            submitOrderBtn.disabled = false;
-            submitOrderBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 送出訂單';
-            submitOrderBtn.style.background = 'var(--primary)';
-        }
-
         // 餐廳與時間設定鎖定：
         const orders = getOrders();
-        const anyOrder = orders.find(o => o.date === selectedDate && o.mealType === selectedMealType);
+        const sessionOrders = orders.filter(o => o.date === selectedDate && o.mealType === selectedMealType);
+        const anyOrder = sessionOrders.length > 0 ? sessionOrders[0] : null;
 
+        // ★ 如果此餐期已有訂單，同步顯示雲端的餐廳名稱與鎖單時間
+        const cutoffDisplay = document.getElementById('cutoff-display');
         if (anyOrder) {
             if (anyOrder.restaurant) {
                 restaurantNameInput.value = anyOrder.restaurant;
             }
-            if (anyOrder.cutoffTime) {
-                cutoffTimeInput.value = anyOrder.cutoffTime;
-            }
+            // 鎖單時間：雲端值 > 本機設定值 > 預設值，確保一定會顯示
+            const syncedCutoff = anyOrder.cutoffTime || getSettings().cutoffTime || '10:30';
+            cutoffTimeInput.value = syncedCutoff;
+
+            // ★ 隱藏原生 time input，改用醒目的文字標籤顯示截止時間
+            cutoffTimeInput.style.display = 'none';
+            cutoffDisplay.textContent = `⏰ ${selectedDate} ${syncedCutoff}`;
+            cutoffDisplay.classList.remove('hidden');
+
             restaurantNameInput.disabled = true;
             restaurantNameInput.title = "今日此餐期已開單，不可更改餐廳";
             restaurantNameInput.style.background = "var(--input-bg)";
@@ -301,16 +394,44 @@ document.addEventListener('DOMContentLoaded', () => {
             restaurantNameInput.style.background = "transparent";
             restaurantNameInput.style.color = "var(--text-main)";
 
+            // 恢復原生 time input
+            cutoffTimeInput.style.display = '';
             cutoffTimeInput.disabled = false;
             cutoffTimeInput.title = "鎖單時間 (一旦有人訂購即鎖定)";
             cutoffTimeInput.style.background = "transparent";
             cutoffTimeInput.style.color = "var(--text-main)";
             cutoffTimeInput.style.borderBottom = "none";
+            cutoffDisplay.classList.add('hidden');
+        }
+
+        // 鎖單視覺與按鈕控制
+        if (locked) {
+            lockedWarning.classList.remove('hidden');
+            lockedWarning.textContent = `⚠️ 【${selectedMealType}】已於 ${selectedDate} ${cutoffTimeInput.value} 截止，訂單已鎖定。`;
+            orderFormContainer.classList.add('locked-form');
+            submitOrderBtn.disabled = true;
+            submitOrderBtn.innerHTML = '已截止鎖定';
+            submitOrderBtn.style.background = 'var(--text-muted)';
+        } else {
+            lockedWarning.classList.add('hidden');
+            orderFormContainer.classList.remove('locked-form');
+            submitOrderBtn.disabled = false;
+            submitOrderBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 送出訂單';
+            submitOrderBtn.style.background = 'var(--primary)';
+
+            // ★ 如果此餐期已有人點餐但還沒超過截止時間，顯示友善提示
+            if (anyOrder) {
+                lockedWarning.classList.remove('hidden');
+                lockedWarning.textContent = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}，餐廳：${anyOrder.restaurant || '未設定'}`;
+                lockedWarning.style.background = 'var(--input-bg)';
+                lockedWarning.style.borderColor = 'var(--primary)';
+                lockedWarning.style.color = 'var(--primary)';
+            }
         }
     }
 
-    orderDateInput.addEventListener('change', handleFormState);
-    mealTypeInput.addEventListener('change', handleFormState);
+    orderDateInput.addEventListener('change', () => { handleFormState(); renderVotingSection(); });
+    mealTypeInput.addEventListener('change', () => { handleFormState(); renderVotingSection(); });
     cutoffTimeInput.addEventListener('change', () => {
         const settings = getSettings();
         settings.cutoffTime = cutoffTimeInput.value;
@@ -510,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         weekDates.forEach(({ dateString, dayLabel }) => {
             const dayOrders = allOrders.filter(o => o.date === dateString);
-            
+
             if (dayOrders.length === 0) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">無訂餐紀錄</td>`;
@@ -518,11 +639,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // 將每日訂單依照 mealType 再次分群
                 const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))];
-                
+
                 mealTypes.forEach(mType => {
                     const sessionOrders = dayOrders.filter(o => (o.mealType || '午餐') === mType);
-                    if(sessionOrders.length === 0) return;
-                    
+                    if (sessionOrders.length === 0) return;
+
                     const isLocked = isSessionLocked(dateString, mType);
                     let sessionTotal = 0;
                     const sessionRest = sessionOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
@@ -628,11 +749,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dayOrders.length === 0) return;
 
             const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))];
-                
+
             mealTypes.forEach(mType => {
                 const sessionOrders = dayOrders.filter(o => (o.mealType || '午餐') === mType);
-                if(sessionOrders.length === 0) return;
-                
+                if (sessionOrders.length === 0) return;
+
                 const sessionRest = sessionOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
                 let sessionTotal = 0;
 
@@ -842,6 +963,235 @@ document.addEventListener('DOMContentLoaded', () => {
                 location.reload();
             }
         }
+    });
+
+    // === 系統維護 UI (人員、餐廳、設定) ===
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsBtn = document.getElementById('settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const settingsTabs = document.querySelectorAll('.settings-tab-btn');
+    let activeSettingsTab = 'tab-users';
+
+    if (settingsBtn) settingsBtn.addEventListener('click', () => {
+        if (memoryConfig.adminPwd && String(memoryConfig.adminPwd).trim() !== '') {
+            const pwd = prompt('為防止誤觸，請輸入管理員密碼：');
+            if (pwd === null) return; // User clicked Cancel
+            if (pwd !== String(memoryConfig.adminPwd)) {
+                showToast('密碼錯誤！無法進入系統維護。', 'error');
+                return;
+            }
+        }
+        settingsModal.classList.remove('hidden');
+        renderSettingsTab();
+    });
+    if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.classList.add('hidden');
+    });
+
+    settingsTabs.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            settingsTabs.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeSettingsTab = btn.getAttribute('data-tab');
+            renderSettingsTab();
+        });
+    });
+
+    function renderSettingsTab() {
+        const container = document.getElementById('settings-dynamic-content');
+        if (!container) return;
+        let html = '';
+
+        if (activeSettingsTab === 'tab-users') {
+            html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;"><input type="text" id="new-user-name" class="restaurant-input" placeholder="新增人員姓名"><button id="add-user-btn" class="primary-btn">新增</button></div>`;
+            html += `<table class="excel-table"><thead><tr><th>人員名稱</th><th>操作</th></tr></thead><tbody>`;
+            memoryUsers.forEach(u => {
+                html += `<tr><td>${u.name}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
+            });
+            if(memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
+            html += `</tbody></table>`;
+        } else if (activeSettingsTab === 'tab-restaurants') {
+            html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;"><input type="text" id="new-rest-name" class="restaurant-input" placeholder="新增餐廳/便當店"><button id="add-rest-btn" class="primary-btn">新增</button></div>`;
+            html += `<table class="excel-table"><thead><tr><th>餐廳名稱</th><th>操作</th></tr></thead><tbody>`;
+            memoryRestaurants.forEach(r => {
+                html += `<tr><td>${r.name}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td></tr>`;
+            });
+            if(memoryRestaurants.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無餐廳資料</td></tr>`;
+            html += `</tbody></table>`;
+        } else if (activeSettingsTab === 'tab-config') {
+            const currentCutoff = memoryConfig.voteCutoffTime || '11:00';
+            const currentPwd = memoryConfig.adminPwd || '';
+            html += `<div class="form-group" style="margin-bottom:1rem;"><label>餐廳投票截止時間 (每日自動開票時間)</label>`;
+            html += `<input type="time" id="config-vote-time" class="restaurant-input time-input" value="${currentCutoff}"></div>`;
+            html += `<div class="form-group" style="margin-bottom:1rem;"><label>系統設定密碼防護 (留空代表任何人皆可進來設定)</label>`;
+            html += `<input type="text" id="config-admin-pwd" class="restaurant-input" value="${currentPwd}" placeholder="請設定密碼 (選填)"></div>`;
+            html += `<button id="save-config-btn" class="primary-btn">儲存設定</button>`;
+        }
+        
+        container.innerHTML = html;
+
+        // Bind events
+        if (activeSettingsTab === 'tab-users') {
+            document.getElementById('add-user-btn').onclick = () => {
+                const n = document.getElementById('new-user-name').value.trim();
+                if (n) {
+                    const newUsers = [...memoryUsers, { id: 'U'+Date.now(), name: n }];
+                    saveUsers(newUsers);
+                    renderSettingsTab();
+                }
+            };
+        } else if (activeSettingsTab === 'tab-restaurants') {
+            document.getElementById('add-rest-btn').onclick = () => {
+                const n = document.getElementById('new-rest-name').value.trim();
+                if (n) {
+                    const newRests = [...memoryRestaurants, { id: 'R'+Date.now(), name: n }];
+                    saveRestaurants(newRests);
+                    renderSettingsTab();
+                }
+            };
+        } else if (activeSettingsTab === 'tab-config') {
+            document.getElementById('save-config-btn').onclick = () => {
+                const t = document.getElementById('config-vote-time').value;
+                const p = document.getElementById('config-admin-pwd').value;
+                const newConfig = [
+                    { key: 'voteCutoffTime', value: "'" + t }, // 加上單引號，強迫 Google Sheets 存成純文字，不要轉成 1899 日期
+                    { key: 'adminPwd', value: p }
+                ];
+                memoryConfig.voteCutoffTime = t;
+                memoryConfig.adminPwd = p;
+                saveCloudData("saveConfig", newConfig);
+                renderVotingSection();
+                showToast('設定已儲存', 'success');
+            };
+        }
+    }
+
+    window.deleteUser = function(id) {
+        if(confirm('確定刪除此人員？')){
+            saveUsers(memoryUsers.filter(u => u.id !== id));
+            renderSettingsTab();
+        }
+    };
+    window.deleteRestaurant = function(id) {
+        if(confirm('確定刪除此餐廳？')){
+            saveRestaurants(memoryRestaurants.filter(r => r.id !== id));
+            renderSettingsTab();
+        }
+    };
+
+    // === 投票系統 UI ===
+    function renderVotingSection() {
+        const vSec = document.getElementById('voting-section');
+        const orderDateInput = document.getElementById('order-date'); // 取得選取的日期
+        if (!vSec || !orderDateInput) return;
+        
+        const voteCutoff = memoryConfig.voteCutoffTime || '11:00';
+        const now = new Date();
+        const curHH = String(now.getHours()).padStart(2,'0');
+        const curMM = String(now.getMinutes()).padStart(2,'0');
+        const curTimeStr = `${curHH}:${curMM}`;
+        
+        const todayStr = getTodayString();
+        const selectedDateStr = orderDateInput.value || todayStr;
+        const mType = document.getElementById('meal-type').value || '午餐';
+        
+        // 此餐期的現有訂單 (如果有已經建立出來的訂單，表示餐廳已經鎖定了)
+        const sessionOrders = memoryOrders.filter(o => o.date === selectedDateStr && (o.mealType||'午餐') === mType);
+
+        // 判斷是否超過開放投票的時間
+        // 如果是過去的日期 -> 關閉
+        // 如果是今天的日期，且現在時間大於每日開票時間 -> 關閉
+        const isPastCutoff = (selectedDateStr < todayStr) || (selectedDateStr === todayStr && curTimeStr >= voteCutoff);
+
+        // 如果現在過了每日投票時間，強制關閉投票並統計
+        if (isPastCutoff || sessionOrders.length > 0) {
+            vSec.classList.add('hidden');
+            
+            // 如果還沒有任何訂單，我們嘗試從此餐期的投票中選出最高分的自動填入餐廳名字
+            if (sessionOrders.length === 0) {
+                const todaysVotes = memoryVotes.filter(v => v.date === selectedDateStr && v.mealType === mType);
+                if (todaysVotes.length > 0) {
+                    const counts = {};
+                    let maxCount = 0;
+                    let winner = '';
+                    todaysVotes.forEach(v => {
+                        counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
+                        if (counts[v.restaurantName] > maxCount) {
+                            maxCount = counts[v.restaurantName];
+                            winner = v.restaurantName;
+                        }
+                    });
+                    if (winner && document.getElementById('restaurant-name').value === '') {
+                        document.getElementById('restaurant-name').value = winner;
+                    }
+                }
+            }
+            return;
+        }
+
+        // 可以顯示投票區
+        vSec.classList.remove('hidden');
+        document.getElementById('voting-countdown').innerText = `截止時間：${selectedDateStr} ${voteCutoff}`;
+        
+        const container = document.getElementById('voting-options');
+        container.innerHTML = '';
+        const todaysVotes = memoryVotes.filter(v => v.date === selectedDateStr && v.mealType === mType);
+        
+        // 算出每家餐廳目前的票數
+        const voteCounts = {};
+        todaysVotes.forEach(v => voteCounts[v.restaurantName] = (voteCounts[v.restaurantName]||0) + 1);
+
+        memoryRestaurants.forEach(r => {
+            const count = voteCounts[r.name] || 0;
+            const row = document.createElement('label');
+            row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--card-bg); border-radius:0.25rem; border:1px solid var(--border); cursor:pointer;";
+            row.innerHTML = `
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <input type="radio" name="vote-restaurant-radio" value="${r.name}">
+                    <span style="font-weight:500;">${r.name}</span>
+                </div>
+                <span class="stat-badge" style="background:var(--primary); color:white;">${count} 票</span>
+            `;
+            container.appendChild(row);
+        });
+
+        if (memoryRestaurants.length === 0) {
+            container.innerHTML = '<div style="color:var(--text-muted);">尚未建立餐廳名單，請管理員於上方「系統設定」加入。</div>';
+        }
+    }
+
+    const submitVoteBtn = document.getElementById('submit-vote-btn');
+    if (submitVoteBtn) submitVoteBtn.addEventListener('click', () => {
+        const person = document.getElementById('vote-person').value;
+        const restRadio = document.querySelector('input[name="vote-restaurant-radio"]:checked');
+        
+        if (!person) { showToast('請先選擇您的姓名', 'error'); return; }
+        if (!restRadio) { showToast('請選擇想要投的餐廳', 'error'); return; }
+
+        const selectedDateStr = document.getElementById('order-date').value || getTodayString();
+        const mType = document.getElementById('meal-type').value || '午餐';
+        
+        // 找尋是否有投過了
+        let updatedVotes = [...memoryVotes];
+        const existingVoteIndex = updatedVotes.findIndex(v => v.date === selectedDateStr && v.mealType === mType && v.userName === person);
+        
+        if (existingVoteIndex >= 0) {
+            // 取代舊票
+            updatedVotes[existingVoteIndex].restaurantName = restRadio.value;
+            showToast('已修改您的投票！', 'success');
+        } else {
+            updatedVotes.push({ date: selectedDateStr, mealType: mType, userName: person, restaurantName: restRadio.value });
+            showToast('✅ 投票成功！', 'success');
+        }
+
+        saveVotes(updatedVotes);
+        renderVotingSection();
+    });
+
+    // 監聽重新選餐期以重繪投票
+    document.getElementById('meal-type').addEventListener('change', () => {
+        renderVotingSection();
+        handleFormState();
     });
 
     // Boot

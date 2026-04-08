@@ -18,7 +18,10 @@
         <header>
             <div class="header-top">
                 <h1>🍱 訂餐管理系統</h1>
-                <button id="theme-toggle-btn" class="theme-toggle" title="切換深黑/明亮模式">🌙</button>
+                <div class="header-actions-right">
+                    <button id="settings-btn" class="theme-toggle" title="系統設定與維護">⚙️</button>
+                    <button id="theme-toggle-btn" class="theme-toggle" title="切換深黑/明亮模式">🌙</button>
+                </div>
             </div>
             <p>公司集體訂單、自動總帳、防呆鎖單</p>
             <div class="header-settings">
@@ -39,12 +42,13 @@
                 <!-- 每日指定餐廳 -->
                 <div class="setting-item">
                     <label for="restaurant-name">今日餐廳：</label>
-                    <input type="text" id="restaurant-name" placeholder="例如：八方雲集" class="restaurant-input">
+                    <input type="text" id="restaurant-name" placeholder="例如：八方雲集" list="restaurant-history" class="restaurant-input">
                 </div>
                 <!-- 每日截止時間 -->
                 <div class="setting-item">
                     <label for="cutoff-time" title="超過此時間，主畫面不准再加單與刪單">鎖單時間：</label>
                     <input type="time" id="cutoff-time" value="10:30" class="time-input">
+                    <span id="cutoff-display" class="cutoff-display hidden"></span>
                 </div>
             </div>
         </header>
@@ -55,11 +59,34 @@
                 ⚠️ 本日訂單已過截止時間，狀態已鎖定不開放新增或修改。
             </div>
 
+            <!-- 投票區 (自動顯示/隱藏) -->
+            <div id="voting-section" class="order-form-card hidden" style="margin-bottom: 1.5rem; border: 2px solid var(--primary);">
+                <h3 style="margin-top:0; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                    <span>📊 今日餐廳投票</span>
+                    <span id="voting-countdown" style="font-size:0.9rem; color:var(--text-muted); font-weight:normal;"></span>
+                </h3>
+                <div class="form-group">
+                    <label for="vote-person">投票人 <span class="required">*</span></label>
+                    <select id="vote-person" required class="restaurant-input" style="width:100%; border:1px solid var(--border);">
+                        <option value="" disabled selected>請選擇您的姓名 (需由管理員新增)</option>
+                    </select>
+                </div>
+                <div id="voting-options" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;">
+                    <!-- 選項將由 JS 產生 -->
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem;">
+                    * 每人每個餐期僅可投一票，截止時系統將自動選擇最高票餐廳並鎖定。<br>
+                    * 若無人投票或平手，將由第一位點餐者自行決定。
+                </div>
+                <button id="submit-vote-btn" class="primary-btn" style="margin-top:1rem;">🗳️ 確認送出投票</button>
+            </div>
+
             <div class="order-form-card" id="order-form-container">
                 <div class="form-group">
                     <label for="person-name">姓名 <span class="required">*</span></label>
-                    <input type="text" id="person-name" placeholder="輸入查詢或點擊選擇" list="name-history" required
-                        autocomplete="off">
+                    <select id="person-name" required class="restaurant-input" style="width:100%; border:1px solid var(--border);">
+                        <option value="" disabled selected>請選擇您的姓名</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="item-name">餐點名稱 <span class="required">*</span></label>
@@ -124,8 +151,8 @@
     </div>
 
     <!-- 歷史清單 DataList (自動完成) -->
-    <datalist id="name-history"></datalist>
     <datalist id="item-history"></datalist>
+    <datalist id="restaurant-history"></datalist>
 
     <!-- 結算表明細 Modal -->
     <div id="excel-modal" class="modal-overlay hidden">
@@ -189,8 +216,33 @@
         </div>
     </div>
 
+    <!-- 系統設定重點 Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>⚙️ 系統設定與資料維護</h2>
+                <div class="header-actions">
+                    <button id="close-settings-btn" class="close-btn" aria-label="關閉">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-tabs">
+                <button class="settings-tab-btn active" data-tab="tab-users">👥 人員維護</button>
+                <button class="settings-tab-btn" data-tab="tab-restaurants">🏪 便當店維護</button>
+                <button class="settings-tab-btn" data-tab="tab-config">⚙️ 其他設定</button>
+            </div>
+            <div class="modal-body">
+                <div id="settings-dynamic-content" style="min-height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=20"></script>
+    <script src="script.js?v=24"></script>
 </body>
 
 </html>

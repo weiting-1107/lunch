@@ -90,9 +90,14 @@ h1 {
     color: var(--text-main);
 }
 
-.theme-toggle {
+.header-actions-right {
     position: absolute;
     right: 0;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.theme-toggle {
     background: transparent;
     border: none;
     font-size: 1.25rem;
@@ -162,6 +167,17 @@ header p {
 
 .time-input:focus, .restaurant-input:focus {
     border-bottom: 1px solid var(--primary) !important;
+}
+
+.cutoff-display {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--input-bg);
+    border: 1px solid var(--primary);
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
 }
 
 /* Warning */
