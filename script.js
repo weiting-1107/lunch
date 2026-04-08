@@ -1019,13 +1019,40 @@ document.addEventListener('DOMContentLoaded', () => {
             if(memoryRestaurants.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無餐廳資料</td></tr>`;
             html += `</tbody></table>`;
         } else if (activeSettingsTab === 'tab-config') {
-            const currentCutoff = memoryConfig.voteCutoffTime || '11:00';
+            const now = new Date();
+            const curHH = String(now.getHours()).padStart(2, '0');
+            const curMM = String(now.getMinutes()).padStart(2, '0');
+            const currentTimeStr = `${curHH}:${curMM}`;
+            
+            let storedTime = memoryConfig.voteCutoffTime;
+            if (storedTime !== undefined && storedTime !== '') storedTime = normalizeTime(storedTime);
+            
+            const currentCutoff = storedTime || currentTimeStr;
             const currentPwd = memoryConfig.adminPwd || '';
-            html += `<div class="form-group" style="margin-bottom:1rem;"><label>餐廳投票截止時間 (每日自動開票時間)</label>`;
+            const todayStr = getTodayString();
+            
+            html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>預設每天投票截止時間</label>`;
             html += `<input type="time" id="config-vote-time" class="restaurant-input time-input" value="${currentCutoff}"></div>`;
+            
+            html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>指定特定日期的投票截止時間 (優先於預設)</label>`;
+            html += `<div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;"><input type="date" id="new-cutoff-date" class="restaurant-input time-input" value="${todayStr}"><input type="time" id="new-cutoff-time" class="restaurant-input time-input" value="${currentCutoff}"><button id="add-cutoff-btn" class="primary-btn" style="white-space:nowrap;">新增設定</button></div>`;
+            html += `<table class="excel-table"><thead><tr><th>指定日期</th><th>截止時間</th><th>操作</th></tr></thead><tbody>`;
+            
+            let hasOverrides = false;
+            Object.keys(memoryConfig).forEach(k => {
+                if(k.startsWith('cutoff_')) {
+                    hasOverrides = true;
+                    const dateStr = k.replace('cutoff_', '');
+                    const timeStr = normalizeTime(memoryConfig[k]);
+                    html += `<tr><td>${dateStr}</td><td>${timeStr}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteCutoffOverride('${k}')">刪除</button></td></tr>`;
+                }
+            });
+            if (!hasOverrides) html += `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
+            html += `</tbody></table></div>`;
+            
             html += `<div class="form-group" style="margin-bottom:1rem;"><label>系統設定密碼防護 (留空代表任何人皆可進來設定)</label>`;
             html += `<input type="text" id="config-admin-pwd" class="restaurant-input" value="${currentPwd}" placeholder="請設定密碼 (選填)"></div>`;
-            html += `<button id="save-config-btn" class="primary-btn">儲存設定</button>`;
+            html += `<button id="save-config-btn" class="primary-btn" style="width:100%;">儲存設定</button>`;
         }
         
         container.innerHTML = html;
@@ -1050,15 +1077,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
         } else if (activeSettingsTab === 'tab-config') {
+            document.getElementById('add-cutoff-btn').onclick = () => {
+                const dateVal = document.getElementById('new-cutoff-date').value;
+                const timeVal = document.getElementById('new-cutoff-time').value;
+                if (!dateVal || !timeVal) {
+                    showToast('請完整選取日期與時間', 'error');
+                    return;
+                }
+                
+                // 防呆：禁止設定已過去的時間
+                const selectedDateTime = new Date(`${dateVal}T${timeVal}`);
+                if (selectedDateTime <= new Date()) {
+                    showToast('只能設定未來的時間！', 'error');
+                    return;
+                }
+
+                const key = 'cutoff_' + dateVal;
+                memoryConfig[key] = timeVal;
+                
+                const newConfig = [];
+                Object.keys(memoryConfig).forEach(k => {
+                    let val = memoryConfig[k];
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
+                    newConfig.push({key: k, value: val});
+                });
+                saveCloudData("saveConfig", newConfig);
+                renderSettingsTab();
+                renderVotingSection();
+            };
+
             document.getElementById('save-config-btn').onclick = () => {
                 const t = document.getElementById('config-vote-time').value;
                 const p = document.getElementById('config-admin-pwd').value;
-                const newConfig = [
-                    { key: 'voteCutoffTime', value: "'" + t }, // 加上單引號，強迫 Google Sheets 存成純文字，不要轉成 1899 日期
-                    { key: 'adminPwd', value: p }
-                ];
+                
                 memoryConfig.voteCutoffTime = t;
                 memoryConfig.adminPwd = p;
+                
+                const newConfig = [];
+                Object.keys(memoryConfig).forEach(k => {
+                    let val = memoryConfig[k];
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
+                    newConfig.push({key: k, value: val});
+                });
                 saveCloudData("saveConfig", newConfig);
                 renderVotingSection();
                 showToast('設定已儲存', 'success');
@@ -1078,6 +1138,23 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSettingsTab();
         }
     };
+    
+    window.deleteCutoffOverride = function(key) {
+        if(confirm('確定要刪除這個日期的專屬於截止時間嗎？')) {
+            const newConfig = [];
+            Object.keys(memoryConfig).forEach(k => {
+                if (k !== key) {
+                    let val = memoryConfig[k];
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
+                    newConfig.push({key: k, value: val});
+                }
+            });
+            delete memoryConfig[key];
+            saveCloudData("saveConfig", newConfig);
+            renderSettingsTab();
+            renderVotingSection();
+        }
+    }
 
     // === 投票系統 UI ===
     function renderVotingSection() {
@@ -1085,7 +1162,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const orderDateInput = document.getElementById('order-date'); // 取得選取的日期
         if (!vSec || !orderDateInput) return;
         
-        const voteCutoff = memoryConfig.voteCutoffTime || '11:00';
         const now = new Date();
         const curHH = String(now.getHours()).padStart(2,'0');
         const curMM = String(now.getMinutes()).padStart(2,'0');
@@ -1093,6 +1169,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const todayStr = getTodayString();
         const selectedDateStr = orderDateInput.value || todayStr;
+        
+        let storedTime = memoryConfig['cutoff_' + selectedDateStr];
+        if (storedTime === undefined || storedTime === '') {
+            storedTime = memoryConfig.voteCutoffTime;
+        }
+
+        if (storedTime !== undefined && storedTime !== '') {
+            storedTime = normalizeTime(storedTime);
+        }
+        const voteCutoff = storedTime || curTimeStr;
         const mType = document.getElementById('meal-type').value || '午餐';
         
         // 此餐期的現有訂單 (如果有已經建立出來的訂單，表示餐廳已經鎖定了)
