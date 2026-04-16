@@ -76,6 +76,7 @@
                 <div id="voting-options" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;">
                     <!-- 選項將由 JS 產生 -->
                 </div>
+                <div id="already-voted-note" style="display:none; margin-top:0.75rem; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:0.5rem; border-left:3px solid var(--success); font-size:0.85rem; color:var(--success);"></div>
                 <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem;">
                     * 每人每個餐期僅可投一票，截止時系統將自動選擇最高票餐廳並鎖定。<br>
                     * 若無人投票或平手，將由第一位點餐者自行決定。
@@ -244,7 +245,7 @@
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=29"></script>
+    <script src="script.js?v=31"></script>
 </body>
 
 </html>

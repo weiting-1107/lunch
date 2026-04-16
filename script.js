@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentViewDate = new Date();
     const SETTINGS_KEY = 'lunch_settings';
+    const CLOUD_CACHE_KEY = 'lunch_cloud_cache'; // ★ 快取雲端資料，讓頁面一開啟即能立刻顯示
 
     // ★★★ 雲端資料庫與同步設定 ★★★
     const API_URL = "https://script.google.com/macros/s/AKfycbz7W96yP5KcrzwaMwqFuOP6vEn13jWBw-dwrLH16L7cSq4QOlesnJIdJlvjbSwe3fgl/exec";
@@ -108,11 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const str = String(raw);
         // 已經是 HH:MM 格式
         if (/^\d{2}:\d{2}$/.test(str)) return str;
-        
+
         // 解決 Google Sheets 1899-12-30 日期格式陷阱：從字串直接萃取時間
         const isoMatch = String(str).match(/T(\d{2}):(\d{2})/);
         if (isoMatch) return `${isoMatch[1]}:${isoMatch[2]}`;
-        
+
         // 嘗試從 Date 字串中提取時間 (處理 Google Sheets 自動轉換日期問題)
         try {
             const d = new Date(str);
@@ -121,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const mm = String(d.getMinutes()).padStart(2, '0');
                 return `${hh}:${mm}`;
             }
-        } catch (e) {}
+        } catch (e) { }
         // 嘗試匹配 HH:MM:SS 格式
         const match = String(str).match(/(\d{1,2}):(\d{2})/);
         if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
@@ -145,10 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         o.cutoffTime = normalizeTime(o.cutoffTime);
                         return o;
                     }).filter(o => o.date);
-                    
+
                     memoryUsers = data.users || [];
                     memoryRestaurants = data.restaurants || [];
-                    memoryVotes = data.votes || [];
+                    memoryVotes = (data.votes || []).map(v => {
+                        v.date = normalizeDate(v.date);
+                        return v;
+                    });
                     memoryConfig = {};
                     (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
 
@@ -164,6 +168,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).filter(o => o.date);
                 }
 
+                // ★★ 儲存快取，下次開啟頁面可立刻顯示，不用等雲端 ★★
+                try {
+                    localStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({
+                        orders: memoryOrders, users: memoryUsers,
+                        restaurants: memoryRestaurants, votes: memoryVotes,
+                        config: Object.entries(memoryConfig).map(([key, value]) => ({ key, value }))
+                    }));
+                } catch(e) { /* 快取失敗無妨 */ }
+
                 updateDatalists();
                 updateGrandTotal();
                 handleFormState();
@@ -173,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!document.getElementById('excel-modal').classList.contains('hidden')) {
                     renderOrders();
                 }
-                
+
                 // 動態渲染系統維護畫面 (若開啟的話)
                 const settingsModal = document.getElementById('settings-modal');
                 if (settingsModal && !settingsModal.classList.contains('hidden')) {
@@ -218,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDatalists();
         saveCloudData("saveOrders", orders);
     }
-    
+
     function saveUsers(users) {
         memoryUsers = users;
         saveCloudData("saveUsers", users);
@@ -257,20 +270,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // 更新 Datalist 記憶快選
     function updateDatalists() {
         const orders = getOrders();
-        
+
         // 更新人員下拉選單 (從 Users DB)
         const oldName = personNameInput.value;
         const oldVoteName = document.getElementById('vote-person')?.value;
         personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
         const votePersonSel = document.getElementById('vote-person');
         if (votePersonSel) votePersonSel.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
-        
+
         memoryUsers.forEach(u => {
             personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             if (votePersonSel) votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
         });
         personNameInput.value = oldName || "";
-        if (votePersonSel) votePersonSel.value = oldVoteName || "";
+        if (votePersonSel) {
+            // ★ 小技巧：如果沒有舊選擇，自動帶入上次用過的名字
+            const lastPerson = localStorage.getItem('lunch_last_person');
+            votePersonSel.value = oldVoteName || lastPerson || "";
+        }
 
         // 更新餐廳 Datalist (從 Restaurants DB)
         restaurantHistoryDl.innerHTML = '';
@@ -1008,39 +1025,79 @@ document.addEventListener('DOMContentLoaded', () => {
             memoryUsers.forEach(u => {
                 html += `<tr><td>${u.name}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
             });
-            if(memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
+            if (memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
             html += `</tbody></table>`;
         } else if (activeSettingsTab === 'tab-restaurants') {
-            html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;"><input type="text" id="new-rest-name" class="restaurant-input" placeholder="新增餐廳/便當店"><button id="add-rest-btn" class="primary-btn">新增</button></div>`;
-            html += `<table class="excel-table"><thead><tr><th>餐廳名稱</th><th>操作</th></tr></thead><tbody>`;
-            memoryRestaurants.forEach(r => {
-                html += `<tr><td>${r.name}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td></tr>`;
-            });
-            if(memoryRestaurants.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無餐廳資料</td></tr>`;
-            html += `</tbody></table>`;
+            const dayNames = ['日','一','二','三','四','五','六'];
+            if (window._editingRestaurantId) {
+                // ─── 編輯模式 ─────────────────────────────────
+                const r = memoryRestaurants.find(r => r.id === window._editingRestaurantId);
+                if (r) {
+                    const openDaysArr = r.openDays ? r.openDays.split(',').map(d => d.trim()) : ['1','2','3','4','5'];
+                    const dayChecks = dayNames.map((day, i) =>
+                        `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;">
+                            <input type="checkbox" name="edit-open-day" value="${i}" ${openDaysArr.includes(String(i)) ? 'checked' : ''}> 週${day}
+                        </label>`).join('');
+                    html += `<div style="background:var(--input-bg);border:1px solid var(--primary);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">`;
+                    html += `<h4 style="margin-top:0;color:var(--primary);">✏️ 編輯：${r.name}</h4>`;
+                    html += `<div class="form-group"><label>店名 *</label><input type="text" id="edit-rest-name" class="restaurant-input" value="${r.name || ''}"></div>`;
+                    html += `<div class="form-group"><label>電話</label><input type="text" id="edit-rest-phone" class="restaurant-input" placeholder="02-1234-5678" value="${r.phone || ''}"></div>`;
+                    html += `<div class="form-group"><label>地址</label><input type="text" id="edit-rest-address" class="restaurant-input" placeholder="台北市..." value="${r.address || ''}"></div>`;
+                    html += `<div class="form-group"><label>營業日</label><div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.5rem;">${dayChecks}</div></div>`;
+                    html += `<div style="display:flex;gap:0.5rem;margin-top:1rem;"><button id="save-edit-rest-btn" class="primary-btn" style="flex:1;">💾 儲存變更</button><button id="cancel-edit-rest-btn" class="secondary-btn">取消</button></div>`;
+                    html += `</div>`;
+                }
+            } else {
+                // ─── 新增表單 ─────────────────────────────────
+                const newDayChecks = dayNames.map((day, i) =>
+                    `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;">
+                        <input type="checkbox" name="new-open-day" value="${i}" ${i >= 1 && i <= 5 ? 'checked' : ''}> 週${day}
+                    </label>`).join('');
+                html += `<div style="background:var(--input-bg);border:1px solid var(--border);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">`;
+                html += `<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" id="new-rest-name" class="restaurant-input" placeholder="店名 *" style="flex:2;"><input type="text" id="new-rest-phone" class="restaurant-input" placeholder="電話 (選填)" style="flex:1;"></div>`;
+                html += `<input type="text" id="new-rest-address" class="restaurant-input" placeholder="地址 (選填)" style="width:100%;margin-bottom:0.5rem;">`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.5rem;">${newDayChecks}</div>`;
+                html += `<button id="add-rest-btn" class="primary-btn" style="width:100%;">➕ 新增便當店</button>`;
+                html += `</div>`;
+                // ─── 列表表格 ─────────────────────────────────
+                html += `<table class="excel-table"><thead><tr><th>店名</th><th>電話</th><th>營業日</th><th>操作</th></tr></thead><tbody>`;
+                memoryRestaurants.forEach(r => {
+                    const openDaysStr = r.openDays
+                        ? r.openDays.split(',').map(d => `週${dayNames[parseInt(d.trim())]}`).join(' ')
+                        : '週一~五';
+                    html += `<tr>`;
+                    html += `<td><strong>${r.name}</strong>${r.address ? `<br><small style="color:var(--text-muted);">${r.address}</small>` : ''}</td>`;
+                    html += `<td>${r.phone || '-'}</td>`;
+                    html += `<td style="font-size:0.8rem;">${openDaysStr}</td>`;
+                    html += `<td style="text-align:center;white-space:nowrap;"><button class="secondary-btn" onclick="editRestaurant('${r.id}')" style="margin-right:4px;">編輯</button><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td>`;
+                    html += `</tr>`;
+                });
+                if (memoryRestaurants.length === 0) html += `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">尚無餐廳資料</td></tr>`;
+                html += `</tbody></table>`;
+            }
         } else if (activeSettingsTab === 'tab-config') {
             const now = new Date();
             const curHH = String(now.getHours()).padStart(2, '0');
             const curMM = String(now.getMinutes()).padStart(2, '0');
             const currentTimeStr = `${curHH}:${curMM}`;
-            
+
             let storedTime = memoryConfig.voteCutoffTime;
             if (storedTime !== undefined && storedTime !== '') storedTime = normalizeTime(storedTime);
-            
+
             const currentCutoff = storedTime || currentTimeStr;
             const currentPwd = memoryConfig.adminPwd || '';
             const todayStr = getTodayString();
-            
+
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>預設每天投票截止時間</label>`;
             html += `<input type="time" id="config-vote-time" class="restaurant-input time-input" value="${currentCutoff}"></div>`;
-            
+
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>指定特定日期的投票截止時間 (優先於預設)</label>`;
             html += `<div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;"><input type="date" id="new-cutoff-date" class="restaurant-input time-input" value="${todayStr}"><input type="time" id="new-cutoff-time" class="restaurant-input time-input" value="${currentCutoff}"><button id="add-cutoff-btn" class="primary-btn" style="white-space:nowrap;">新增設定</button></div>`;
             html += `<table class="excel-table"><thead><tr><th>指定日期</th><th>截止時間</th><th>操作</th></tr></thead><tbody>`;
-            
+
             let hasOverrides = false;
             Object.keys(memoryConfig).forEach(k => {
-                if(k.startsWith('cutoff_')) {
+                if (k.startsWith('cutoff_')) {
                     hasOverrides = true;
                     const dateStr = k.replace('cutoff_', '');
                     const timeStr = normalizeTime(memoryConfig[k]);
@@ -1049,12 +1106,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!hasOverrides) html += `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
-            
+
             html += `<div class="form-group" style="margin-bottom:1rem;"><label>系統設定密碼防護 (留空代表任何人皆可進來設定)</label>`;
             html += `<input type="text" id="config-admin-pwd" class="restaurant-input" value="${currentPwd}" placeholder="請設定密碼 (選填)"></div>`;
             html += `<button id="save-config-btn" class="primary-btn" style="width:100%;">儲存設定</button>`;
         }
-        
+
         container.innerHTML = html;
 
         // Bind events
@@ -1062,20 +1119,45 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('add-user-btn').onclick = () => {
                 const n = document.getElementById('new-user-name').value.trim();
                 if (n) {
-                    const newUsers = [...memoryUsers, { id: 'U'+Date.now(), name: n }];
+                    const newUsers = [...memoryUsers, { id: 'U' + Date.now(), name: n }];
                     saveUsers(newUsers);
                     renderSettingsTab();
                 }
             };
         } else if (activeSettingsTab === 'tab-restaurants') {
-            document.getElementById('add-rest-btn').onclick = () => {
-                const n = document.getElementById('new-rest-name').value.trim();
-                if (n) {
-                    const newRests = [...memoryRestaurants, { id: 'R'+Date.now(), name: n }];
-                    saveRestaurants(newRests);
+            if (window._editingRestaurantId) {
+                document.getElementById('save-edit-rest-btn').onclick = () => {
+                    const r = memoryRestaurants.find(r => r.id === window._editingRestaurantId);
+                    if (!r) return;
+                    const newName = document.getElementById('edit-rest-name').value.trim();
+                    if (!newName) { showToast('店名不能為空', 'error'); return; }
+                    r.name = newName;
+                    r.phone = document.getElementById('edit-rest-phone').value.trim();
+                    r.address = document.getElementById('edit-rest-address').value.trim();
+                    const checked = [...document.querySelectorAll('input[name="edit-open-day"]:checked')].map(cb => cb.value);
+                    r.openDays = checked.join(',');
+                    window._editingRestaurantId = null;
+                    saveRestaurants([...memoryRestaurants]);
                     renderSettingsTab();
-                }
-            };
+                    renderVotingSection();
+                };
+                document.getElementById('cancel-edit-rest-btn').onclick = () => {
+                    window._editingRestaurantId = null;
+                    renderSettingsTab();
+                };
+            } else {
+                document.getElementById('add-rest-btn').onclick = () => {
+                    const n = document.getElementById('new-rest-name').value.trim();
+                    if (!n) { showToast('請輸入店名', 'error'); return; }
+                    const phone = document.getElementById('new-rest-phone').value.trim();
+                    const address = document.getElementById('new-rest-address').value.trim();
+                    const checked = [...document.querySelectorAll('input[name="new-open-day"]:checked')].map(cb => cb.value);
+                    const newRest = { id: 'R' + Date.now(), name: n, phone, address, openDays: checked.join(',') };
+                    saveRestaurants([...memoryRestaurants, newRest]);
+                    renderSettingsTab();
+                    renderVotingSection();
+                };
+            }
         } else if (activeSettingsTab === 'tab-config') {
             document.getElementById('add-cutoff-btn').onclick = () => {
                 const dateVal = document.getElementById('new-cutoff-date').value;
@@ -1084,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast('請完整選取日期與時間', 'error');
                     return;
                 }
-                
+
                 // 防呆：禁止設定已過去的時間
                 const selectedDateTime = new Date(`${dateVal}T${timeVal}`);
                 if (selectedDateTime <= new Date()) {
@@ -1094,12 +1176,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const key = 'cutoff_' + dateVal;
                 memoryConfig[key] = timeVal;
-                
+
                 const newConfig = [];
                 Object.keys(memoryConfig).forEach(k => {
                     let val = memoryConfig[k];
                     if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
-                    newConfig.push({key: k, value: val});
+                    newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
                 renderSettingsTab();
@@ -1109,15 +1191,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('save-config-btn').onclick = () => {
                 const t = document.getElementById('config-vote-time').value;
                 const p = document.getElementById('config-admin-pwd').value;
-                
+
                 memoryConfig.voteCutoffTime = t;
                 memoryConfig.adminPwd = p;
-                
+
                 const newConfig = [];
                 Object.keys(memoryConfig).forEach(k => {
                     let val = memoryConfig[k];
                     if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
-                    newConfig.push({key: k, value: val});
+                    newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
                 renderVotingSection();
@@ -1126,27 +1208,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.deleteUser = function(id) {
-        if(confirm('確定刪除此人員？')){
+    window.deleteUser = function (id) {
+        if (confirm('確定刪除此人員？')) {
             saveUsers(memoryUsers.filter(u => u.id !== id));
             renderSettingsTab();
         }
     };
-    window.deleteRestaurant = function(id) {
-        if(confirm('確定刪除此餐廳？')){
+
+    window.editRestaurant = function (id) {
+        window._editingRestaurantId = id;
+        renderSettingsTab();
+    };
+
+    window.deleteRestaurant = function (id) {
+        if (confirm('確定刪除此餐廳？')) {
             saveRestaurants(memoryRestaurants.filter(r => r.id !== id));
             renderSettingsTab();
+            renderVotingSection();
         }
     };
-    
-    window.deleteCutoffOverride = function(key) {
-        if(confirm('確定要刪除這個日期的專屬於截止時間嗎？')) {
+
+    window.deleteCutoffOverride = function (key) {
+        if (confirm('確定要刪除這個日期的專屬於截止時間嗎？')) {
             const newConfig = [];
             Object.keys(memoryConfig).forEach(k => {
                 if (k !== key) {
                     let val = memoryConfig[k];
                     if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
-                    newConfig.push({key: k, value: val});
+                    newConfig.push({ key: k, value: val });
                 }
             });
             delete memoryConfig[key];
@@ -1161,15 +1250,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const vSec = document.getElementById('voting-section');
         const orderDateInput = document.getElementById('order-date'); // 取得選取的日期
         if (!vSec || !orderDateInput) return;
-        
+
         const now = new Date();
-        const curHH = String(now.getHours()).padStart(2,'0');
-        const curMM = String(now.getMinutes()).padStart(2,'0');
+        const curHH = String(now.getHours()).padStart(2, '0');
+        const curMM = String(now.getMinutes()).padStart(2, '0');
         const curTimeStr = `${curHH}:${curMM}`;
-        
+
         const todayStr = getTodayString();
         const selectedDateStr = orderDateInput.value || todayStr;
-        
+
         let storedTime = memoryConfig['cutoff_' + selectedDateStr];
         if (storedTime === undefined || storedTime === '') {
             storedTime = memoryConfig.voteCutoffTime;
@@ -1180,9 +1269,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const voteCutoff = storedTime || curTimeStr;
         const mType = document.getElementById('meal-type').value || '午餐';
-        
+
         // 此餐期的現有訂單 (如果有已經建立出來的訂單，表示餐廳已經鎖定了)
-        const sessionOrders = memoryOrders.filter(o => o.date === selectedDateStr && (o.mealType||'午餐') === mType);
+        const sessionOrders = memoryOrders.filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
 
         // 判斷是否超過開放投票的時間
         // 如果是過去的日期 -> 關閉
@@ -1192,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 如果現在過了每日投票時間，強制關閉投票並統計
         if (isPastCutoff || sessionOrders.length > 0) {
             vSec.classList.add('hidden');
-            
+
             // 如果還沒有任何訂單，我們嘗試從此餐期的投票中選出最高分的自動填入餐廳名字
             if (sessionOrders.length === 0) {
                 const todaysVotes = memoryVotes.filter(v => v.date === selectedDateStr && v.mealType === mType);
@@ -1218,16 +1307,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // 可以顯示投票區
         vSec.classList.remove('hidden');
         document.getElementById('voting-countdown').innerText = `截止時間：${selectedDateStr} ${voteCutoff}`;
-        
+
         const container = document.getElementById('voting-options');
         container.innerHTML = '';
         const todaysVotes = memoryVotes.filter(v => v.date === selectedDateStr && v.mealType === mType);
-        
+
         // 算出每家餐廳目前的票數
         const voteCounts = {};
-        todaysVotes.forEach(v => voteCounts[v.restaurantName] = (voteCounts[v.restaurantName]||0) + 1);
+        todaysVotes.forEach(v => voteCounts[v.restaurantName] = (voteCounts[v.restaurantName] || 0) + 1);
 
-        memoryRestaurants.forEach(r => {
+        // ★ 只顯示「今天有營業」的餐廳
+        const todayDow = new Date().getDay(); // 0=日,1=一...6=六
+        const todayDateStr = getTodayString();
+        const isToday = (selectedDateStr === todayDateStr);
+        const openRestaurants = memoryRestaurants.filter(r => {
+            if (!r.openDays || r.openDays.trim() === '') return true; // 未設定→全天開
+            const days = r.openDays.split(',').map(d => parseInt(d.trim()));
+            // 如果是今天就用今天星期幾判斷；其他日期用選取日期的星期幾
+            const targetDate = new Date(selectedDateStr + 'T12:00:00');
+            const targetDow = isToday ? todayDow : targetDate.getDay();
+            return days.includes(targetDow);
+        });
+        openRestaurants.forEach(r => {
             const count = voteCounts[r.name] || 0;
             const row = document.createElement('label');
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--card-bg); border-radius:0.25rem; border:1px solid var(--border); cursor:pointer;";
@@ -1241,6 +1342,26 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(row);
         });
 
+        // ★ 自動帶入此人上次投票的選擇，讓他知道自己已投過
+        const lastPerson = document.getElementById('vote-person').value || localStorage.getItem('lunch_last_person');
+        if (lastPerson) {
+            const myVote = todaysVotes.find(v => v.userName === lastPerson);
+            if (myVote) {
+                // 預先勾選此人之前投的餐廳
+                const radio = container.querySelector(`input[value="${myVote.restaurantName}"]`);
+                if (radio) radio.checked = true;
+                // 顯示已投過的提示
+                const alreadyVotedNote = document.getElementById('already-voted-note');
+                if (alreadyVotedNote) {
+                    alreadyVotedNote.textContent = `✅ ${lastPerson} 已投票給『${myVote.restaurantName}』，可再次備選修改`;
+                    alreadyVotedNote.style.display = 'block';
+                }
+            } else {
+                const alreadyVotedNote = document.getElementById('already-voted-note');
+                if (alreadyVotedNote) alreadyVotedNote.style.display = 'none';
+            }
+        }
+
         if (memoryRestaurants.length === 0) {
             container.innerHTML = '<div style="color:var(--text-muted);">尚未建立餐廳名單，請管理員於上方「系統設定」加入。</div>';
         }
@@ -1250,17 +1371,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (submitVoteBtn) submitVoteBtn.addEventListener('click', () => {
         const person = document.getElementById('vote-person').value;
         const restRadio = document.querySelector('input[name="vote-restaurant-radio"]:checked');
-        
+
         if (!person) { showToast('請先選擇您的姓名', 'error'); return; }
         if (!restRadio) { showToast('請選擇想要投的餐廳', 'error'); return; }
 
+        // ★ 記住此次選擇的人
+        localStorage.setItem('lunch_last_person', person);
+
         const selectedDateStr = document.getElementById('order-date').value || getTodayString();
         const mType = document.getElementById('meal-type').value || '午餐';
-        
+
         // 找尋是否有投過了
         let updatedVotes = [...memoryVotes];
         const existingVoteIndex = updatedVotes.findIndex(v => v.date === selectedDateStr && v.mealType === mType && v.userName === person);
-        
+
         if (existingVoteIndex >= 0) {
             // 取代舊票
             updatedVotes[existingVoteIndex].restaurantName = restRadio.value;
@@ -1280,12 +1404,35 @@ document.addEventListener('DOMContentLoaded', () => {
         handleFormState();
     });
 
-    // Boot
-    fetchFromCloud(); // 第一次啟動時抓取雲端資料
-    setInterval(fetchFromCloud, 10000); // 每 10 秒自動同步一次最新資料，保持大家畫面一致
+    // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
+    try {
+        const cached = JSON.parse(localStorage.getItem(CLOUD_CACHE_KEY));
+        if (cached) {
+            if (cached.orders) memoryOrders = cached.orders;
+            if (cached.users) memoryUsers = cached.users;
+            if (cached.restaurants) memoryRestaurants = cached.restaurants;
+            if (cached.votes) {
+                memoryVotes = cached.votes.map(v => { v.date = normalizeDate(v.date); return v; });
+            }
+            if (cached.config) {
+                memoryConfig = {};
+                cached.config.forEach(c => { memoryConfig[c.key] = c.value; });
+            }
+            updateDatalists();
+            handleFormState();
+            updateGrandTotal();
+            renderVotingSection(); // ★ 用快取立即顯示投票區（0ms！）
+        }
+    } catch(e) { /* 快取損壞，略過 */ }
 
-    updateDatalists();
-    handleFormState();
-    updateGrandTotal();
+    fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
+    setInterval(fetchFromCloud, 10000); // 每 10 秒自動同步
+
+    if (!localStorage.getItem(CLOUD_CACHE_KEY)) {
+        // 無快取時才做初始 render（有快取的話上面已做過）
+        updateDatalists();
+        handleFormState();
+        updateGrandTotal();
+    }
 
 });
