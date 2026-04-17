@@ -651,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (dayOrders.length === 0) {
                 const tr = document.createElement('tr');
+                if (dayLabel === '(六)' || dayLabel === '(日)') tr.classList.add('weekend-row');
                 tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">無訂餐紀錄</td>`;
                 tbody.appendChild(tr);
             } else {
