@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         restaurants: memoryRestaurants, votes: memoryVotes,
                         config: Object.entries(memoryConfig).map(([key, value]) => ({ key, value }))
                     }));
-                } catch(e) { /* 快取失敗無妨 */ }
+                } catch (e) { /* 快取失敗無妨 */ }
 
                 updateDatalists();
                 updateGrandTotal();
@@ -669,14 +669,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         sessionTotal += order.price;
                         const tr = document.createElement('tr');
                         if (order.paid) tr.classList.add('row-paid');
+                        
+                        const isWeekend = dayLabel === '(六)' || dayLabel === '(日)';
+                        if (isWeekend) tr.classList.add('weekend-row');
 
                         if (index === 0) {
+                            const dateColor = isWeekend ? 'var(--danger)' : 'inherit';
                             const tdDate = document.createElement('td');
                             tdDate.rowSpan = sessionOrders.length + 1;
                             const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
-                            tdDate.innerHTML = `<b>${order.date}</b> <span style="font-size:0.8em; color:var(--text-muted); margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
+                            tdDate.innerHTML = `<b style="color:${dateColor}">${order.date}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
                             tdDate.style.verticalAlign = 'middle';
-                            tdDate.style.backgroundColor = 'var(--card-bg)';
                             tr.appendChild(tdDate);
                         }
 
@@ -787,10 +790,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
 
+                const isWeekend = dayLabel === '(六)' || dayLabel === '(日)';
+                const dateColor = isWeekend ? 'var(--danger)' : 'inherit';
                 const tr = document.createElement('tr');
+                if (isWeekend) tr.classList.add('weekend-row');
                 tr.innerHTML = `
                     <td style="vertical-align:top; width:30%;">
-                        <b>${dateString}</b> <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span> ${mTypeBadge}<br>
+                        <b style="color:${dateColor}">${dateString}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'};">${dayLabel}</span> ${mTypeBadge}<br>
                         <span style="color:var(--primary); font-weight:600; font-size:1.1rem;">${sessionRest}</span>
                     </td>
                     <td style="vertical-align:top;">${itemsArr.join('')}</td>
@@ -1028,12 +1034,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
             html += `</tbody></table>`;
         } else if (activeSettingsTab === 'tab-restaurants') {
-            const dayNames = ['日','一','二','三','四','五','六'];
+            const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
             if (window._editingRestaurantId) {
                 // ─── 編輯模式 ─────────────────────────────────
                 const r = memoryRestaurants.find(r => r.id === window._editingRestaurantId);
                 if (r) {
-                    const openDaysArr = r.openDays ? r.openDays.split(',').map(d => d.trim()) : ['1','2','3','4','5'];
+                    const openDaysArr = r.openDays ? r.openDays.split(',').map(d => d.trim()) : ['1', '2', '3', '4', '5'];
                     const dayChecks = dayNames.map((day, i) =>
                         `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;">
                             <input type="checkbox" name="edit-open-day" value="${i}" ${openDaysArr.includes(String(i)) ? 'checked' : ''}> 週${day}
@@ -1043,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     html += `<div class="form-group"><label>店名 *</label><input type="text" id="edit-rest-name" class="restaurant-input" value="${r.name || ''}"></div>`;
                     html += `<div class="form-group"><label>電話</label><input type="text" id="edit-rest-phone" class="restaurant-input" placeholder="02-1234-5678" value="${r.phone || ''}"></div>`;
                     html += `<div class="form-group"><label>地址</label><input type="text" id="edit-rest-address" class="restaurant-input" placeholder="台北市..." value="${r.address || ''}"></div>`;
+                    html += `<div class="form-group"><label>菜單網址 (選填)</label><input type="text" id="edit-rest-menu" class="restaurant-input" placeholder="https://..." value="${r.menuUrl || ''}"></div>`;
                     html += `<div class="form-group"><label>營業日</label><div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.5rem;">${dayChecks}</div></div>`;
                     html += `<div style="display:flex;gap:0.5rem;margin-top:1rem;"><button id="save-edit-rest-btn" class="primary-btn" style="flex:1;">💾 儲存變更</button><button id="cancel-edit-rest-btn" class="secondary-btn">取消</button></div>`;
                     html += `</div>`;
@@ -1056,6 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `<div style="background:var(--input-bg);border:1px solid var(--border);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">`;
                 html += `<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" id="new-rest-name" class="restaurant-input" placeholder="店名 *" style="flex:2;"><input type="text" id="new-rest-phone" class="restaurant-input" placeholder="電話 (選填)" style="flex:1;"></div>`;
                 html += `<input type="text" id="new-rest-address" class="restaurant-input" placeholder="地址 (選填)" style="width:100%;margin-bottom:0.5rem;">`;
+                html += `<input type="text" id="new-rest-menu" class="restaurant-input" placeholder="菜單網址 (選填，如 Facebook 或圖片網址)" style="width:100%;margin-bottom:0.5rem;">`;
                 html += `<div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.5rem;">${newDayChecks}</div>`;
                 html += `<button id="add-rest-btn" class="primary-btn" style="width:100%;">➕ 新增便當店</button>`;
                 html += `</div>`;
@@ -1065,8 +1073,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const openDaysStr = r.openDays
                         ? r.openDays.split(',').map(d => `週${dayNames[parseInt(d.trim())]}`).join(' ')
                         : '週一~五';
+                    const menuBtn = r.menuUrl ? `<a href="${r.menuUrl}" target="_blank" title="查看菜單" style="text-decoration:none;font-size:1.2rem;margin-right:8px;">📄</a>` : '';
                     html += `<tr>`;
-                    html += `<td><strong>${r.name}</strong>${r.address ? `<br><small style="color:var(--text-muted);">${r.address}</small>` : ''}</td>`;
+                    html += `<td>${menuBtn}<strong>${r.name}</strong>${r.address ? `<br><small style="color:var(--text-muted);">${r.address}</small>` : ''}</td>`;
                     html += `<td>${r.phone || '-'}</td>`;
                     html += `<td style="font-size:0.8rem;">${openDaysStr}</td>`;
                     html += `<td style="text-align:center;white-space:nowrap;"><button class="secondary-btn" onclick="editRestaurant('${r.id}')" style="margin-right:4px;">編輯</button><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td>`;
@@ -1134,6 +1143,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     r.name = newName;
                     r.phone = document.getElementById('edit-rest-phone').value.trim();
                     r.address = document.getElementById('edit-rest-address').value.trim();
+                    r.menuUrl = document.getElementById('edit-rest-menu').value.trim();
                     const checked = [...document.querySelectorAll('input[name="edit-open-day"]:checked')].map(cb => cb.value);
                     r.openDays = checked.join(',');
                     window._editingRestaurantId = null;
@@ -1151,8 +1161,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!n) { showToast('請輸入店名', 'error'); return; }
                     const phone = document.getElementById('new-rest-phone').value.trim();
                     const address = document.getElementById('new-rest-address').value.trim();
+                    const menuUrl = document.getElementById('new-rest-menu').value.trim();
                     const checked = [...document.querySelectorAll('input[name="new-open-day"]:checked')].map(cb => cb.value);
-                    const newRest = { id: 'R' + Date.now(), name: n, phone, address, openDays: checked.join(',') };
+                    const newRest = { id: 'R' + Date.now(), name: n, phone, address, openDays: checked.join(','), menuUrl };
                     saveRestaurants([...memoryRestaurants, newRest]);
                     renderSettingsTab();
                     renderVotingSection();
@@ -1288,14 +1299,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (todaysVotes.length > 0) {
                     const counts = {};
                     let maxCount = 0;
-                    let winner = '';
                     todaysVotes.forEach(v => {
                         counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
-                        if (counts[v.restaurantName] > maxCount) {
-                            maxCount = counts[v.restaurantName];
-                            winner = v.restaurantName;
-                        }
+                        if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
                     });
+
+                    // ★ 修改：平手隨機決策
+                    const tiedRests = Object.entries(counts)
+                        .filter(([name, count]) => count === maxCount)
+                        .map(([name]) => name)
+                        .sort(); // 排序確保種子選取一致
+
+                    let winner = '';
+                    if (tiedRests.length > 1) {
+                        // 使用日期+餐期作為種子，讓每個人看到的「隨機」結果是一樣的
+                        const seedStr = selectedDateStr + mType;
+                        let hash = 0;
+                        for (let i = 0; i < seedStr.length; i++) {
+                            hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+                            hash |= 0;
+                        }
+                        const index = Math.abs(hash) % tiedRests.length;
+                        winner = tiedRests[index];
+                    } else {
+                        winner = tiedRests[0];
+                    }
+
                     if (winner && document.getElementById('restaurant-name').value === '') {
                         document.getElementById('restaurant-name').value = winner;
                     }
@@ -1332,10 +1361,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = voteCounts[r.name] || 0;
             const row = document.createElement('label');
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--card-bg); border-radius:0.25rem; border:1px solid var(--border); cursor:pointer;";
+            const menuLink = r.menuUrl ? `<a href="${r.menuUrl}" target="_blank" style="text-decoration:none; font-size:1.1rem; margin-left:8px;" title="查看菜單">📄</a>` : '';
             row.innerHTML = `
                 <div style="display:flex; gap:0.5rem; align-items:center;">
                     <input type="radio" name="vote-restaurant-radio" value="${r.name}">
                     <span style="font-weight:500;">${r.name}</span>
+                    ${menuLink}
                 </div>
                 <span class="stat-badge" style="background:var(--primary); color:white;">${count} 票</span>
             `;
@@ -1423,7 +1454,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateGrandTotal();
             renderVotingSection(); // ★ 用快取立即顯示投票區（0ms！）
         }
-    } catch(e) { /* 快取損壞，略過 */ }
+    } catch (e) { /* 快取損壞，略過 */ }
 
     fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
     setInterval(fetchFromCloud, 10000); // 每 10 秒自動同步

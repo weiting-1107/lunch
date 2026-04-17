@@ -577,8 +577,16 @@ header p {
 [data-theme="dark"] .modal-body,
 [data-theme="dark"] .modal-content { color: var(--text-main); }
 
-[data-theme="dark"] .excel-table td,
-[data-theme="dark"] .excel-table td[style] { background-color: var(--card-bg) !important; color: var(--text-main) !important; }
+[data-theme="dark"] .excel-table td:not(.weekend-cell),
+[data-theme="dark"] .excel-table td[style]:not(.weekend-cell) { background-color: var(--card-bg) !important; color: var(--text-main) !important; }
+
+.weekend-row td {
+    background-color: #fee2e2 !important; /* Tailwind Red 100 */
+}
+
+[data-theme="dark"] .weekend-row td {
+    background-color: #7f1d1d !important; /* Tailwind Red 900 */
+}
 
 [data-theme="dark"] .excel-table th,
 [data-theme="dark"] .excel-table th[style] { background-color: var(--table-header-bg) !important; color: var(--text-main) !important; }
