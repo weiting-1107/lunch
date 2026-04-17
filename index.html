@@ -44,7 +44,10 @@
                 <!-- 每日指定餐廳 -->
                 <div class="setting-item">
                     <label for="restaurant-name">今日餐廳：</label>
-                    <input type="text" id="restaurant-name" placeholder="例如：八方雲集" list="restaurant-history" class="restaurant-input">
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex:1;">
+                        <input type="text" id="restaurant-name" placeholder="例如：八方雲集" list="restaurant-history" class="restaurant-input">
+                        <span id="restaurant-menu-link-wrapper"></span>
+                    </div>
                 </div>
                 <!-- 每日截止時間 -->
                 <div class="setting-item">
@@ -245,7 +248,7 @@
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=37"></script>
+    <script src="script.js?v=39"></script>
 </body>
 
 </html>

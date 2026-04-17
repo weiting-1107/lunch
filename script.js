@@ -424,7 +424,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 鎖單視覺與按鈕控制
         if (locked) {
             lockedWarning.classList.remove('hidden');
-            lockedWarning.textContent = `⚠️ 【${selectedMealType}】已於 ${selectedDate} ${cutoffTimeInput.value} 截止，訂單已鎖定。`;
+            const menuLink = getMenuLinkHtml(anyOrder ? anyOrder.restaurant : restaurantNameInput.value);
+            lockedWarning.innerHTML = `⚠️ 【${selectedMealType}】已於 ${selectedDate} ${cutoffTimeInput.value} 截止，訂單已鎖定。${menuLink}`;
             orderFormContainer.classList.add('locked-form');
             submitOrderBtn.disabled = true;
             submitOrderBtn.innerHTML = '已截止鎖定';
@@ -439,13 +440,34 @@ document.addEventListener('DOMContentLoaded', () => {
             // ★ 如果此餐期已有人點餐但還沒超過截止時間，顯示友善提示
             if (anyOrder) {
                 lockedWarning.classList.remove('hidden');
-                lockedWarning.textContent = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}，餐廳：${anyOrder.restaurant || '未設定'}`;
+                const menuLink = getMenuLinkHtml(anyOrder.restaurant);
+                lockedWarning.innerHTML = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}，餐廳：${anyOrder.restaurant || '未設定'} ${menuLink}`;
                 lockedWarning.style.background = 'var(--input-bg)';
                 lockedWarning.style.borderColor = 'var(--primary)';
                 lockedWarning.style.color = 'var(--primary)';
             }
         }
+        updateRestaurantMenuDisplay();
     }
+
+    function getMenuLinkHtml(rName) {
+        if (!rName) return '';
+        const searchName = String(rName).trim();
+        const res = memoryRestaurants.find(r => String(r.name).trim() === searchName);
+        if (res && res.menuUrl) {
+            return `<a href="${res.menuUrl}" target="_blank" style="text-decoration:none; font-size:1.1rem; margin-left:5px;" title="查看菜單">📄</a>`;
+        }
+        return '';
+    }
+
+    function updateRestaurantMenuDisplay() {
+        const wrapper = document.getElementById('restaurant-menu-link-wrapper');
+        if (!wrapper) return;
+        const currentRest = restaurantNameInput.value;
+        wrapper.innerHTML = getMenuLinkHtml(currentRest);
+    }
+
+    restaurantNameInput.addEventListener('input', updateRestaurantMenuDisplay);
 
     orderDateInput.addEventListener('change', () => { handleFormState(); renderVotingSection(); });
     mealTypeInput.addEventListener('change', () => { handleFormState(); renderVotingSection(); });
@@ -1328,6 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (winner && document.getElementById('restaurant-name').value === '') {
                         document.getElementById('restaurant-name').value = winner;
+                        if (typeof updateRestaurantMenuDisplay === 'function') updateRestaurantMenuDisplay();
                     }
                 }
             }
