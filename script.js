@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentWeekLabel = document.getElementById('current-week-label');
     let currentActiveTab = 'tab-details';
     let currentViewDate = new Date();
+    let isSettingsAuthenticated = false; // 系統設定驗證狀態
 
     // 報表導覽按鈕
     const prevWeekBtn = document.getElementById('prev-week-btn');
@@ -178,7 +179,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     safeListenAll('.nav-settings-btn', 'click', () => {
-        if (settingsModal) settingsModal.classList.remove('hidden');
+        if (!settingsModal) return;
+        // 每次打開設定都重啟驗證流程
+        isSettingsAuthenticated = false;
+        document.getElementById('settings-auth-wrapper').style.display = 'flex';
+        document.getElementById('settings-main-content').style.display = 'none';
+        document.getElementById('settings-password-input').value = '';
+        document.getElementById('auth-error-msg').style.display = 'none';
+        settingsModal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('settings-password-input').focus(), 100);
+    });
+
+    // 密碼解鎖邏輯
+    const unlockSettings = () => {
+        const input = document.getElementById('settings-password-input');
+        const errorMsg = document.getElementById('auth-error-msg');
+        const corePassword = localStorage.getItem('lunch_sys_password') || '1234';
+
+        if (input.value === corePassword) {
+            isSettingsAuthenticated = true;
+            document.getElementById('settings-auth-wrapper').style.display = 'none';
+            document.getElementById('settings-main-content').style.display = 'block';
+            renderSettingsTab(); // 進入後渲染內容
+        } else {
+            errorMsg.style.display = 'block';
+            input.value = '';
+            input.focus();
+        }
+    };
+
+    safeListen(document.getElementById('unlock-settings-btn'), 'click', unlockSettings);
+    safeListen(document.getElementById('settings-password-input'), 'keypress', (e) => {
+        if (e.key === 'Enter') unlockSettings();
     });
 
     // 其他 UI 綁定
@@ -574,6 +606,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 lockedWarning.style.color = 'var(--primary)';
             }
         }
+        // ★ 新增：如果有訂單，立即隱藏中心投票區塊
+        const ordersForSync = getOrders();
+        const syncSessionOrders = ordersForSync.filter(o => o.date === selectedDate && o.mealType === selectedMealType);
+        if (syncSessionOrders.length > 0) {
+            const vSec = document.getElementById('voting-section');
+            if (vSec) vSec.classList.add('hidden');
+        } else {
+            // 如果沒訂單，則按原邏輯判斷是否要顯示投票
+            renderVotingSection();
+        }
+
         updateRestaurantMenuDisplay();
         updateActiveRestaurantCard();
     }
@@ -706,13 +749,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const newOrder = {
             id: Date.now().toString(),
-            date: date,
-            mealType: mealType,
+            date: inputs.date,
+            mealType: inputs.meal,
             name: name,
             item: item,
             price: price,
-            restaurant: restaurant,
-            cutoffTime: cutoffTimeInput.value,
+            restaurant: inputs.rest,
+            cutoffTime: inputs.cutoff,
             paid: false // 新單預設未付款
         };
 
@@ -742,7 +785,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const orders = getOrders();
         const newOrders = orders.filter(o => o.id !== orderId);
         saveOrders(newOrders);
-        handleFormState(); // 如果全刪光了，餐廳欄位會重新解鎖
+        handleFormState();
+        renderVotingSection(); // ★ 推送投票區狀態更新
         renderOrders();
         updateGrandTotal();
     }
@@ -1395,6 +1439,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             }
         } else if (activeSettingsTab === 'tab-config') {
+            // 加入修改密碼的功能
+            const currentPass = localStorage.getItem('lunch_sys_password') || '1234';
+            const configHtml = `
+                <div class="config-section" style="margin-bottom: 2rem;">
+                    <h4>📅 截止時間維護</h4>
+                    <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                        <input type="date" id="new-cutoff-date" class="restaurant-input">
+                        <input type="time" id="new-cutoff-time" class="restaurant-input">
+                        <button id="add-cutoff-btn" class="primary-btn">➕ 新增</button>
+                    </div>
+                </div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:2rem 0;">
+                <div class="config-section">
+                    <h4>🔒 安全設定</h4>
+                    <div class="form-group">
+                        <label>修改系統設定密碼</label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="password" id="sys-password-change" class="restaurant-input" value="${currentPass}" placeholder="輸入新密碼">
+                            <button id="save-password-btn" class="primary-btn">儲存新密碼</button>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">預設密碼為 1234。修改後下次進入設定需使用新密碼。</p>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = configHtml;
+
+            document.getElementById('save-password-btn').onclick = () => {
+                const newPass = document.getElementById('sys-password-change').value.trim();
+                if (!newPass) { showToast('密碼不可為空', 'error'); return; }
+                localStorage.setItem('lunch_sys_password', newPass);
+                showToast('系統密碼已更新', 'success');
+            };
+
             document.getElementById('add-cutoff-btn').onclick = () => {
                 const dateVal = document.getElementById('new-cutoff-date').value;
                 const timeVal = document.getElementById('new-cutoff-time').value;

@@ -81,7 +81,7 @@
                 <div class="header-top">
                     <button id="theme-toggle-btn" class="theme-toggle">🌙</button>
                     <h1>🍱 訂餐系統</h1>
-                    <button id="settings-btn" class="theme-toggle">⚙️</button>
+                    <button id="settings-btn" class="theme-toggle nav-settings-btn">⚙️</button>
                 </div>
                 <div class="mobile-settings-row mobile-only">
                     <div class="mobile-setting-item">
@@ -252,19 +252,34 @@
                     </button>
                 </div>
             </div>
-            <div class="modal-tabs">
-                <button class="settings-tab-btn active" data-tab="tab-users">👥 人員維護</button>
-                <button class="settings-tab-btn" data-tab="tab-restaurants">🏪 便當店維護</button>
-                <button class="settings-tab-btn" data-tab="tab-config">⚙️ 其他設定</button>
+            <!-- 密碼驗證層 -->
+            <div id="settings-auth-wrapper" class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                <h3 style="margin-bottom: 0.5rem;">請輸入系統密碼</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">此區域受保護，僅供管理員進入</p>
+                <div style="width: 100%; max-width: 300px;">
+                    <input type="password" id="settings-password-input" class="restaurant-input" placeholder="預設 1234" style="width: 100%; text-align: center; font-size: 1.25rem; letter-spacing: 0.5rem; margin-bottom: 1rem;">
+                    <button id="unlock-settings-btn" class="primary-btn" style="width: 100%;">驗證並解鎖</button>
+                    <p id="auth-error-msg" style="color: #ef4444; font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none;">❌ 密碼錯誤，請再試一次</p>
+                </div>
             </div>
-            <div class="modal-body">
-                <div id="settings-dynamic-content" style="min-height: 300px;"></div>
+
+            <!-- 實際設定內容 (預設隱藏) -->
+            <div id="settings-main-content" style="display: none;">
+                <div class="modal-tabs">
+                    <button class="settings-tab-btn active" data-tab="tab-users">👥 人員維護</button>
+                    <button class="settings-tab-btn" data-tab="tab-restaurants">🏪 便當店維護</button>
+                    <button class="settings-tab-btn" data-tab="tab-config">⚙️ 其他設定</button>
+                </div>
+                <div class="modal-body">
+                    <div id="settings-dynamic-content" style="min-height: 300px;"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=63"></script>
+    <script src="script.js?v=66"></script>
 </body>
 
 </html>
