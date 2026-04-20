@@ -2,6 +2,18 @@
 const theme = localStorage.getItem('lunch_theme') || 'light';
 if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
+// --- 雲端配置與全域狀態 ---
+const API_URL = "https://script.google.com/macros/s/AKfycbz7W96yP5KcrzwaMwqFuOP6vEn13jWBw-dwrLH16L7cSq4QOlesnJIdJlvjbSwe3fgl/exec";
+const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
+const SETTINGS_KEY = 'lunch_settings';
+
+let isSyncing = false;
+let memoryOrders = [];
+let memoryUsers = [];
+let memoryRestaurants = [];
+let memoryVotes = [];
+let memoryConfig = {};
+
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -17,71 +29,184 @@ function showToast(msg, type = 'success') {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const themeToggleBtn = document.getElementById('theme-toggle-btn');
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            if (isDark) {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('lunch_theme', 'light');
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('lunch_theme', 'dark');
-            }
-        });
-    }
+    // --- 核心變數與元素定義 ---
+    const appLayout = document.querySelector('.app-layout');
+    const excelModal = document.getElementById('excel-modal');
+    const settingsModal = document.getElementById('settings-modal');
+    
+    // 設定類 Inputs (雙端同步用)
+    const dateInputs = document.querySelectorAll('#order-date, #order-date-mob');
+    const mealTypeInputs = document.querySelectorAll('#meal-type, #meal-type-mob');
+    const restaurantInputs = document.querySelectorAll('#restaurant-name, #restaurant-name-mob');
+    const cutoffInputs = document.querySelectorAll('#cutoff-time, #cutoff-time-mob');
 
-    // 綁定 DOM 元素
-    const orderDateInput = document.getElementById('order-date');
-    const mealTypeInput = document.getElementById('meal-type');
-    const restaurantNameInput = document.getElementById('restaurant-name');
-    const cutoffTimeInput = document.getElementById('cutoff-time');
-
+    // 其他主要 Input
     const personNameInput = document.getElementById('person-name');
     const itemNameInput = document.getElementById('item-name');
     const itemPriceInput = document.getElementById('item-price');
     const submitOrderBtn = document.getElementById('submit-order-btn');
     const orderFormContainer = document.getElementById('order-form-container');
     const lockedWarning = document.getElementById('locked-warning');
+    
+    // 定義主輸入框 (解決之前的 ReferenceError 崩潰問題)
+    const orderDateInput = document.getElementById('order-date');
+    const mealTypeInput = document.getElementById('meal-type');
+    const restaurantNameInput = document.getElementById('restaurant-name');
+    const cutoffTimeInput = document.getElementById('cutoff-time');
 
-    const grandTotalEl = document.getElementById('grand-total');
-    const excelModal = document.getElementById('excel-modal');
-    const viewExcelBtn = document.getElementById('view-excel-btn');
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    const exportCsvBtn = document.getElementById('export-csv-btn');
-    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    // Modal UI 變數 (之前被意外刪除)
+    const currentWeekLabel = document.getElementById('current-week-label');
+    let currentActiveTab = 'tab-details';
+    let currentViewDate = new Date();
 
-    const viewPersonBtn = document.getElementById('view-person-btn');
-
-    // 歷史週別導航按鈕
+    // 報表導覽按鈕
     const prevWeekBtn = document.getElementById('prev-week-btn');
     const nextWeekBtn = document.getElementById('next-week-btn');
     const currentWeekBtn = document.getElementById('current-week-btn');
-    const currentWeekLabel = document.getElementById('current-week-label');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
 
-    // Tabs
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    let currentActiveTab = 'tab-details';
-    const dynamicTableContainer = document.getElementById('dynamic-table-container');
-
-    // Datalists
-    const itemHistoryDl = document.getElementById('item-history');
+    // 其他 UI 變數
+    const quickOrderLabels = document.getElementById('quick-order-labels');
+    const activeRestCard = document.getElementById('active-restaurant-card');
+    const displayRestName = document.getElementById('display-rest-name');
+    const displayRestMenu = document.getElementById('display-rest-menu');
+    const displayRestPhone = document.getElementById('display-rest-phone');
     const restaurantHistoryDl = document.getElementById('restaurant-history');
+    const itemHistoryDl = document.getElementById('item-history');
 
-    // 狀態與資料快取 (對應新的 Apps Script 五大表)
-    let memoryOrders = [];
-    let memoryUsers = [];
-    let memoryRestaurants = [];
-    let memoryVotes = [];
-    let memoryConfig = {};
-    let isSyncing = false; // ★ 新增：防止寫入期間被 10 秒自動刷新覆蓋 UI
+    // 統一綁定輔助函式
+    function safeListen(el, event, cb) {
+        if (el) el.addEventListener(event, cb);
+    }
+    function safeListenAll(selector, event, cb) {
+        document.querySelectorAll(selector).forEach(el => el.addEventListener(event, cb));
+    }
 
-    let currentViewDate = new Date();
-    const SETTINGS_KEY = 'lunch_settings';
-    const CLOUD_CACHE_KEY = 'lunch_cloud_cache'; // ★ 快取雲端資料，讓頁面一開啟即能立刻顯示
+    // --- 狀態同步與 UI 更新 ---
+    function syncAndRefresh(inputs, val, refresh = true) {
+        inputs.forEach(input => { if (input.value !== val) input.value = val; });
+        if (refresh) {
+            handleFormState();
+            renderVotingSection();
+            updateMiniMenuButton();
+        }
+    }
 
-    // ★★★ 雲端資料庫與同步設定 ★★★
-    const API_URL = "https://script.google.com/macros/s/AKfycbz7W96yP5KcrzwaMwqFuOP6vEn13jWBw-dwrLH16L7cSq4QOlesnJIdJlvjbSwe3fgl/exec";
+    function updateMiniMenuButton() {
+        const displayRestMenu = document.getElementById('display-rest-menu');
+        if (!displayRestMenu) return;
+
+        const currentRestName = document.getElementById('restaurant-name')?.value || document.getElementById('restaurant-name-mob')?.value || '';
+        const restaurant = memoryRestaurants.find(r => r.name === currentRestName);
+
+        if (restaurant && restaurant.menuUrl) {
+            displayRestMenu.href = restaurant.menuUrl;
+            displayRestMenu.classList.remove('hidden');
+            displayRestMenu.style.display = 'inline-block';
+        } else {
+            displayRestMenu.classList.add('hidden');
+            displayRestMenu.style.display = 'none';
+        }
+    }
+
+    // 看板元素備忘 (如果有被刪除則不報錯)
+    function updateDashboardSafely(stats) {
+        const elTodayCount = document.getElementById('dash-today-count');
+        const elTodayTotal = document.getElementById('dash-today-total');
+        const elGrandTotal = document.getElementById('dash-grand-total');
+        if (elTodayCount) elTodayCount.innerText = stats.count || 0;
+        if (elTodayTotal) elTodayTotal.innerText = stats.total || 0;
+        if (elGrandTotal) elGrandTotal.innerText = stats.grandTotal || '$0';
+    }
+
+    // --- 導覽邏輯 ---
+    function openDetails() {
+        if (tabBtns.length > 0) {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            const detailTab = document.querySelector('[data-tab="tab-details"]');
+            if (detailTab) detailTab.classList.add('active');
+        }
+        currentActiveTab = 'tab-details';
+        if (excelModal) excelModal.classList.remove('hidden');
+        if (typeof renderOrders === 'function') renderOrders();
+    }
+
+    function openPerson() {
+        if (tabBtns.length > 0) {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            const personTab = document.querySelector('[data-tab="tab-person"]');
+            if (personTab) personTab.classList.add('active');
+        }
+        currentActiveTab = 'tab-person';
+        if (excelModal) excelModal.classList.remove('hidden');
+        if (typeof renderOrders === 'function') renderOrders();
+    }
+
+    function openSettings() {
+        if (settingsModal) settingsModal.classList.remove('hidden');
+    }
+
+    // 設定項同步
+    dateInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(dateInputs, e.target.value)));
+    mealTypeInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(mealTypeInputs, e.target.value)));
+    restaurantInputs.forEach(el => safeListen(el, 'input', (e) => syncAndRefresh(restaurantInputs, e.target.value)));
+    cutoffInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(cutoffInputs, e.target.value, false)));
+
+    // 導航按鈕 (側邊欄與底部同步)
+    safeListenAll('.nav-home-btn', 'click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    
+    function highlightTab(tabName) {
+        currentActiveTab = tabName;
+        const allTabs = document.querySelectorAll('.tab-btn');
+        allTabs.forEach(b => {
+            if (b.getAttribute('data-tab') === tabName) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+    }
+
+    safeListenAll('.nav-details-btn', 'click', () => {
+        highlightTab('tab-details');
+        excelModal.classList.remove('hidden');
+        renderOrders();
+    });
+    
+    safeListenAll('.nav-person-btn', 'click', () => {
+        highlightTab('tab-person');
+        excelModal.classList.remove('hidden');
+        renderOrders();
+    });
+    
+    safeListenAll('.nav-settings-btn', 'click', () => {
+        if (settingsModal) settingsModal.classList.remove('hidden');
+    });
+
+    // 其他 UI 綁定
+    safeListen(personNameInput, 'change', () => { if (typeof updateQuickOrderLabels === 'function') updateQuickOrderLabels(); });
+    const updateThemeIcons = (isDark) => {
+        document.querySelectorAll('.theme-toggle').forEach(btn => {
+            btn.innerHTML = isDark ? '<span>☀️</span>' : '<span>🌙</span>';
+        });
+    };
+
+    // 初始化圖示狀態
+    updateThemeIcons(document.documentElement.getAttribute('data-theme') === 'dark');
+
+    safeListenAll('.theme-toggle', 'click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('lunch_theme', 'light');
+            updateThemeIcons(false);
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('lunch_theme', 'dark');
+            updateThemeIcons(true);
+        }
+    });
+
+    safeListen(document.getElementById('close-modal-btn'), 'click', () => excelModal.classList.add('hidden'));
+    safeListen(document.getElementById('close-settings-btn'), 'click', () => settingsModal.classList.add('hidden'));
 
     // 日期格式標準化工具：將任何格式的日期統一轉為 YYYY-MM-DD
     function normalizeDate(raw) {
@@ -262,10 +387,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 初始化設定
     const initialSettings = getSettings();
-    if (initialSettings.cutoffTime) {
+    if (initialSettings.cutoffTime && cutoffTimeInput) {
         cutoffTimeInput.value = initialSettings.cutoffTime;
     }
-    orderDateInput.value = getTodayString();
+    if (orderDateInput) orderDateInput.value = getTodayString();
 
     // 更新 Datalist 記憶快選
     function updateDatalists() {
@@ -392,8 +517,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ★ 隱藏原生 time input，改用醒目的文字標籤顯示截止時間
             cutoffTimeInput.style.display = 'none';
-            cutoffDisplay.textContent = `⏰ ${selectedDate} ${syncedCutoff}`;
-            cutoffDisplay.classList.remove('hidden');
+            if (cutoffDisplay) {
+                cutoffDisplay.textContent = `⏰ ${selectedDate} ${syncedCutoff}`;
+                cutoffDisplay.classList.remove('hidden');
+            }
 
             restaurantNameInput.disabled = true;
             restaurantNameInput.title = "今日此餐期已開單，不可更改餐廳";
@@ -418,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cutoffTimeInput.style.background = "transparent";
             cutoffTimeInput.style.color = "var(--text-main)";
             cutoffTimeInput.style.borderBottom = "none";
-            cutoffDisplay.classList.add('hidden');
+            if (cutoffDisplay) cutoffDisplay.classList.add('hidden');
         }
 
         // 鎖單視覺與按鈕控制
@@ -448,7 +575,79 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         updateRestaurantMenuDisplay();
+        updateActiveRestaurantCard();
     }
+
+    function updateActiveRestaurantCard() {
+        const restName = (restaurantNameInput && restaurantNameInput.value) ? restaurantNameInput.value.trim() : '';
+        if (!activeRestCard) return;
+
+        if (!restName) {
+            activeRestCard.classList.add('hidden');
+            return;
+        }
+
+        const restaurant = memoryRestaurants.find(r => r.name.trim() === restName);
+        activeRestCard.classList.remove('hidden');
+        if (displayRestName) displayRestName.textContent = restName;
+
+        if (displayRestMenu) {
+            if (restaurant && restaurant.menuUrl) {
+                displayRestMenu.href = restaurant.menuUrl;
+                displayRestMenu.style.display = 'flex';
+            } else {
+                displayRestMenu.style.display = 'none';
+            }
+        }
+
+        if (displayRestPhone) {
+            if (restaurant && restaurant.phone) {
+                displayRestPhone.href = `tel:${restaurant.phone}`;
+                displayRestPhone.style.display = 'flex';
+                displayRestPhone.innerHTML = `📞 ${restaurant.phone}`;
+            } else {
+                displayRestPhone.style.display = 'none';
+            }
+        }
+    }
+
+    function updateQuickOrderLabels() {
+        if (!quickOrderLabels) return;
+        if (!personNameInput.value) {
+            quickOrderLabels.innerHTML = '';
+            return;
+        }
+        
+        const userName = personNameInput.value;
+        const userOrders = memoryOrders.filter(o => o.name === userName);
+        
+        // 統計該使用者最常點的前三名 (以項目+價格作為唯一鍵)
+        const stats = {};
+        userOrders.forEach(o => {
+            const key = `${o.item}|${o.price}`;
+            stats[key] = (stats[key] || 0) + 1;
+        });
+
+        const topItems = Object.entries(stats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([key]) => {
+                const [item, price] = key.split('|');
+                return { item, price: parseFloat(price) };
+            });
+
+        quickOrderLabels.innerHTML = topItems.map(data => 
+            `<span class="quick-label" onclick="fillQuickOrder('${data.item}', ${data.price})">⭐ ${data.item} ($${data.price})</span>`
+        ).join('');
+    }
+
+    window.fillQuickOrder = function(item, price) {
+        itemNameInput.value = item;
+        itemPriceInput.value = price;
+        showToast(`已自動填入：${item}`, 'info');
+    };
+
+    personNameInput.addEventListener('change', updateQuickOrderLabels);
 
     function getMenuLinkHtml(rName) {
         if (!rName) return '';
@@ -479,22 +678,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!excelModal.classList.contains('hidden')) renderOrders();
     });
 
+    function getCommonInputs() {
+        return {
+            date: document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value || getTodayString(),
+            meal: document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value || '午餐',
+            rest: document.getElementById('restaurant-name')?.value || document.getElementById('restaurant-name-mob')?.value || '',
+            cutoff: document.getElementById('cutoff-time')?.value || document.getElementById('cutoff-time-mob')?.value || '10:30'
+        };
+    }
+
     // 新增訂單邏輯
     submitOrderBtn.addEventListener('click', () => {
         const name = personNameInput.value.trim();
         const price = parseFloat(itemPriceInput.value);
         const item = itemNameInput.value.trim();
-        const date = orderDateInput.value;
-        const mealType = mealTypeInput.value;
-        const restaurant = restaurantNameInput.value.trim();
+        const inputs = getCommonInputs();
 
-        if (isSessionLocked(date, mealType)) {
+        if (isSessionLocked(inputs.date, inputs.meal)) {
             showToast("此餐期已鎖定，無法新增訂單！", "error");
             return;
         }
 
-        if (!name || isNaN(price) || price <= 0 || !item || !restaurant) {
-            showToast("請確實填寫姓名、餐點、金額，並確定餐廳已填寫！", "error");
+        if (!name || isNaN(price) || price <= 0 || !item || !inputs.rest) {
+            showToast("請確實填寫姓名、餐點、金額，並確定餐廳單已填寫！", "error");
             return;
         }
 
@@ -551,47 +757,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Modal 開關與 Tabs
-    viewExcelBtn.addEventListener('click', () => {
-        excelModal.classList.remove('hidden');
-        renderOrders();
-    });
-    viewPersonBtn.addEventListener('click', () => {
-        // 直接開啟收錢總帳表
-        tabBtns.forEach(b => b.classList.remove('active'));
-        const personTab = document.querySelector('[data-tab="tab-person"]');
-        if (personTab) personTab.classList.add('active');
-        currentActiveTab = 'tab-person';
-
-        excelModal.classList.remove('hidden');
-        renderOrders();
-    });
-    closeModalBtn.addEventListener('click', () => {
+    // Modal 開關
+    safeListen(document.getElementById('close-modal-btn'), 'click', () => {
         excelModal.classList.add('hidden');
     });
+
+    // 使用事件委派 (Event Delegation) 處理報表分頁切換
+    document.addEventListener('click', (e) => {
+        const target = e.target.closest('.tab-btn');
+        if (!target || target.closest('.settings-tab-btn')) return; // 排除設定分頁
+
+        const tabName = target.getAttribute('data-tab');
+        if (tabName) {
+            highlightTab(tabName);
+            renderOrders();
+        }
+    });
+
+    // 額外確保 Modal 背景點擊關閉
     excelModal.addEventListener('click', (e) => {
         if (e.target === excelModal) excelModal.classList.add('hidden');
     });
 
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentActiveTab = e.target.getAttribute('data-tab');
-            renderOrders();
-        });
-    });
-
-    // 週導航
-    prevWeekBtn.addEventListener('click', () => {
+    // 週導航 (使用安全監聽，防止 ReferenceError)
+    safeListen(prevWeekBtn, 'click', () => {
         currentViewDate.setDate(currentViewDate.getDate() - 7);
         renderOrders();
     });
-    nextWeekBtn.addEventListener('click', () => {
+    safeListen(nextWeekBtn, 'click', () => {
         currentViewDate.setDate(currentViewDate.getDate() + 7);
         renderOrders();
     });
-    currentWeekBtn.addEventListener('click', () => {
+    safeListen(currentWeekBtn, 'click', () => {
         currentViewDate = new Date();
         renderOrders();
     });
@@ -600,17 +797,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateGrandTotal() {
         const wt = getWeekData(currentViewDate);
         const gTotal = wt.weekOrders.reduce((acc, cur) => acc + cur.price, 0);
-        grandTotalEl.textContent = `$${gTotal}`;
+        
+        const dashGrandTotal = document.getElementById('dash-grand-total');
+        if (dashGrandTotal) dashGrandTotal.textContent = `$${gTotal}`;
 
         const todayStr = getTodayString();
         const allOrders = getOrders();
         const todayOrders = allOrders.filter(o => o.date === todayStr);
         const todayTotal = todayOrders.reduce((acc, cur) => acc + cur.price, 0);
 
-        const todayCountEl = document.getElementById('today-count-label');
-        const todayTotalEl = document.getElementById('today-total-label');
-        if (todayCountEl) todayCountEl.textContent = `${todayOrders.length} 份`;
-        if (todayTotalEl) todayTotalEl.textContent = `$${todayTotal}`;
+        const dashTodayCount = document.getElementById('dash-today-count');
+        const dashTodayTotal = document.getElementById('dash-today-total');
+        if (dashTodayCount) dashTodayCount.textContent = todayOrders.length;
+        if (dashTodayTotal) dashTodayTotal.textContent = todayTotal;
     }
 
     // 取得指定日期所在的週資料
@@ -645,24 +844,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderOrders() {
         const { weekDates, weekOrders, allOrders, labelText } = getWeekData(currentViewDate);
-        currentWeekLabel.textContent = labelText;
+        if (currentWeekLabel) currentWeekLabel.textContent = labelText;
 
         const grandTotal = weekOrders.reduce((sum, o) => sum + o.price, 0);
-        grandTotalEl.textContent = `$${grandTotal}`;
 
-        dynamicTableContainer.innerHTML = '';
-
+        // 強制重新取一次容器，確保不會因為 DOM 結構變動而失效
+        const container = document.getElementById('dynamic-table-container');
+        if (container) {
+            container.innerHTML = '';
+        } else {
+            return; // 若找不到容器則不執行
+        }
         if (currentActiveTab === 'tab-details') {
-            renderDetailsTable(weekDates, allOrders, grandTotal);
+            renderDetailsTable(weekDates, allOrders, grandTotal, container);
         } else if (currentActiveTab === 'tab-caller') {
-            renderCallerTable(weekDates, allOrders);
+            renderCallerTable(weekDates, allOrders, container);
         } else if (currentActiveTab === 'tab-person') {
-            renderPersonTable(weekOrders, grandTotal);
+            renderPersonTable(weekOrders, grandTotal, container);
         }
     }
 
     // === 表格 1：流水記帳表 (Details) ===
-    function renderDetailsTable(weekDates, allOrders, grandTotal) {
+    function renderDetailsTable(weekDates, allOrders, grandTotal, container) {
         const table = document.createElement('table');
         table.className = 'excel-table';
         table.innerHTML = `<thead><tr><th>日期 / 餐廳</th><th>姓名</th><th>餐點</th><th class="amount-col">金額</th><th style="width:50px;">付清</th><th class="action-col">操作</th></tr></thead>`;
@@ -674,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dayOrders.length === 0) {
                 const tr = document.createElement('tr');
                 if (dayLabel === '(六)' || dayLabel === '(日)') tr.classList.add('weekend-row');
-                tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">無訂餐紀錄</td>`;
+                tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">本週無流水帳明細</td>`;
                 tbody.appendChild(tr);
             } else {
                 // 將每日訂單依照 mealType 再次分群
@@ -777,11 +980,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const tfoot = document.createElement('tfoot');
         tfoot.innerHTML = `<tr><th colspan="3" class="total-label">本週總計金額</th><th colspan="3" class="modal-total-cell">$${grandTotal}</th></tr>`;
         table.appendChild(tfoot);
-        dynamicTableContainer.appendChild(table);
+        container.appendChild(table);
     }
 
     // === 表格 2：電話叫餐表 (Caller) ===
-    function renderCallerTable(weekDates, allOrders) {
+    function renderCallerTable(weekDates, allOrders, container) {
         const table = document.createElement('table');
         table.className = 'excel-table';
         table.innerHTML = `<thead><tr><th>日期 / 餐期 / 餐廳</th><th>餐點明細匯總 (唸給老闆聽)</th><th class="amount-col">金額小計</th></tr></thead>`;
@@ -830,15 +1033,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (tbody.children.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding: 2rem;">本週無任何訂餐紀錄</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding: 2rem;">本週無電話叫餐彙總紀錄</td></tr>`;
         }
 
         table.appendChild(tbody);
-        dynamicTableContainer.appendChild(table);
+        container.appendChild(table);
     }
 
     // === 表格 3：收錢總帳表 (Person) ===
-    function renderPersonTable(weekOrders, grandTotal) {
+    function renderPersonTable(weekOrders, grandTotal, container) {
         const table = document.createElement('table');
         table.className = 'excel-table';
         table.innerHTML = `<thead><tr><th>姓名</th><th style="text-align:center;">點餐次數</th><th class="amount-col">總花費</th><th class="amount-col">已繳交</th><th class="amount-col">尚欠款</th><th style="width:100px; text-align:center;">狀態</th></tr></thead>`;
@@ -912,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tfoot = document.createElement('tfoot');
         tfoot.innerHTML = `<tr><th colspan="2" class="total-label">本週全體總消費</th><th colspan="4" class="modal-total-cell" style="text-align:left; padding-left:1rem;">$${grandTotal}</th></tr>`;
         table.appendChild(tfoot);
-        dynamicTableContainer.appendChild(table);
+        container.appendChild(table);
     }
 
     // CSV 匯出邏輯
@@ -1012,7 +1215,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // === 系統維護 UI (人員、餐廳、設定) ===
-    const settingsModal = document.getElementById('settings-modal');
     const settingsBtn = document.getElementById('settings-btn');
     const closeSettingsBtn = document.getElementById('close-settings-btn');
     const settingsTabs = document.querySelectorAll('.settings-tab-btn');
@@ -1137,7 +1339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             if (!hasOverrides) html += `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
-            html += `</tbody></table></div>`;
+            html += `</table></div>`;
 
             html += `<div class="form-group" style="margin-bottom:1rem;"><label>系統設定密碼防護 (留空代表任何人皆可進來設定)</label>`;
             html += `<input type="text" id="config-admin-pwd" class="restaurant-input" value="${currentPwd}" placeholder="請設定密碼 (選填)"></div>`;
@@ -1359,9 +1561,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 可以顯示投票區
         vSec.classList.remove('hidden');
-        document.getElementById('voting-countdown').innerText = `截止時間：${selectedDateStr} ${voteCutoff}`;
+        const countdownEl = document.getElementById('voting-countdown');
+        if (countdownEl) countdownEl.innerText = `截止時間：${selectedDateStr} ${voteCutoff}`;
 
         const container = document.getElementById('voting-options');
+        if (!container) return;
         container.innerHTML = '';
         const todaysVotes = memoryVotes.filter(v => v.date === selectedDateStr && v.mealType === mType);
 
@@ -1453,12 +1657,20 @@ document.addEventListener('DOMContentLoaded', () => {
         renderVotingSection();
     });
 
-    // 監聽重新選餐期以重繪投票
-    document.getElementById('meal-type').addEventListener('change', () => {
-        renderVotingSection();
-        handleFormState();
-    });
+    // 監聽重新選餐期以重繪投票 (已在上方 syncAndRefresh 處理，故此處移除冗餘或增加安全檢查)
+    if (document.getElementById('meal-type')) {
+        document.getElementById('meal-type').addEventListener('change', () => {
+            renderVotingSection();
+            handleFormState();
+        });
+    }
 
+    // 事件綁定 (使用 safeListen)
+    safeListen(document.getElementById('close-modal-btn'), 'click', () => {
+        const modal = document.getElementById('excel-modal');
+        if (modal) modal.classList.add('hidden');
+    });
+    
     // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
     try {
         const cached = JSON.parse(localStorage.getItem(CLOUD_CACHE_KEY));
