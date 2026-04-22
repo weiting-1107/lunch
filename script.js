@@ -553,34 +553,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const anyOrder = sessionOrders.length > 0 ? sessionOrders[0] : null;
 
         // ★ 如果此餐期已有訂單，同步顯示雲端的餐廳名稱與鎖單時間
-        const cutoffDisplay = document.getElementById('cutoff-display');
         if (anyOrder) {
-            if (anyOrder.restaurant) {
-                restaurantNameInput.value = anyOrder.restaurant;
-            }
+            restaurantInputs.forEach(input => {
+                if (anyOrder.restaurant) input.value = anyOrder.restaurant;
+                input.disabled = true;
+                input.title = "今日此餐期已開單，不可更改餐廳";
+                input.style.background = "var(--input-bg)";
+                input.style.color = "var(--text-muted)";
+            });
+
             // 鎖單時間：雲端值 > 本機設定值 > 預設值，確保一定會顯示
             const syncedCutoff = anyOrder.cutoffTime || getSettings().cutoffTime || '10:30';
-            cutoffTimeInput.value = syncedCutoff;
-
-            restaurantNameInput.disabled = true;
-            restaurantNameInput.title = "今日此餐期已開單，不可更改餐廳";
-            restaurantNameInput.style.background = "var(--input-bg)";
-            restaurantNameInput.style.color = "var(--text-muted)";
-
-            cutoffTimeInput.disabled = true;
-            cutoffTimeInput.title = "今日此餐期已開單，時間規則不可隨意更改";
-            cutoffTimeInput.style.background = "var(--input-bg)";
-            cutoffTimeInput.style.color = "var(--text-muted)";
+            cutoffInputs.forEach(input => {
+                input.value = syncedCutoff;
+                input.disabled = true;
+                input.title = "今日此餐期已開單，時間規則不可隨意更改";
+                input.style.background = "var(--input-bg)";
+                input.style.color = "var(--text-muted)";
+            });
         } else {
-            restaurantNameInput.disabled = false;
-            restaurantNameInput.title = "請輸入此餐期要叫的餐廳名稱";
-            restaurantNameInput.style.background = "transparent";
-            restaurantNameInput.style.color = "var(--text-main)";
+            restaurantInputs.forEach(input => {
+                input.disabled = false;
+                input.title = "請輸入此餐期要叫的餐廳名稱";
+                input.style.background = "transparent";
+                input.style.color = "var(--text-main)";
+            });
 
-            cutoffTimeInput.disabled = false;
-            cutoffTimeInput.title = "鎖單時間 (一旦有人訂購即鎖定)";
-            cutoffTimeInput.style.background = "transparent";
-            cutoffTimeInput.style.color = "var(--text-main)";
+            cutoffInputs.forEach(input => {
+                input.disabled = false;
+                input.title = "鎖單時間 (一旦有人訂購即鎖定)";
+                input.style.background = "transparent";
+                input.style.color = "var(--text-main)";
+            });
         }
 
         // 鎖單視覺與按鈕控制
