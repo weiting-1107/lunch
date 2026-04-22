@@ -419,10 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 初始化設定
     const initialSettings = getSettings();
-    if (initialSettings.cutoffTime && cutoffTimeInput) {
-        cutoffTimeInput.value = initialSettings.cutoffTime;
+    if (initialSettings.cutoffTime) {
+        cutoffInputs.forEach(input => { if (input) input.value = initialSettings.cutoffTime; });
     }
-    if (orderDateInput) orderDateInput.value = getTodayString();
+    dateInputs.forEach(input => { if (input) input.value = getTodayString(); });
 
     // ★ 新增：根據目前時間自動選拇預設餐期
     (function setDefaultMealType() {
@@ -711,19 +711,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateRestaurantMenuDisplay() {
         const wrapper = document.getElementById('restaurant-menu-link-wrapper');
         if (!wrapper) return;
-        const currentRest = restaurantNameInput.value;
+        const currentRest = getCommonInputs().rest;
         wrapper.innerHTML = getMenuLinkHtml(currentRest);
     }
 
-    restaurantNameInput.addEventListener('input', updateRestaurantMenuDisplay);
+    safeListenAll('#restaurant-name, #restaurant-name-mob', 'input', (e) => {
+        syncAndRefresh(restaurantInputs, e.target.value, false);
+        updateRestaurantMenuDisplay();
+    });
 
-    orderDateInput.addEventListener('change', () => { handleFormState(); });
-    mealTypeInput.addEventListener('change', () => { handleFormState(); });
-    cutoffTimeInput.addEventListener('change', () => {
+    safeListenAll('#order-date, #order-date-mob', 'change', (e) => {
+        syncAndRefresh(dateInputs, e.target.value, true);
+    });
+
+    safeListenAll('#meal-type, #meal-type-mob', 'change', (e) => {
+        syncAndRefresh(mealTypeInputs, e.target.value, true);
+    });
+
+    safeListenAll('#cutoff-time, #cutoff-time-mob', 'change', (e) => {
+        const val = e.target.value;
+        syncAndRefresh(cutoffInputs, val, true);
         const settings = getSettings();
-        settings.cutoffTime = cutoffTimeInput.value;
+        settings.cutoffTime = val;
         saveSettings(settings);
-        handleFormState();
         if (!excelModal.classList.contains('hidden')) renderOrders();
     });
 
@@ -777,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
         itemPriceInput.value = '';
         personNameInput.focus();
 
-        currentViewDate = new Date(date);
+        currentViewDate = new Date(inputs.date);
         updateGrandTotal();
         showToast(`訂購成功：${item}`, 'success');
     });
