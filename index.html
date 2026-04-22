@@ -48,7 +48,8 @@
                 </div>
                 <div class="sidebar-setting-item">
                     <label>🏢 今日餐廳</label>
-                    <input type="text" id="restaurant-name" placeholder="輸入餐廳..." list="restaurant-history" class="restaurant-input">
+                    <input type="text" id="restaurant-name" placeholder="輸入餐廳..." list="restaurant-history"
+                        class="restaurant-input">
                 </div>
                 <div class="sidebar-setting-item">
                     <label>⛔ 鎖單時間</label>
@@ -59,9 +60,11 @@
 
         <!-- 投票區 (電腦版將透過 CSS Grid 移至右側；手機版排在點餐單之前) -->
         <div id="voting-section" class="order-form-card hidden voting-sidebar-card">
-            <h3 style="margin-top:0; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
+            <h3
+                style="margin-top:0; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
                 <span><span class="step-badge warning">!</span>📊 今日餐廳投票</span>
-                <span id="voting-countdown" style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;"></span>
+                <span id="voting-countdown"
+                    style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;"></span>
             </h3>
             <div class="form-group">
                 <label for="vote-person">投票人 <span class="required">*</span></label>
@@ -71,7 +74,9 @@
             </div>
             <div id="voting-options" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;">
             </div>
-            <div id="already-voted-note" style="display:none; margin-top:0.75rem; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:0.5rem; border-left:3px solid var(--success); font-size:0.85rem; color:var(--success);"></div>
+            <div id="already-voted-note"
+                style="display:none; margin-top:0.75rem; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:0.5rem; border-left:3px solid var(--success); font-size:0.85rem; color:var(--success);">
+            </div>
             <button id="submit-vote-btn" class="primary-btn" style="margin-top:1rem;">🗳️ 確認送出投票</button>
         </div>
 
@@ -98,7 +103,8 @@
                     </div>
                     <div class="mobile-setting-item">
                         <label>🏢 今日餐廳</label>
-                        <input type="text" id="restaurant-name-mob" placeholder="輸入餐廳..." list="restaurant-history" class="restaurant-input">
+                        <input type="text" id="restaurant-name-mob" placeholder="輸入餐廳..." list="restaurant-history"
+                            class="restaurant-input">
                     </div>
                     <div class="mobile-setting-item">
                         <label>⛔ 鎖單時間</label>
@@ -115,21 +121,26 @@
 
                 <!-- 點餐表單 (手機版順序：最後) -->
                 <div class="order-form-card" id="order-form-container">
-                    <div class="form-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <div class="form-header"
+                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                         <h3 style="margin:0;"><span class="step-badge">2</span>📝 填寫訂單</h3>
-                        <a id="display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden" style="text-decoration:none; font-size:0.9rem; padding:0.4rem 0.75rem; background:var(--primary); color:white; border-radius:0.5rem;">📄 查看菜單</a>
+                        <a id="display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden"
+                            style="text-decoration:none; font-size:0.9rem; padding:0.4rem 0.75rem; background:var(--primary); color:white; border-radius:0.5rem;">📄
+                            查看菜單</a>
                     </div>
 
                     <div class="form-group">
                         <label for="person-name">姓名 <span class="required">*</span></label>
-                        <select id="person-name" required class="restaurant-input" style="width:100%; border:1px solid var(--border);">
+                        <select id="person-name" required class="restaurant-input"
+                            style="width:100%; border:1px solid var(--border);">
                             <option value="" disabled selected>請選擇您的姓名</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="item-name">餐點名稱 <span class="required">*</span></label>
                         <div id="quick-order-labels" class="quick-label-container"></div>
-                        <input type="text" id="item-name" placeholder="例如：排骨便當" list="item-history" required autocomplete="off">
+                        <input type="text" id="item-name" placeholder="例如：排骨便當" list="item-history" required
+                            autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label for="item-price">金額 <span class="required">*</span></label>
@@ -140,7 +151,8 @@
                         <div class="quick-prices" id="quick-prices-container"></div>
                     </div>
                     <button id="submit-order-btn" class="primary-btn">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+                            fill="none">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                         </svg>
@@ -150,23 +162,40 @@
             </main>
         </div>
 
-        
+
         <!-- 懸浮底部導航列 (手機版專用) -->
         <nav class="floating-nav mobile-only">
             <button class="nav-item nav-home-btn active">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
                 <span>點餐</span>
             </button>
             <button class="nav-item nav-details-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
                 <span>明細</span>
             </button>
             <button class="nav-item nav-person-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
                 <span>個人</span>
             </button>
             <button class="nav-item nav-settings-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                    </path>
+                </svg>
                 <span>設定</span>
             </button>
         </nav>
@@ -182,8 +211,14 @@
             <div class="modal-header">
                 <h2>📊 週結算報表中心</h2>
                 <div class="header-actions">
-                    <button id="clear-history-btn" class="secondary-btn" title="清理過期舊帳" style="color:var(--danger); border-color:var(--locked-border); background:var(--locked-bg);">
-                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 清理
+                    <button id="clear-history-btn" class="secondary-btn" title="清理過期舊帳"
+                        style="color:var(--danger); border-color:var(--locked-border); background:var(--locked-bg);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2"
+                            fill="none">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg> 清理
                     </button>
                     <button id="export-csv-btn" class="secondary-btn" title="匯出 Excel (CSV)">
                         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2"
@@ -245,7 +280,8 @@
                 <h2>⚙️ 系統設定與資料維護</h2>
                 <div class="header-actions">
                     <button id="close-settings-btn" class="close-btn" aria-label="關閉">
-                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
@@ -253,14 +289,18 @@
                 </div>
             </div>
             <!-- 密碼驗證層 -->
-            <div id="settings-auth-wrapper" class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem;">
+            <div id="settings-auth-wrapper" class="modal-body"
+                style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                 <h3 style="margin-bottom: 0.5rem;">請輸入系統密碼</h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">此區域受保護，僅供管理員進入</p>
                 <div style="width: 100%; max-width: 300px;">
-                    <input type="password" id="settings-password-input" class="restaurant-input" placeholder="預設 1234" style="width: 100%; text-align: center; font-size: 1.25rem; letter-spacing: 0.5rem; margin-bottom: 1rem;">
+                    <input type="password" id="settings-password-input" class="restaurant-input" placeholder="預設 1234"
+                        style="width: 100%; text-align: center; font-size: 1.25rem; letter-spacing: 0.5rem; margin-bottom: 1rem;">
                     <button id="unlock-settings-btn" class="primary-btn" style="width: 100%;">驗證並解鎖</button>
-                    <p id="auth-error-msg" style="color: #ef4444; font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none;">❌ 密碼錯誤，請再試一次</p>
+                    <p id="auth-error-msg"
+                        style="color: #ef4444; font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none;">
+                        ❌ 密碼錯誤，請再試一次</p>
                 </div>
             </div>
 
@@ -279,7 +319,7 @@
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=77"></script>
+    <script src="script.js?v=79"></script>
 </body>
 
 </html>

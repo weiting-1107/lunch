@@ -194,7 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const unlockSettings = () => {
         const input = document.getElementById('settings-password-input');
         const errorMsg = document.getElementById('auth-error-msg');
-        const corePassword = localStorage.getItem('lunch_sys_password') || '1234';
+        // 強制轉為字串，避免從試算表讀回來時被轉成數字型態導致 === 判斷失敗
+        const corePassword = String(memoryConfig.adminPwd || '1234');
 
         if (input.value === corePassword) {
             isSettingsAuthenticated = true;
@@ -429,10 +430,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const h = now.getHours();
         let defaultMeal = '早餐';
-        if (h >= 10 && h < 14)  defaultMeal = '午餐';
+        if (h >= 10 && h < 14) defaultMeal = '午餐';
         else if (h >= 14 && h < 17) defaultMeal = '下午茶';
         else if (h >= 17 && h < 21) defaultMeal = '晚餐';
-        else if (h >= 21)           defaultMeal = '宵夕';
+        else if (h >= 21) defaultMeal = '宵夕';
         // 同時更新電腦版與手機版選單
         document.querySelectorAll('#meal-type, #meal-type-mob').forEach(sel => {
             if (sel) sel.value = defaultMeal;
@@ -1465,8 +1466,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 memoryConfig.voteCutoffTime = t;
                 if (newPass.trim() !== '') {
-                    localStorage.setItem('lunch_sys_password', newPass.trim());
-                    showToast('密碼已更新', 'success');
+                    memoryConfig.adminPwd = newPass.trim();
+                    showToast('密碼已同步更新至資料庫', 'success');
                 }
 
                 const newConfig = [];
