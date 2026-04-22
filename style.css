@@ -98,10 +98,11 @@ body {
 
 @media (max-width: 1023px) {
     .app-layout {
-        height: auto; /* 手機版不鎖定高度 */
+        height: auto;
         min-height: 100vh;
-        overflow: visible; /* 讓內容可隨頁面捲動 */
-        display: block; /* 改回 block 排版 */
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
     }
 }
 
@@ -146,7 +147,6 @@ body {
     .main-container {
         height: auto;
         overflow: visible;
-        padding: 1rem 0.5rem 5rem 0.5rem; /* 底部留位置給導覽 */
     }
 }
 
@@ -174,8 +174,9 @@ body {
         margin: 0;
     }
     
-    #voting-section {
-        display: block !important; /* 如果被 JS 隱藏可能需要處理，但邏輯上應在右側 */
+    
+    #voting-section:not(.hidden) {
+        display: block;
         grid-area: right;
         margin: 2rem 2rem 2rem 0;
         height: fit-content;
@@ -190,15 +191,29 @@ body {
 
 /* Mobile 專屬調整 */
 @media (max-width: 1023px) {
-    #voting-section {
-        display: block !important;
-        position: static; /* 手機版不可卡死在頂部 */
+    /* 展開 main-container，讓子元素參與 app-layout 的 flex 排序 */
+    .main-container {
+        display: contents;
+    }
+
+    /* 手機版排序：header(1) → 投票(2) → 訂單(3) */
+    .mobile-header {
+        order: 1;
+        padding: 1rem 0.5rem 0 0.5rem;
+    }
+
+    #voting-section:not(.hidden) {
+        display: block;
+        order: 2;
+        position: static;
         margin: 1rem 0.5rem;
         padding: 1.25rem;
         width: calc(100% - 1rem);
     }
-    .main-container {
-        padding-top: 0;
+
+    .main-container > main {
+        order: 3;
+        padding: 0 0.5rem 5rem 0.5rem;
     }
 }
 

@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appLayout = document.querySelector('.app-layout');
     const excelModal = document.getElementById('excel-modal');
     const settingsModal = document.getElementById('settings-modal');
-    
+
     // 設定類 Inputs (雙端同步用)
     const dateInputs = document.querySelectorAll('#order-date, #order-date-mob');
     const mealTypeInputs = document.querySelectorAll('#meal-type, #meal-type-mob');
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitOrderBtn = document.getElementById('submit-order-btn');
     const orderFormContainer = document.getElementById('order-form-container');
     const lockedWarning = document.getElementById('locked-warning');
-    
+
     // 定義主輸入框 (解決之前的 ReferenceError 崩潰問題)
     const orderDateInput = document.getElementById('order-date');
     const mealTypeInput = document.getElementById('meal-type');
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 導航按鈕 (側邊欄與底部同步)
     safeListenAll('.nav-home-btn', 'click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-    
+
     function highlightTab(tabName) {
         currentActiveTab = tabName;
         const allTabs = document.querySelectorAll('.tab-btn');
@@ -171,13 +171,13 @@ document.addEventListener('DOMContentLoaded', () => {
         excelModal.classList.remove('hidden');
         renderOrders();
     });
-    
+
     safeListenAll('.nav-person-btn', 'click', () => {
         highlightTab('tab-person');
         excelModal.classList.remove('hidden');
         renderOrders();
     });
-    
+
     safeListenAll('.nav-settings-btn', 'click', () => {
         if (!settingsModal) return;
         // 每次打開設定都重啟驗證流程
@@ -424,6 +424,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (orderDateInput) orderDateInput.value = getTodayString();
 
+    // ★ 新增：根據目前時間自動選拇預設餐期
+    (function setDefaultMealType() {
+        const now = new Date();
+        const h = now.getHours();
+        let defaultMeal = '早餐';
+        if (h >= 10 && h < 14)  defaultMeal = '午餐';
+        else if (h >= 14 && h < 17) defaultMeal = '下午茶';
+        else if (h >= 17 && h < 21) defaultMeal = '晚餐';
+        else if (h >= 21)           defaultMeal = '宵夕';
+        // 同時更新電腦版與手機版選單
+        document.querySelectorAll('#meal-type, #meal-type-mob').forEach(sel => {
+            if (sel) sel.value = defaultMeal;
+        });
+    })();
+
     // 更新 Datalist 記憶快選
     function updateDatalists() {
         const orders = getOrders();
@@ -547,13 +562,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const syncedCutoff = anyOrder.cutoffTime || getSettings().cutoffTime || '10:30';
             cutoffTimeInput.value = syncedCutoff;
 
-            // ★ 隱藏原生 time input，改用醒目的文字標籤顯示截止時間
-            cutoffTimeInput.style.display = 'none';
-            if (cutoffDisplay) {
-                cutoffDisplay.textContent = `⏰ ${selectedDate} ${syncedCutoff}`;
-                cutoffDisplay.classList.remove('hidden');
-            }
-
             restaurantNameInput.disabled = true;
             restaurantNameInput.title = "今日此餐期已開單，不可更改餐廳";
             restaurantNameInput.style.background = "var(--input-bg)";
@@ -563,21 +571,16 @@ document.addEventListener('DOMContentLoaded', () => {
             cutoffTimeInput.title = "今日此餐期已開單，時間規則不可隨意更改";
             cutoffTimeInput.style.background = "var(--input-bg)";
             cutoffTimeInput.style.color = "var(--text-muted)";
-            cutoffTimeInput.style.borderBottom = "1px dashed var(--border)";
         } else {
             restaurantNameInput.disabled = false;
             restaurantNameInput.title = "請輸入此餐期要叫的餐廳名稱";
             restaurantNameInput.style.background = "transparent";
             restaurantNameInput.style.color = "var(--text-main)";
 
-            // 恢復原生 time input
-            cutoffTimeInput.style.display = '';
             cutoffTimeInput.disabled = false;
             cutoffTimeInput.title = "鎖單時間 (一旦有人訂購即鎖定)";
             cutoffTimeInput.style.background = "transparent";
             cutoffTimeInput.style.color = "var(--text-main)";
-            cutoffTimeInput.style.borderBottom = "none";
-            if (cutoffDisplay) cutoffDisplay.classList.add('hidden');
         }
 
         // 鎖單視覺與按鈕控制
@@ -606,14 +609,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 lockedWarning.style.color = 'var(--primary)';
             }
         }
-        // ★ 新增：如果有訂單，立即隱藏中心投票區塊
-        const ordersForSync = getOrders();
-        const syncSessionOrders = ordersForSync.filter(o => o.date === selectedDate && o.mealType === selectedMealType);
-        if (syncSessionOrders.length > 0) {
+        // ★ 使用 getOrders() 確保拿到最新訂單，再判斷是否隱藏投票區
+        const latestOrders = getOrders();
+        const latestSessionOrders = latestOrders.filter(o => o.date === selectedDate && o.mealType === selectedMealType);
+        if (latestSessionOrders.length > 0) {
             const vSec = document.getElementById('voting-section');
             if (vSec) vSec.classList.add('hidden');
         } else {
-            // 如果沒訂單，則按原邏輯判斷是否要顯示投票
             renderVotingSection();
         }
 
@@ -660,10 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
             quickOrderLabels.innerHTML = '';
             return;
         }
-        
+
         const userName = personNameInput.value;
         const userOrders = memoryOrders.filter(o => o.name === userName);
-        
+
         // 統計該使用者最常點的前三名 (以項目+價格作為唯一鍵)
         const stats = {};
         userOrders.forEach(o => {
@@ -679,12 +681,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return { item, price: parseFloat(price) };
             });
 
-        quickOrderLabels.innerHTML = topItems.map(data => 
+        quickOrderLabels.innerHTML = topItems.map(data =>
             `<span class="quick-label" onclick="fillQuickOrder('${data.item}', ${data.price})">⭐ ${data.item} ($${data.price})</span>`
         ).join('');
     }
 
-    window.fillQuickOrder = function(item, price) {
+    window.fillQuickOrder = function (item, price) {
         itemNameInput.value = item;
         itemPriceInput.value = price;
         showToast(`已自動填入：${item}`, 'info');
@@ -711,8 +713,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     restaurantNameInput.addEventListener('input', updateRestaurantMenuDisplay);
 
-    orderDateInput.addEventListener('change', () => { handleFormState(); renderVotingSection(); });
-    mealTypeInput.addEventListener('change', () => { handleFormState(); renderVotingSection(); });
+    orderDateInput.addEventListener('change', () => { handleFormState(); });
+    mealTypeInput.addEventListener('change', () => { handleFormState(); });
     cutoffTimeInput.addEventListener('change', () => {
         const settings = getSettings();
         settings.cutoffTime = cutoffTimeInput.value;
@@ -841,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateGrandTotal() {
         const wt = getWeekData(currentViewDate);
         const gTotal = wt.weekOrders.reduce((acc, cur) => acc + cur.price, 0);
-        
+
         const dashGrandTotal = document.getElementById('dash-grand-total');
         if (dashGrandTotal) dashGrandTotal.textContent = `$${gTotal}`;
 
@@ -939,7 +941,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         sessionTotal += order.price;
                         const tr = document.createElement('tr');
                         if (order.paid) tr.classList.add('row-paid');
-                        
+
                         const isWeekend = dayLabel === '(六)' || dayLabel === '(日)';
                         if (isWeekend) tr.classList.add('weekend-row');
 
@@ -1385,9 +1387,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasOverrides) html += `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</table></div>`;
 
-            html += `<div class="form-group" style="margin-bottom:1rem;"><label>系統設定密碼防護 (留空代表任何人皆可進來設定)</label>`;
-            html += `<input type="text" id="config-admin-pwd" class="restaurant-input" value="${currentPwd}" placeholder="請設定密碼 (選填)"></div>`;
+            html += `<div class="form-group" style="margin-bottom:1rem;">
+                <label>🔒 修改系統設定密碼</label>
+                <input type="password" id="sys-password-change" class="restaurant-input" placeholder="輸入新密碼（留空則不更改）" value="">
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">目前密碼已設定。留空代表不修改密碼。</p>
+            </div>`;
             html += `<button id="save-config-btn" class="primary-btn" style="width:100%;">儲存設定</button>`;
+
         }
 
         container.innerHTML = html;
@@ -1439,37 +1445,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             }
         } else if (activeSettingsTab === 'tab-config') {
-            // 加入修改密碼的功能
-            const currentPass = localStorage.getItem('lunch_sys_password') || '1234';
-            const configHtml = `
-                <div class="config-section" style="margin-bottom: 2rem;">
-                    <h4>📅 截止時間維護</h4>
-                    <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                        <input type="date" id="new-cutoff-date" class="restaurant-input">
-                        <input type="time" id="new-cutoff-time" class="restaurant-input">
-                        <button id="add-cutoff-btn" class="primary-btn">➕ 新增</button>
-                    </div>
-                </div>
-                <hr style="border:0; border-top:1px solid var(--border); margin:2rem 0;">
-                <div class="config-section">
-                    <h4>🔒 安全設定</h4>
-                    <div class="form-group">
-                        <label>修改系統設定密碼</label>
-                        <div style="display:flex; gap:0.5rem;">
-                            <input type="password" id="sys-password-change" class="restaurant-input" value="${currentPass}" placeholder="輸入新密碼">
-                            <button id="save-password-btn" class="primary-btn">儲存新密碼</button>
-                        </div>
-                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">預設密碼為 1234。修改後下次進入設定需使用新密碼。</p>
-                    </div>
-                </div>
-            `;
-            container.innerHTML = configHtml;
+            document.getElementById('save-config-btn').onclick = () => {
+                const t = document.getElementById('config-vote-time').value;
+                const newPass = document.getElementById('sys-password-change').value;
 
-            document.getElementById('save-password-btn').onclick = () => {
-                const newPass = document.getElementById('sys-password-change').value.trim();
-                if (!newPass) { showToast('密碼不可為空', 'error'); return; }
-                localStorage.setItem('lunch_sys_password', newPass);
-                showToast('系統密碼已更新', 'success');
+                memoryConfig.voteCutoffTime = t;
+                if (newPass.trim() !== '') {
+                    localStorage.setItem('lunch_sys_password', newPass.trim());
+                    showToast('密碼已更新', 'success');
+                }
+
+                const newConfig = [];
+                Object.keys(memoryConfig).forEach(k => {
+                    let val = memoryConfig[k];
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
+                    newConfig.push({ key: k, value: val });
+                });
+                saveCloudData("saveConfig", newConfig);
+                renderVotingSection();
+                showToast('設定已儲存', 'success');
             };
 
             document.getElementById('add-cutoff-btn').onclick = () => {
@@ -1501,23 +1495,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderVotingSection();
             };
 
-            document.getElementById('save-config-btn').onclick = () => {
-                const t = document.getElementById('config-vote-time').value;
-                const p = document.getElementById('config-admin-pwd').value;
 
-                memoryConfig.voteCutoffTime = t;
-                memoryConfig.adminPwd = p;
-
-                const newConfig = [];
-                Object.keys(memoryConfig).forEach(k => {
-                    let val = memoryConfig[k];
-                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
-                    newConfig.push({ key: k, value: val });
-                });
-                saveCloudData("saveConfig", newConfig);
-                renderVotingSection();
-                showToast('設定已儲存', 'success');
-            };
         }
     }
 
@@ -1583,8 +1561,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const voteCutoff = storedTime || curTimeStr;
         const mType = document.getElementById('meal-type').value || '午餐';
 
-        // 此餐期的現有訂單 (如果有已經建立出來的訂單，表示餐廳已經鎖定了)
-        const sessionOrders = memoryOrders.filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
+        // 此餐期的現有訂單——改用 getOrders() 確保拿到最新本地訂單，遠首著隱藏投票區
+        const sessionOrders = getOrders().filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
 
         // 判斷是否超過開放投票的時間
         // 如果是過去的日期 -> 關閉
@@ -1747,7 +1725,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const modal = document.getElementById('excel-modal');
         if (modal) modal.classList.add('hidden');
     });
-    
+
     // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
     try {
         const cached = JSON.parse(localStorage.getItem(CLOUD_CACHE_KEY));
