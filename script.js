@@ -963,6 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (index === 0) {
                             const dateColor = isWeekend ? 'var(--danger)' : 'inherit';
                             const tdDate = document.createElement('td');
+                            tdDate.setAttribute('data-label', '日期 / 餐廳');
                             tdDate.rowSpan = sessionOrders.length + 1;
                             const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
                             tdDate.innerHTML = `<b style="color:${dateColor}">${order.date}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
@@ -971,13 +972,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         tr.innerHTML += `
-                            <td>${order.name}</td>
-                            <td>${order.item}</td>
-                            <td class="amount-value">$${order.price}</td>
+                            <td data-label="姓名">${order.name}</td>
+                            <td data-label="餐點">${order.item}</td>
+                            <td data-label="金額" class="amount-value">$${order.price}</td>
                         `;
 
                         // Paid Checkbox
                         const tdPaid = document.createElement('td');
+                        tdPaid.setAttribute('data-label', '付清');
                         tdPaid.style.textAlign = 'center';
                         const chk = document.createElement('input');
                         chk.type = 'checkbox';
@@ -989,6 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // 編輯與刪除按鈕
                         const tdAction = document.createElement('td');
+                        tdAction.setAttribute('data-label', '操作');
                         tdAction.className = 'action-value';
                         tdAction.style.whiteSpace = 'nowrap';
                         if (!isLocked) {
@@ -1082,12 +1085,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tr = document.createElement('tr');
                 if (isWeekend) tr.classList.add('weekend-row');
                 tr.innerHTML = `
-                    <td style="vertical-align:top; width:30%;">
+                    <td data-label="日期 / 餐廳" style="vertical-align:top; width:30%;">
                         <b style="color:${dateColor}">${dateString}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'};">${dayLabel}</span> ${mTypeBadge}<br>
                         <span style="color:var(--primary); font-weight:600; font-size:1.1rem;">${sessionRest}</span>
                     </td>
-                    <td style="vertical-align:top;">${itemsArr.join('')}</td>
-                    <td class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:var(--text-main);">$${sessionTotal}</td>
+                    <td data-label="餐點彙總" style="vertical-align:top;">${itemsArr.join('')}</td>
+                    <td data-label="金額小計" class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:var(--text-main);">$${sessionTotal}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1136,12 +1139,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             tr.innerHTML = `
-                <td style="font-weight:600; font-size:1.1rem;">${name}</td>
-                <td style="text-align:center;">${data.count} 筆</td>
-                <td class="amount-value" style="color:var(--text-muted);">$${data.total}</td>
-                <td class="amount-value" style="color:var(--success);">$${data.paidTotal}</td>
-                <td class="amount-value" style="color:var(--danger); font-weight:700;">$${remains}</td>
-                <td class="status-cell" style="text-align:center; font-weight:600; vertical-align:middle;">
+                <td data-label="姓名" style="font-weight:600; font-size:1.1rem;">${name}</td>
+                <td data-label="點餐次數" style="text-align:center;">${data.count} 筆</td>
+                <td data-label="總花費" class="amount-value" style="color:var(--text-muted);">$${data.total}</td>
+                <td data-label="已繳交" class="amount-value" style="color:var(--success);">$${data.paidTotal}</td>
+                <td data-label="尚欠款" class="amount-value" style="color:var(--danger); font-weight:700;">$${remains}</td>
+                <td data-label="目前狀態" class="status-cell" style="text-align:center; font-weight:600; vertical-align:middle;">
                     ${statusHtml}
                 </td>
             `;

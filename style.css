@@ -740,6 +740,13 @@ header p {
     position: relative;
     z-index: 10;
     background: var(--card-bg);
+    /* 手機版分頁滑動優化 */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.modal-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .tab-btn {
@@ -1090,6 +1097,105 @@ input[type="number"] {
 
 .quick-label:hover { border-color: var(--primary); color: var(--primary); background: var(--card-bg); }
 
+@media (max-width: 600px) {
+    /* 報表中心手機版：傳統表格轉卡片佈局 */
+    .excel-table {
+        border: none;
+    }
+    .excel-table thead {
+        display: none; /* 隱藏表頭 */
+    }
+    .excel-table, 
+    .excel-table tbody, 
+    .excel-table tr, 
+    .excel-table td {
+        display: block;
+        width: 100%;
+    }
+    .excel-table tr {
+        margin-bottom: 1.5rem;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .excel-table td {
+        text-align: right;
+        padding: 0.75rem 1rem;
+        position: relative;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        min-height: 2.5rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    .excel-table td:last-child {
+        border-bottom: none;
+    }
+    /* 利用 data-label 顯示欄位名稱 */
+    .excel-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+    
+    /* 每日/餐期群組標題特殊處理 */
+    .excel-table td[data-label="日期 / 餐廳"] {
+        display: block;
+        text-align: left;
+        background: var(--input-bg);
+        padding: 0.8rem 1rem;
+        border-bottom: 2px solid var(--primary);
+        height: auto;
+    }
+    .excel-table td[data-label="日期 / 餐廳"]::before {
+        display: none;
+    }
+
+    /* 調整金額字體大小 */
+    .excel-table td.amount-value {
+        font-size: 1.2rem;
+        color: var(--primary);
+    }
+    
+    /* 頁腳總計特殊處理 */
+    .excel-table tfoot, .excel-table tfoot tr, .excel-table tfoot th {
+        display: block;
+        width: 100%;
+    }
+    .excel-table tfoot th {
+        text-align: right;
+        padding: 1rem;
+        border: none;
+    }
+    .total-label {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        background: var(--input-bg);
+    }
+    .modal-total-cell {
+        font-size: 1.8rem !important;
+        background: var(--card-bg);
+    }
+
+    /* 叫餐表細節 */
+    [data-label="餐點彙總"] {
+        flex-direction: column;
+        align-items: flex-end;
+        height: auto;
+        padding-top: 1.5rem !important;
+    }
+    [data-label="餐點彙總"]::before {
+        top: 0.5rem;
+    }
+}
+
 @media (max-width: 480px) {
     body { padding: 0.5rem 0.5rem 5rem 0.5rem; }
     .main-container { padding: 0; }
@@ -1100,7 +1206,6 @@ input[type="number"] {
     .modal-tabs { padding: 0 0.5rem; }
     .modal-body { padding: 1rem; }
     
-    .excel-table th, .excel-table td { padding: 0.5rem; font-size: 0.85rem; }
     .form-group label { font-size: 0.9rem; }
     .setting-item label { font-size: 0.85rem; min-width: 65px; }
     .setting-item { padding: 0.4rem 0.5rem; }
