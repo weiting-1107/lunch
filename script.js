@@ -425,16 +425,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     dateInputs.forEach(input => { if (input) input.value = getTodayString(); });
 
-    // ★ 新增：根據目前時間自動選拇預設餐期
-    (function setDefaultMealType() {
+    // ★ 根據目前時間自動選擇預設餐期
+    function getCurrentMealPeriod() {
         const now = new Date();
         const h = now.getHours();
-        let defaultMeal = '早餐';
-        if (h >= 10 && h < 14) defaultMeal = '午餐';
-        else if (h >= 14 && h < 17) defaultMeal = '下午茶';
-        else if (h >= 17 && h < 21) defaultMeal = '晚餐';
-        else if (h >= 21) defaultMeal = '宵夕';
-        // 同時更新電腦版與手機版選單
+        if (h >= 6 && h < 10) return '早餐';
+        if (h >= 10 && h < 13) return '午餐';
+        if (h >= 13 && h < 16) return '下午茶';
+        if (h >= 16 && h < 21) return '晚餐';
+        return '宵夜'; // 21:00 ~ 06:00
+    }
+
+    (function setDefaultMealType() {
+        const defaultMeal = getCurrentMealPeriod();
         document.querySelectorAll('#meal-type, #meal-type-mob').forEach(sel => {
             if (sel) sel.value = defaultMeal;
         });
@@ -753,6 +756,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = parseFloat(itemPriceInput.value);
         const item = itemNameInput.value.trim();
         const inputs = getCommonInputs();
+
+        // ★ 新增：檢查餐期是否已過 (針對當天)
+        if (inputs.date === getTodayString()) {
+            const currentPeriod = getCurrentMealPeriod();
+            const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+            const selectedIdx = mealOrder.indexOf(inputs.meal);
+            const currentIdx = mealOrder.indexOf(currentPeriod);
+            
+            if (selectedIdx < currentIdx) {
+                showToast(`⚠️ ${inputs.meal}時間已過，現在是${currentPeriod}！`, "error");
+                // 不強制阻擋，但給予強烈警告 (若 user 堅持點餐則繼續，或者您可以改為 return 阻擋)
+                if (!confirm(`您選的是【${inputs.meal}】，但現在已經是【${currentPeriod}】時間了。確定要繼續點餐嗎？`)) return;
+            }
+        }
 
         if (isSessionLocked(inputs.date, inputs.meal)) {
             showToast("此餐期已鎖定，無法新增訂單！", "error");

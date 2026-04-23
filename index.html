@@ -68,7 +68,7 @@
             </h3>
             <div class="form-group">
                 <label for="vote-person">投票人 <span class="required">*</span></label>
-                <select id="vote-person" class="restaurant-input" style="width:100%; border:1px solid var(--border);">
+                <select id="vote-person" required>
                     <option value="" disabled selected>請選擇姓名</option>
                 </select>
             </div>
@@ -98,6 +98,7 @@
                                 <option value="午餐" selected>午餐</option>
                                 <option value="下午茶">下午茶</option>
                                 <option value="晚餐">晚餐</option>
+                                <option value="宵夜">宵夜</option>
                             </select>
                         </div>
                     </div>
@@ -131,8 +132,7 @@
 
                     <div class="form-group">
                         <label for="person-name">姓名 <span class="required">*</span></label>
-                        <select id="person-name" required class="restaurant-input"
-                            style="width:100%; border:1px solid var(--border);">
+                        <select id="person-name" required>
                             <option value="" disabled selected>請選擇您的姓名</option>
                         </select>
                     </div>
@@ -319,7 +319,7 @@
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=83"></script>
+    <script src="script.js?v=87"></script>
 </body>
 
 </html>

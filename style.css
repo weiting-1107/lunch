@@ -74,9 +74,9 @@ body {
 
 @media (max-width: 1023px) {
     html, body {
-        height: auto;
-        overflow: auto; /* 解除手機版捲動鎖定 */
-        overflow-x: hidden; /* 確保手機版不會左右晃動 */
+        height: 100vh;
+        overflow: hidden; /* 手機版也維持捲動鎖定，由內部容器處理 */
+        overflow-x: hidden; 
     }
     body {
         padding: 0; 
@@ -141,12 +141,16 @@ body {
     overflow-y: auto; /* 核心捲動區域 */
     -webkit-overflow-scrolling: touch;
     height: 100%;
+    /* 隱藏捲軸但保留捲動功能 (選用) */
+    scrollbar-width: none;
 }
+.main-container::-webkit-scrollbar { display: none; }
 
 @media (max-width: 1023px) {
     .main-container {
-        height: auto;
-        overflow: visible;
+        height: 100vh;
+        overflow-y: auto;
+        padding-bottom: 80px; /* 為底部導覽留空間 */
     }
 }
 
@@ -487,7 +491,8 @@ header p {
     color: var(--danger);
 }
 
-.form-group input {
+.form-group input, 
+.form-group select {
     border: 1px solid var(--border);
     border-radius: 0.375rem;
     padding: 0.65rem 0.75rem;
@@ -497,9 +502,12 @@ header p {
     color: var(--text-main);
     background: var(--input-bg);
     font-family: inherit;
+    appearance: none; /* 移除原生選單樣式，由我們統一控制 */
+    height: 2.75rem; /* 統一度高 */
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
