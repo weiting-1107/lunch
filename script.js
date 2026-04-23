@@ -966,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             tdDate.setAttribute('data-label', '日期 / 餐廳');
                             tdDate.rowSpan = sessionOrders.length + 1;
                             const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
-                            tdDate.innerHTML = `<b style="color:${dateColor}">${order.date}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge}<br><span style="color:var(--primary); font-size:0.9rem; font-weight:600;">${sessionRest}</span>`;
+                            tdDate.innerHTML = `<b style="color:${dateColor}">${order.date}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge} <span style="color:var(--primary); font-size:0.9rem; font-weight:600; margin-left:0.5rem;">${sessionRest}</span>`;
                             tdDate.style.verticalAlign = 'middle';
                             tr.appendChild(tdDate);
                         }
@@ -1085,9 +1085,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tr = document.createElement('tr');
                 if (isWeekend) tr.classList.add('weekend-row');
                 tr.innerHTML = `
-                    <td data-label="日期 / 餐廳" style="vertical-align:top; width:30%;">
-                        <b style="color:${dateColor}">${dateString}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'};">${dayLabel}</span> ${mTypeBadge}<br>
-                        <span style="color:var(--primary); font-weight:600; font-size:1.1rem;">${sessionRest}</span>
+                    <td data-label="日期 / 餐廳" style="vertical-align:top;">
+                        <b style="color:${dateColor}">${dateString}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left:0.25rem;">${dayLabel}</span> ${mTypeBadge}
+                        <span style="color:var(--primary); font-weight:600; font-size:1.1rem; margin-left:0.5rem;">${sessionRest}</span>
                     </td>
                     <td data-label="餐點彙總" style="vertical-align:top;">${itemsArr.join('')}</td>
                     <td data-label="金額小計" class="amount-value" style="vertical-align:top; font-weight:bold; font-size:1.1rem; color:var(--text-main);">$${sessionTotal}</td>

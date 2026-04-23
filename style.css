@@ -1184,15 +1184,22 @@ input[type="number"] {
         background: var(--card-bg);
     }
 
-    /* 叫餐表細節 */
+    /* 叫餐表細節：還原上一版使用者較喜歡的樣式 */
     [data-label="餐點彙總"] {
         flex-direction: column;
         align-items: flex-end;
         height: auto;
-        padding-top: 1.5rem !important;
+        padding-top: 1.8rem !important;
     }
     [data-label="餐點彙總"]::before {
-        top: 0.5rem;
+        top: 0.6rem;
+        left: 1rem;
+    }
+
+    [data-label="金額小計"] {
+        background: var(--input-bg);
+        font-size: 1.1rem;
+        font-weight: 800;
     }
 }
 
