@@ -449,7 +449,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 更新人員下拉選單 (從 Users DB)
         const oldName = personNameInput.value;
-        const oldVoteName = document.getElementById('vote-person')?.value;
         personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
         const votePersonSel = document.getElementById('vote-person');
         if (votePersonSel) votePersonSel.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
@@ -1335,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;"><input type="text" id="new-user-name" class="restaurant-input" placeholder="新增人員姓名"><button id="add-user-btn" class="primary-btn">新增</button></div>`;
             html += `<table class="excel-table"><thead><tr><th>人員名稱</th><th>操作</th></tr></thead><tbody>`;
             memoryUsers.forEach(u => {
-                html += `<tr><td>${u.name}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
+                html += `<tr><td data-label="人員名稱">${u.name}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
             });
             if (memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
             html += `</tbody></table>`;
@@ -1381,10 +1380,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         : '週一~五';
                     const menuBtn = r.menuUrl ? `<a href="${r.menuUrl}" target="_blank" title="查看菜單" style="text-decoration:none;font-size:1.2rem;margin-right:8px;">📄</a>` : '';
                     html += `<tr>`;
-                    html += `<td>${menuBtn}<strong>${r.name}</strong>${r.address ? `<br><small style="color:var(--text-muted);">${r.address}</small>` : ''}</td>`;
-                    html += `<td>${r.phone || '-'}</td>`;
-                    html += `<td style="font-size:0.8rem;">${openDaysStr}</td>`;
-                    html += `<td style="text-align:center;white-space:nowrap;"><button class="secondary-btn" onclick="editRestaurant('${r.id}')" style="margin-right:4px;">編輯</button><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td>`;
+                    html += `<td data-label="店名">${menuBtn}<strong>${r.name}</strong>${r.address ? `<br><small style="color:var(--text-muted);">${r.address}</small>` : ''}</td>`;
+                    html += `<td data-label="電話">${r.phone || '-'}</td>`;
+                    html += `<td data-label="營業日" style="font-size:0.8rem;">${openDaysStr}</td>`;
+                    html += `<td data-label="操作" style="text-align:center;white-space:nowrap;"><button class="secondary-btn" onclick="editRestaurant('${r.id}')" style="margin-right:4px;">編輯</button><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td>`;
                     html += `</tr>`;
                 });
                 if (memoryRestaurants.length === 0) html += `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">尚無餐廳資料</td></tr>`;
@@ -1416,7 +1415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     hasOverrides = true;
                     const dateStr = k.replace('cutoff_', '');
                     const timeStr = normalizeTime(memoryConfig[k]);
-                    html += `<tr><td>${dateStr}</td><td>${timeStr}</td><td style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteCutoffOverride('${k}')">刪除</button></td></tr>`;
+                    html += `<tr><td data-label="指定日期">${dateStr}</td><td data-label="截止時間">${timeStr}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteCutoffOverride('${k}')">刪除</button></td></tr>`;
                 }
             });
             if (!hasOverrides) html += `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;

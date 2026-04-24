@@ -51,11 +51,14 @@
     padding: 0;
 }
 
-html, body {
+html,
+body {
     height: 100vh;
-    width: 100%; /* 使用 100% 避免 100vw 包含捲軸寬度導致的溢出 */
+    width: 100%;
+    /* 使用 100% 避免 100vw 包含捲軸寬度導致的溢出 */
     overflow: hidden;
-    overflow-x: hidden; /* 強制禁用水平捲動 */
+    overflow-x: hidden;
+    /* 強制禁用水平捲動 */
     margin: 0;
     padding: 0;
 }
@@ -66,20 +69,24 @@ body {
     color: var(--text-main);
     display: flex;
     justify-content: center;
-    padding: 0 40px; /* 電腦版間距 */
+    padding: 0 40px;
+    /* 電腦版間距 */
     height: 100vh;
     overflow: hidden;
     transition: background 0.3s, color 0.3s;
 }
 
 @media (max-width: 1023px) {
-    html, body {
-        height: 100vh;
-        overflow: hidden; /* 手機版也維持捲動鎖定，由內部容器處理 */
-        overflow-x: hidden; 
-    }
+
+    html,
     body {
-        padding: 0; 
+        height: auto;
+        overflow: auto; /* 手機版改為自然捲動 */
+        overflow-x: hidden;
+    }
+
+    body {
+        padding: 0;
         height: auto;
         width: 100%;
     }
@@ -87,13 +94,14 @@ body {
 
 .app-layout {
     width: 100%;
-    height: 100vh; 
+    height: 100vh;
     max-width: 1600px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    overflow: hidden; 
-    background: transparent; /* 讓底層漸層透出，達成底色一致 */
+    overflow: hidden;
+    background: transparent;
+    /* 讓底層漸層透出，達成底色一致 */
 }
 
 @media (max-width: 1023px) {
@@ -108,14 +116,15 @@ body {
 
 /* 側邊欄 (電腦版) */
 .sidebar {
-    display: none; /* 手機版預設隱藏 */
+    display: none;
+    /* 手機版預設隱藏 */
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-right: 1px solid var(--glass-border);
-    padding: 2rem 1.25rem;
+    padding: 1.15rem 1.05rem;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.8rem;
     height: 100vh;
     position: sticky;
     top: 0;
@@ -138,19 +147,24 @@ body {
     width: 100%;
     max-width: 100%;
     margin: 0;
-    overflow-y: auto; /* 核心捲動區域 */
+    overflow-y: auto;
+    /* 核心捲動區域 */
     -webkit-overflow-scrolling: touch;
     height: 100%;
     /* 隱藏捲軸但保留捲動功能 (選用) */
     scrollbar-width: none;
 }
-.main-container::-webkit-scrollbar { display: none; }
+
+.main-container::-webkit-scrollbar {
+    display: none;
+}
 
 @media (max-width: 1023px) {
     .main-container {
-        height: 100vh;
-        overflow-y: auto;
-        padding-bottom: 80px; /* 為底部導覽留空間 */
+        height: auto;
+        overflow: visible;
+        padding: 0.75rem;
+        padding-bottom: 80px;
     }
 }
 
@@ -165,20 +179,20 @@ body {
         max-width: 100%;
         gap: 0;
     }
-    
-    .sidebar { 
-        display: flex; 
-        grid-area: sidebar; 
+
+    .sidebar {
+        display: flex;
+        grid-area: sidebar;
     }
-    
-    .main-container { 
-        grid-area: main; 
-        max-width: none; 
-        padding: 2rem 4rem; 
+
+    .main-container {
+        grid-area: main;
+        max-width: none;
+        padding: 2rem 4rem;
         margin: 0;
     }
-    
-    
+
+
     #voting-section:not(.hidden) {
         display: block;
         grid-area: right;
@@ -188,13 +202,23 @@ body {
         top: 2rem;
     }
 
-    .mobile-header, .floating-nav { display: none !important; }
-    .desktop-only { display: block; }
-    .mobile-only { display: none; }
+    .mobile-header,
+    .floating-nav {
+        display: none !important;
+    }
+
+    .desktop-only {
+        display: block;
+    }
+
+    .mobile-only {
+        display: none;
+    }
 }
 
 /* Mobile 專屬調整 */
 @media (max-width: 1023px) {
+
     /* 展開 main-container，讓子元素參與 app-layout 的 flex 排序 */
     .main-container {
         display: contents;
@@ -215,7 +239,7 @@ body {
         width: calc(100% - 1rem);
     }
 
-    .main-container > main {
+    .main-container>main {
         order: 3;
         padding: 0 0.5rem 5rem 0.5rem;
     }
@@ -255,14 +279,29 @@ body {
     transition: all 0.2s;
 }
 
-.nav-item svg { width: 20px; height: 20px; }
-.nav-item.active { color: var(--primary); }
+.nav-item svg {
+    width: 20px;
+    height: 20px;
+}
+
+.nav-item.active {
+    color: var(--primary);
+}
 
 /* Mobile Header 延伸設定樣式 */
 
 /* Mobile Header 延伸設定樣式 */
-.sidebar-brand h1 { font-size: 1.5rem; color: var(--primary); margin-bottom: 0.2rem; }
-.sidebar-brand p { font-size: 0.8rem; color: var(--text-muted); opacity: 0.8; }
+.sidebar-brand h1 {
+    font-size: 1.5rem;
+    color: var(--primary);
+    margin-bottom: 0.2rem;
+}
+
+.sidebar-brand p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
 
 .sidebar-nav {
     display: flex;
@@ -286,12 +325,21 @@ body {
     text-align: left;
 }
 
-.nav-btn:hover { background: var(--input-bg); color: var(--primary); }
-.nav-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+.nav-btn:hover {
+    background: var(--input-bg);
+    color: var(--primary);
+}
+
+.nav-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
 
 .sidebar-setting-item {
     margin-bottom: 1rem;
 }
+
 .sidebar-setting-item label {
     display: block;
     font-size: 0.75rem;
@@ -306,28 +354,48 @@ body {
     border-radius: 1.25rem;
     border: 1px solid var(--border);
     padding: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
 .mobile-header {
     background: var(--card-bg);
-    padding: 1.25rem;
-    border-radius: 1.25rem;
-    margin-bottom: 1.25rem;
+    padding: 1rem; /* 恢復舒適內距 */
+    border-radius: 1rem;
+    margin-bottom: 1rem; /* 恢復底邊距 */
     border: 1px solid var(--border);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-.mobile-settings-row { display: flex; flex-direction: column; gap: 0.75rem; }
-.mobile-setting-item label { font-size: 0.75rem; color: var(--text-muted); font-weight: bold; margin-bottom: 0.3rem; display: block; }
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem; /* 增加標題與設定區的間隔 */
+}
+
+.mobile-settings-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    /* 進一步緊縮項目間距 */
+}
+
+.mobile-setting-item label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: bold;
+    margin-bottom: 0.25rem; /* 恢復標籤間距 */
+    display: block;
+}
 
 
 
 h1 {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 700;
     color: var(--text-main);
+    margin: 0;
+    /* 移除標題預設邊距，省下垂直空間 */
 }
 
 .header-actions-right {
@@ -336,6 +404,7 @@ h1 {
     display: flex;
     gap: 0.5rem;
 }
+
 .header-actions-left {
     position: absolute;
     left: 0;
@@ -356,14 +425,20 @@ h1 {
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--text-main);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
+
 .theme-toggle:hover {
     transform: rotate(15deg) scale(1.1);
     background: var(--card-bg);
     border-color: var(--primary);
 }
-.theme-toggle span { display: flex; align-items: center; justify-content: center; }
+
+.theme-toggle span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
 header p {
     color: var(--text-muted);
@@ -398,32 +473,59 @@ header p {
     text-align: right;
 }
 
-.setting-item input {
-    border: none;
-    background: transparent;
-    font-size: 0.95rem;
+.setting-item input,
+.setting-item select {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    padding: 0.4rem 0.6rem;
+    /* 縮小內距 */
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
     color: var(--text-main);
     font-weight: 500;
     font-family: inherit;
     flex-grow: 1;
+    transition: all 0.2s;
+    height: 2.2rem;
+    /* 縮小高度 */
 }
 
-.setting-item input:focus {
+.setting-item input:focus,
+.setting-item select:focus {
     outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
-.restaurant-input {
-    border-bottom: 1px dashed var(--border) !important;
-    border-radius: 0 !important;
+.restaurant-input,
+.time-input,
+.date-input,
+.meal-type-select,
+.meal-type-select-sidebar {
+    border: 1px solid var(--border) !important;
+    background: var(--input-bg) !important;
+    border-radius: 0.375rem !important;
+    padding: 0.4rem 0.6rem !important;
+    /* 縮小內距 */
+    transition: all 0.2s !important;
+    height: 2.2rem !important;
+    /* 縮小高度 */
+    font-size: 0.9rem !important;
 }
 
+/* 鎖單時間專屬寬度微調 */
 .time-input {
-    max-width: 160px;
-    min-width: 130px;
+    width: 100% !important;
+    max-width: none !important;
 }
 
-.time-input:focus, .restaurant-input:focus {
-    border-bottom: 1px solid var(--primary) !important;
+.restaurant-input:focus,
+.time-input:focus,
+.date-input:focus,
+.meal-type-select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+    outline: none !important;
 }
 
 .cutoff-display {
@@ -468,7 +570,7 @@ header p {
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -491,8 +593,11 @@ header p {
     color: var(--danger);
 }
 
-.form-group input, 
-.form-group select {
+.form-group input,
+.form-group select,
+.restaurant-input,
+.time-input,
+.date-input {
     border: 1px solid var(--border);
     border-radius: 0.375rem;
     padding: 0.65rem 0.75rem;
@@ -502,8 +607,8 @@ header p {
     color: var(--text-main);
     background: var(--input-bg);
     font-family: inherit;
-    appearance: none; /* 移除原生選單樣式，由我們統一控制 */
-    height: 2.75rem; /* 統一度高 */
+    appearance: none;
+    height: 2.75rem;
 }
 
 .form-group input:focus,
@@ -518,6 +623,7 @@ header p {
     position: relative;
     width: 100%;
 }
+
 .currency-symbol {
     position: absolute;
     left: 0.75rem;
@@ -526,7 +632,10 @@ header p {
     color: var(--text-muted);
     font-size: 1rem;
 }
-#item-price { padding-left: 1.75rem; }
+
+#item-price {
+    padding-left: 1.75rem;
+}
 
 .quick-prices {
     display: flex;
@@ -534,18 +643,21 @@ header p {
     margin-top: 0.15rem;
     flex-wrap: wrap;
 }
+
 .quick-price-btn {
     background: var(--input-bg);
     border: 1px solid var(--border);
     color: var(--text-muted);
     font-size: 0.8rem;
     padding: 0.3rem 0.75rem;
-    border-radius: 1rem; /* pill shape */
+    border-radius: 1rem;
+    /* pill shape */
     cursor: pointer;
     transition: all 0.2s;
     font-weight: 600;
     font-family: inherit;
 }
+
 .quick-price-btn:hover {
     background: var(--primary);
     color: white;
@@ -571,8 +683,14 @@ header p {
     margin-top: 0.5rem;
     box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.25);
 }
-.primary-btn:hover { background: var(--primary-hover); }
-.primary-btn:active { transform: scale(0.98); }
+
+.primary-btn:hover {
+    background: var(--primary-hover);
+}
+
+.primary-btn:active {
+    transform: scale(0.98);
+}
 
 /* Summary & Toasts */
 .summary-card {
@@ -647,8 +765,9 @@ header p {
     justify-content: center;
     gap: 0.5rem;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
+
 .excel-btn:hover {
     background: var(--input-bg);
     border-color: var(--primary);
@@ -660,7 +779,10 @@ header p {
     border: none !important;
     box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.25) !important;
 }
-.success-btn:hover { opacity: 0.9; }
+
+.success-btn:hover {
+    opacity: 0.9;
+}
 
 /* Modal Styles */
 .modal-overlay {
@@ -690,7 +812,7 @@ header p {
     background: var(--card-bg);
     border-radius: 0.75rem;
     width: 95%;
-    max-width: 750px; 
+    max-width: 750px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     transform: translateY(0);
     transition: transform 0.2s ease;
@@ -699,7 +821,9 @@ header p {
     flex-direction: column;
 }
 
-.modal-overlay.hidden .modal-content { transform: translateY(10px); }
+.modal-overlay.hidden .modal-content {
+    transform: translateY(10px);
+}
 
 .modal-header {
     display: flex;
@@ -707,9 +831,20 @@ header p {
     align-items: center;
     padding: 1.25rem 1.5rem;
 }
-.modal-header h2 { font-size: 1.25rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; }
 
-.header-actions { display: flex; gap: 0.75rem; align-items: center; }
+.modal-header h2 {
+    font-size: 1.25rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
 
 .secondary-btn {
     background: var(--input-bg);
@@ -725,7 +860,11 @@ header p {
     color: var(--text-main);
     transition: background 0.2s;
 }
-.secondary-btn:hover { background: var(--hover-bg); border-color: var(--primary); }
+
+.secondary-btn:hover {
+    background: var(--hover-bg);
+    border-color: var(--primary);
+}
 
 .close-btn {
     background: transparent;
@@ -737,7 +876,11 @@ header p {
     display: flex;
     transition: background 0.2s;
 }
-.close-btn:hover { background: var(--input-bg); color: var(--danger); }
+
+.close-btn:hover {
+    background: var(--input-bg);
+    color: var(--danger);
+}
 
 /* Modal Tabs */
 .modal-tabs {
@@ -753,6 +896,7 @@ header p {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
 }
+
 .modal-tabs::-webkit-scrollbar {
     display: none;
 }
@@ -773,8 +917,15 @@ header p {
     pointer-events: auto !important;
     font-family: inherit;
 }
-.tab-btn:hover { color: var(--primary); }
-.tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+
+.tab-btn:hover {
+    color: var(--primary);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+}
 
 /* 引導標籤樣式 (Badge) */
 .step-badge {
@@ -793,6 +944,7 @@ header p {
     flex-shrink: 0;
     vertical-align: middle;
 }
+
 .step-badge.warning {
     background: #f59e0b;
     box-shadow: 0 2px 5px rgba(245, 158, 11, 0.4);
@@ -802,7 +954,8 @@ header p {
     padding: 1.5rem;
     max-height: 65vh;
     overflow-y: auto;
-    overflow-x: auto; /* 保障在手機上可以左右滑動表格防跑版 */
+    overflow-x: auto;
+    /* 保障在手機上可以左右滑動表格防跑版 */
     -webkit-overflow-scrolling: touch;
 }
 
@@ -817,6 +970,7 @@ header p {
     margin-bottom: 1rem;
     border: 1px solid var(--border);
 }
+
 .week-nav-btn {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -828,27 +982,111 @@ header p {
     padding: 0.4rem;
     color: var(--text-muted);
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.week-nav-btn:hover { background: var(--input-bg); color: var(--primary); border-color: var(--primary); }
-.week-label-container { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
-.week-date-range { font-weight: 700; color: var(--text-main); font-size: 0.95rem; font-family: monospace; }
-.small-btn { font-size: 0.75rem; padding: 0.2rem 0.6rem; background: transparent; border: none; color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;}
-.small-btn:hover { color: var(--primary-hover); }
+
+.week-nav-btn:hover {
+    background: var(--input-bg);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.week-label-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.week-date-range {
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-family: monospace;
+}
+
+.small-btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.small-btn:hover {
+    color: var(--primary-hover);
+}
 
 /* Excel Table */
-.excel-table { width: 100%; border-collapse: collapse; font-family: inherit; border: 1px solid var(--border); }
-.excel-table th, .excel-table td { border: 1px solid var(--border); padding: 0.6rem 1rem; text-align: left; }
-.excel-table th { background-color: var(--table-header-bg); font-weight: 600; color: var(--text-main); white-space: nowrap; }
-.excel-table th.amount-col { text-align: right; width: 100px; }
-.excel-table td.amount-value { text-align: right; font-family: monospace; font-size: 1.05rem; font-weight: 500; }
-.excel-table td.action-value { text-align: center; padding: 0.25rem; }
-.excel-table tfoot th { background-color: var(--table-foot-bg); border-top: 2px solid var(--text-muted); color: var(--text-main); }
-.total-label { text-align: right; }
-.modal-total-cell { font-size: 1.25rem !important; font-weight: 700 !important; color: var(--success) !important; text-align: right; font-family: monospace; }
-.excel-subtotal { background: var(--input-bg) !important; font-size: 0.9rem; color: var(--text-muted); }
+.excel-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: inherit;
+    border: 1px solid var(--border);
+}
 
-.excel-table td { background-color: var(--card-bg); color: var(--text-main); }
+.excel-table th,
+.excel-table td {
+    border: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    text-align: left;
+}
+
+.excel-table th {
+    background-color: var(--table-header-bg);
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.excel-table th.amount-col {
+    text-align: right;
+    width: 100px;
+}
+
+.excel-table td.amount-value {
+    text-align: right;
+    font-family: monospace;
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+.excel-table td.action-value {
+    text-align: center;
+    padding: 0.25rem;
+}
+
+.excel-table tfoot th {
+    background-color: var(--table-foot-bg);
+    border-top: 2px solid var(--text-muted);
+    color: var(--text-main);
+}
+
+.total-label {
+    text-align: right;
+}
+
+.modal-total-cell {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: var(--success) !important;
+    text-align: right;
+    font-family: monospace;
+}
+
+.excel-subtotal {
+    background: var(--input-bg) !important;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.excel-table td {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+}
 
 /* 餐期下拉選單 */
 .meal-type-select {
@@ -864,40 +1102,71 @@ header p {
 
 /* 深色模式：全面覆蓋表格與 Modal 內部所有寫死的淺色背景 */
 [data-theme="dark"] .modal-body,
-[data-theme="dark"] .modal-content { color: var(--text-main); }
+[data-theme="dark"] .modal-content {
+    color: var(--text-main);
+}
 
 [data-theme="dark"] .excel-table td:not(.weekend-cell),
-[data-theme="dark"] .excel-table td[style]:not(.weekend-cell) { background-color: var(--card-bg) !important; color: var(--text-main) !important; }
+[data-theme="dark"] .excel-table td[style]:not(.weekend-cell) {
+    background-color: var(--card-bg) !important;
+    color: var(--text-main) !important;
+}
 
 .weekend-row td {
-    background-color: #fee2e2 !important; /* Tailwind Red 100 */
+    background-color: #fee2e2 !important;
+    /* Tailwind Red 100 */
 }
 
 [data-theme="dark"] .weekend-row td {
-    background-color: #7f1d1d !important; /* Tailwind Red 900 */
+    background-color: #7f1d1d !important;
+    /* Tailwind Red 900 */
 }
 
 [data-theme="dark"] .excel-table th,
-[data-theme="dark"] .excel-table th[style] { background-color: var(--table-header-bg) !important; color: var(--text-main) !important; }
+[data-theme="dark"] .excel-table th[style] {
+    background-color: var(--table-header-bg) !important;
+    color: var(--text-main) !important;
+}
 
-[data-theme="dark"] .excel-table tfoot th { background-color: var(--table-foot-bg) !important; }
+[data-theme="dark"] .excel-table tfoot th {
+    background-color: var(--table-foot-bg) !important;
+}
 
-[data-theme="dark"] .row-paid td { color: var(--text-muted) !important; }
+[data-theme="dark"] .row-paid td {
+    color: var(--text-muted) !important;
+}
 
-[data-theme="dark"] .modal-controls { background: var(--input-bg) !important; border-color: var(--border) !important; }
-[data-theme="dark"] .week-nav-btn { background: var(--card-bg) !important; border-color: var(--border) !important; color: var(--text-muted) !important; }
+[data-theme="dark"] .modal-controls {
+    background: var(--input-bg) !important;
+    border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .week-nav-btn {
+    background: var(--card-bg) !important;
+    border-color: var(--border) !important;
+    color: var(--text-muted) !important;
+}
 
 [data-theme="dark"] .meal-type-select,
 [data-theme="dark"] select,
-[data-theme="dark"] select option { background-color: var(--input-bg) !important; color: var(--text-main) !important; }
+[data-theme="dark"] select option {
+    background-color: var(--input-bg) !important;
+    color: var(--text-main) !important;
+}
 
 [data-theme="dark"] input[type="date"],
-[data-theme="dark"] input[type="time"] { color-scheme: dark; }
+[data-theme="dark"] input[type="time"] {
+    color-scheme: dark;
+}
 
-[data-theme="dark"] .setting-item { background: var(--input-bg); border-color: var(--border); }
+[data-theme="dark"] .setting-item {
+    background: var(--input-bg);
+    border-color: var(--border);
+}
 
 /* Table buttons */
-.delete-record-btn, .edit-record-btn {
+.delete-record-btn,
+.edit-record-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -909,9 +1178,20 @@ header p {
     align-items: center;
     justify-content: center;
 }
-.delete-record-btn:hover { color: var(--danger); background: var(--locked-bg); }
-.edit-record-btn { margin-right: 0.25rem; }
-.edit-record-btn:hover { color: var(--primary); background: rgba(59, 130, 246, 0.1); }
+
+.delete-record-btn:hover {
+    color: var(--danger);
+    background: var(--locked-bg);
+}
+
+.edit-record-btn {
+    margin-right: 0.25rem;
+}
+
+.edit-record-btn:hover {
+    color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+}
 
 /* Settle All Btn */
 .settle-all-btn {
@@ -927,15 +1207,39 @@ header p {
     margin-top: 0.25rem;
     font-family: inherit;
 }
-.settle-all-btn:hover { background: var(--success); color: white; }
+
+.settle-all-btn:hover {
+    background: var(--success);
+    color: white;
+}
 
 /* Paid status */
-.paid-checkbox { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: var(--success); }
-.row-paid { background-color: var(--input-bg) !important; }
-.row-paid td { color: var(--text-muted); }
-.row-paid td.amount-value { text-decoration: line-through; opacity: 0.5; }
+.paid-checkbox {
+    width: 1.2rem;
+    height: 1.2rem;
+    cursor: pointer;
+    accent-color: var(--success);
+}
 
-input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.row-paid {
+    background-color: var(--input-bg) !important;
+}
+
+.row-paid td {
+    color: var(--text-muted);
+}
+
+.row-paid td.amount-value {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield;
@@ -959,7 +1263,7 @@ input[type="number"] {
     color: var(--text-main);
     padding: 12px 24px;
     border-radius: 8px;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -968,13 +1272,46 @@ input[type="number"] {
     animation: slideDownToast 0.3s ease forwards;
     border: 1px solid var(--border);
 }
-.toast.success { border-left: 5px solid var(--success); }
-.toast.error { border-left: 5px solid var(--danger); }
-.toast.info { border-left: 5px solid var(--primary); }
-.toast.diminish { animation: slideUpToast 0.3s ease forwards; }
 
-@keyframes slideDownToast { 0% { opacity: 0; transform: translateY(-20px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes slideUpToast { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }
+.toast.success {
+    border-left: 5px solid var(--success);
+}
+
+.toast.error {
+    border-left: 5px solid var(--danger);
+}
+
+.toast.info {
+    border-left: 5px solid var(--primary);
+}
+
+.toast.diminish {
+    animation: slideUpToast 0.3s ease forwards;
+}
+
+@keyframes slideDownToast {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUpToast {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
 
 /* Dashboard Styles */
 .dashboard-grid {
@@ -997,10 +1334,26 @@ input[type="number"] {
     transition: transform 0.2s;
 }
 
-.dashboard-card:hover { transform: translateY(-2px); border-color: var(--primary); }
-.dashboard-card .label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
-.dashboard-card .value { font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
-.dashboard-card.highlight .value { color: var(--primary); }
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+}
+
+.dashboard-card .label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.dashboard-card .value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.dashboard-card.highlight .value {
+    color: var(--primary);
+}
 
 /* Restaurant Card */
 .restaurant-card {
@@ -1025,9 +1378,24 @@ input[type="number"] {
     border-radius: 50%;
 }
 
-.restaurant-card h4 { margin: 0; font-size: 1.1rem; font-weight: 700; }
-.restaurant-card .rest-name { font-size: 1.35rem; margin: 0.25rem 0; display: block; }
-.restaurant-card .actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.restaurant-card h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.restaurant-card .rest-name {
+    font-size: 1.35rem;
+    margin: 0.25rem 0;
+    display: block;
+}
+
+.restaurant-card .actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
 .restaurant-card .action-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.4);
@@ -1043,7 +1411,10 @@ input[type="number"] {
     gap: 0.25rem;
     backdrop-filter: blur(5px);
 }
-.restaurant-card .action-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+.restaurant-card .action-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
 
 /* Floating Nav */
 .floating-nav {
@@ -1059,7 +1430,7 @@ input[type="number"] {
     border-radius: 2.5rem;
     display: flex;
     gap: 1.5rem;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     z-index: 90;
     width: max-content;
     max-width: 90vw;
@@ -1079,9 +1450,20 @@ input[type="number"] {
     border: none;
 }
 
-.nav-item:hover, .nav-item.active { color: var(--primary); }
-.nav-item svg { width: 22px; height: 22px; transition: transform 0.2s; }
-.nav-item:hover svg { transform: translateY(-2px); }
+.nav-item:hover,
+.nav-item.active {
+    color: var(--primary);
+}
+
+.nav-item svg {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.2s;
+}
+
+.nav-item:hover svg {
+    transform: translateY(-2px);
+}
 
 /* Quick Order Labels */
 .quick-label-container {
@@ -1103,56 +1485,83 @@ input[type="number"] {
     transition: all 0.2s;
 }
 
-.quick-label:hover { border-color: var(--primary); color: var(--primary); background: var(--card-bg); }
+.quick-label:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--card-bg);
+}
 
 @media (max-width: 600px) {
+
     /* 報表中心手機版：傳統表格轉卡片佈局 */
     .excel-table {
         border: none;
     }
+
     .excel-table thead {
-        display: none; /* 隱藏表頭 */
+        display: none;
+        /* 隱藏表頭 */
     }
-    .excel-table, 
-    .excel-table tbody, 
-    .excel-table tr, 
+
+    .excel-table,
+    .excel-table tbody,
+    .excel-table tr,
     .excel-table td {
         display: block;
         width: 100%;
     }
+
     .excel-table tr {
         margin-bottom: 1.5rem;
         background: var(--card-bg);
         border: 1px solid var(--border);
         border-radius: 0.75rem;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
+
     .excel-table td {
-        text-align: right;
+        text-align: left;
         padding: 0.75rem 1rem;
         position: relative;
         border: none;
         border-bottom: 1px solid var(--border);
         min-height: 2.5rem;
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between; /* 標籤靠左，內容靠右 (預設) */
         align-items: center;
     }
+
+    /* 針對「操作」欄位的特殊對齊：按鈕一律靠右 */
+    .excel-table td[data-label="操作"] {
+        justify-content: flex-end;
+    }
+
+    /* 針對系統設定中的清單項目：內容靠左 */
+    #settings-modal .excel-table td:first-child {
+        justify-content: flex-start;
+        font-weight: 600;
+    }
+
+    #settings-modal .excel-table td:first-child::before {
+        display: none; /* 隱藏「人員名稱」或「店名」標籤，直接顯示內容 */
+    }
+
     .excel-table td:last-child {
         border-bottom: none;
     }
+
     /* 利用 data-label 顯示欄位名稱 */
     .excel-table td::before {
         content: attr(data-label);
-        position: absolute;
-        left: 1rem;
         font-weight: 700;
         color: var(--text-muted);
         font-size: 0.85rem;
         text-transform: uppercase;
+        margin-right: 1.5rem; /* 確保標籤與內容之間有間隔 */
+        flex-shrink: 0; /* 防止標籤被壓縮 */
     }
-    
+
     /* 每日/餐期群組標題特殊處理 */
     .excel-table td[data-label="日期 / 餐廳"] {
         display: block;
@@ -1162,6 +1571,7 @@ input[type="number"] {
         border-bottom: 2px solid var(--primary);
         height: auto;
     }
+
     .excel-table td[data-label="日期 / 餐廳"]::before {
         display: none;
     }
@@ -1171,22 +1581,27 @@ input[type="number"] {
         font-size: 1.2rem;
         color: var(--primary);
     }
-    
+
     /* 頁腳總計特殊處理 */
-    .excel-table tfoot, .excel-table tfoot tr, .excel-table tfoot th {
+    .excel-table tfoot,
+    .excel-table tfoot tr,
+    .excel-table tfoot th {
         display: block;
         width: 100%;
     }
+
     .excel-table tfoot th {
         text-align: right;
         padding: 1rem;
         border: none;
     }
+
     .total-label {
         font-size: 0.9rem;
         color: var(--text-muted);
         background: var(--input-bg);
     }
+
     .modal-total-cell {
         font-size: 1.8rem !important;
         background: var(--card-bg);
@@ -1199,6 +1614,7 @@ input[type="number"] {
         height: auto;
         padding-top: 1.8rem !important;
     }
+
     [data-label="餐點彙總"]::before {
         top: 0.6rem;
         left: 1rem;
@@ -1212,21 +1628,58 @@ input[type="number"] {
 }
 
 @media (max-width: 480px) {
-    body { padding: 0.5rem 0.5rem 5rem 0.5rem; }
-    .main-container { padding: 0; }
-    
-    .modal-content { max-height: 90vh; }
-    .modal-header { flex-direction: column; align-items: flex-start; gap: 0.8rem; padding: 1rem; }
-    .header-actions { width: 100%; justify-content: flex-end; }
-    .modal-tabs { padding: 0 0.5rem; }
-    .modal-body { padding: 1rem; }
-    
-    .form-group label { font-size: 0.9rem; }
-    .setting-item label { font-size: 0.85rem; min-width: 65px; }
-    .setting-item { padding: 0.4rem 0.5rem; }
-    
-    .dashboard-grid { gap: 0.5rem; }
-    .dashboard-card .value { font-size: 1.1rem; }
+    body {
+        padding: 0.5rem 0.5rem 5rem 0.5rem;
+    }
+
+    .main-container {
+        padding: 0;
+    }
+
+    .modal-content {
+        max-height: 90vh;
+    }
+
+    .modal-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+        padding: 1rem;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .modal-tabs {
+        padding: 0 0.5rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .setting-item label {
+        font-size: 0.85rem;
+        min-width: 65px;
+    }
+
+    .setting-item {
+        padding: 0.4rem 0.5rem;
+    }
+
+    .dashboard-grid {
+        gap: 0.5rem;
+    }
+
+    .dashboard-card .value {
+        font-size: 1.1rem;
+    }
 }
 
 /* 補齊側邊欄設定項目的樣式 */
