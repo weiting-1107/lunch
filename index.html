@@ -48,8 +48,9 @@
                 </div>
                 <div class="sidebar-setting-item">
                     <label>🏢 今日餐廳</label>
-                    <input type="text" id="restaurant-name" placeholder="輸入餐廳..." list="restaurant-history"
-                        class="restaurant-input">
+                    <select id="restaurant-name" class="restaurant-input">
+                        <option value="">請選擇餐廳...</option>
+                    </select>
                 </div>
                 <div class="sidebar-setting-item">
                     <label>⛔ 鎖單時間</label>
@@ -104,8 +105,9 @@
                     </div>
                     <div class="mobile-setting-item">
                         <label>🏢 今日餐廳</label>
-                        <input type="text" id="restaurant-name-mob" placeholder="輸入餐廳..." list="restaurant-history"
-                            class="restaurant-input">
+                        <select id="restaurant-name-mob" class="restaurant-input">
+                            <option value="">請選擇餐廳...</option>
+                        </select>
                     </div>
                     <div class="mobile-setting-item">
                         <label>⛔ 鎖單時間</label>
@@ -203,7 +205,6 @@
 
     <!-- 歷史清單 DataList (自動完成) -->
     <datalist id="item-history"></datalist>
-    <datalist id="restaurant-history"></datalist>
 
     <!-- 結算表明細 Modal -->
     <div id="excel-modal" class="modal-overlay hidden">
@@ -319,7 +320,7 @@
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=98"></script>
+    <script src="script.js?v=104"></script>
 </body>
 
 </html>

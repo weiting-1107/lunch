@@ -8,6 +8,7 @@ const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
 const SETTINGS_KEY = 'lunch_settings';
 
 let isSyncing = false;
+let lastSaveTimestamp = 0; // 新增：紀錄最後一次儲存時間
 let memoryOrders = [];
 let memoryUsers = [];
 let memoryRestaurants = [];
@@ -151,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 設定項同步
     dateInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(dateInputs, e.target.value)));
     mealTypeInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(mealTypeInputs, e.target.value)));
-    restaurantInputs.forEach(el => safeListen(el, 'input', (e) => syncAndRefresh(restaurantInputs, e.target.value)));
+    restaurantInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(restaurantInputs, e.target.value)));
     cutoffInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(cutoffInputs, e.target.value, false)));
 
     // 導航按鈕 (側邊欄與底部同步)
@@ -289,7 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchFromCloud() {
         if (!API_URL.startsWith("http")) return; // 防止未設定時報錯
-        if (isSyncing) return; // ★ 如果正在寫入，跳過本次自動刷新，避免畫面閃爍或吃掉剛新增的資料
+        if (isSyncing) return; // ★ 如果正在寫入，跳過本次自動刷新
+        
+        // ★ 核心修復：如果剛儲存過，15 秒內不進行自動刷新，避免舊資料覆蓋新資料
+        if (Date.now() - lastSaveTimestamp < 15000) return; 
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
@@ -381,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('雲端儲存失敗', 'error');
         } finally {
             isSyncing = false;
+            lastSaveTimestamp = Date.now(); // 儲存完畢更新時間戳
         }
     }
 
@@ -448,39 +453,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const orders = getOrders();
 
         // 更新人員下拉選單 (從 Users DB)
-        const oldName = personNameInput.value;
-        personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
-        const votePersonSel = document.getElementById('vote-person');
-        if (votePersonSel) votePersonSel.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
+        if (personNameInput) {
+            const oldName = personNameInput.value;
+            personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
+            const votePersonSel = document.getElementById('vote-person');
+            if (votePersonSel) votePersonSel.innerHTML = '<option value="" disabled selected>請選擇姓名</option>';
 
-        memoryUsers.forEach(u => {
-            personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-            if (votePersonSel) votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-        });
-        personNameInput.value = oldName || "";
-        if (votePersonSel) {
-            // ★ 小技巧：如果沒有舊選擇，自動帶入上次用過的名字
-            const lastPerson = localStorage.getItem('lunch_last_person');
-            votePersonSel.value = oldVoteName || lastPerson || "";
+            memoryUsers.forEach(u => {
+                personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                if (votePersonSel) votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+            });
+            personNameInput.value = oldName || "";
+            if (votePersonSel) {
+                // 如果沒有舊選擇，自動帶入上次用過的名字
+                const lastPerson = localStorage.getItem('lunch_last_person');
+                // 注意：這裡如果 votePersonSel.value 找不到對應選項會變空值
+                votePersonSel.value = votePersonSel.value || lastPerson || "";
+            }
         }
 
-        // 更新餐廳 Datalist (從 Restaurants DB)
-        restaurantHistoryDl.innerHTML = '';
-        memoryRestaurants.forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r.name;
-            restaurantHistoryDl.appendChild(opt);
-        });
+        // 更新餐廳下拉選單 (從 Restaurants DB)
+        if (restaurantInputs && restaurantInputs.length > 0) {
+            restaurantInputs.forEach(sel => {
+                const oldVal = sel.value;
+                sel.innerHTML = '<option value="">請選擇餐廳...</option>';
+                memoryRestaurants.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.name;
+                    opt.textContent = r.name;
+                    sel.appendChild(opt);
+                });
+                sel.value = oldVal;
+            });
+        }
 
         // 歷史餐點
-        const items = [...new Set(orders.map(o => o.item).filter(Boolean))];
-
-        itemHistoryDl.innerHTML = '';
-        items.forEach(i => {
-            const opt = document.createElement('option');
-            opt.value = i;
-            itemHistoryDl.appendChild(opt);
-        });
+        if (itemHistoryDl) {
+            const items = [...new Set(orders.map(o => o.item).filter(Boolean))];
+            itemHistoryDl.innerHTML = '';
+            items.forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                itemHistoryDl.appendChild(opt);
+            });
+        }
 
         renderQuickPrices(orders);
     }
@@ -546,6 +562,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 處理主表單狀態 (包含解鎖、上鎖、與餐廳名稱鎖定)
     function handleFormState() {
+        if (!orderDateInput || !mealTypeInput || !cutoffTimeInput) return;
+        
         const selectedDate = orderDateInput.value;
         const selectedMealType = mealTypeInput.value;
         const locked = isSessionLocked(selectedDate, selectedMealType);
@@ -592,22 +610,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 鎖單視覺與按鈕控制
         if (locked) {
-            lockedWarning.classList.remove('hidden');
-            const menuLink = getMenuLinkHtml(anyOrder ? anyOrder.restaurant : restaurantNameInput.value);
-            lockedWarning.innerHTML = `⚠️ 【${selectedMealType}】已於 ${selectedDate} ${cutoffTimeInput.value} 截止，訂單已鎖定。${menuLink}`;
-            orderFormContainer.classList.add('locked-form');
-            submitOrderBtn.disabled = true;
-            submitOrderBtn.innerHTML = '已截止鎖定';
-            submitOrderBtn.style.background = 'var(--text-muted)';
+            if (lockedWarning) {
+                lockedWarning.classList.remove('hidden');
+                const menuLink = getMenuLinkHtml(anyOrder ? anyOrder.restaurant : (restaurantNameInput ? restaurantNameInput.value : ''));
+                lockedWarning.innerHTML = `⚠️ 【${selectedMealType}】已於 ${selectedDate} ${cutoffTimeInput.value} 截止，訂單已鎖定。${menuLink}`;
+            }
+            if (orderFormContainer) orderFormContainer.classList.add('locked-form');
+            if (submitOrderBtn) {
+                submitOrderBtn.disabled = true;
+                submitOrderBtn.innerHTML = '🔒 已鎖定';
+                submitOrderBtn.style.background = 'var(--locked-bg)';
+            }
         } else {
-            lockedWarning.classList.add('hidden');
-            orderFormContainer.classList.remove('locked-form');
-            submitOrderBtn.disabled = false;
-            submitOrderBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 送出訂單';
-            submitOrderBtn.style.background = 'var(--primary)';
+            if (lockedWarning) lockedWarning.classList.add('hidden');
+            if (orderFormContainer) orderFormContainer.classList.remove('locked-form');
+            if (submitOrderBtn) {
+                submitOrderBtn.disabled = false;
+                submitOrderBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 送出訂單';
+                submitOrderBtn.style.background = 'var(--primary)';
+            }
 
             // ★ 如果此餐期已有人點餐但還沒超過截止時間，顯示友善提示
-            if (anyOrder) {
+            if (anyOrder && lockedWarning) {
                 lockedWarning.classList.remove('hidden');
                 const menuLink = getMenuLinkHtml(anyOrder.restaurant);
                 lockedWarning.innerHTML = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}，餐廳：${anyOrder.restaurant || '未設定'} ${menuLink}`;
@@ -1434,49 +1458,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Bind events
         if (activeSettingsTab === 'tab-users') {
-            document.getElementById('add-user-btn').onclick = () => {
-                const n = document.getElementById('new-user-name').value.trim();
-                if (n) {
-                    const newUsers = [...memoryUsers, { id: 'U' + Date.now(), name: n }];
-                    saveUsers(newUsers);
-                    renderSettingsTab();
-                }
-            };
+            const addUserBtn = document.getElementById('add-user-btn');
+            const newUserNameInput = document.getElementById('new-user-name');
+            if (addUserBtn) {
+                addUserBtn.onclick = () => {
+                    const n = newUserNameInput.value.trim();
+                    if (n) {
+                        const newUsers = [...memoryUsers, { id: 'U' + Date.now(), name: n }];
+                        saveUsers(newUsers);
+                        showToast(`已新增人員：${n}`);
+                        newUserNameInput.value = '';
+                        renderSettingsTab();
+                    } else {
+                        showToast('請輸入人員姓名', 'error');
+                    }
+                };
+            }
         } else if (activeSettingsTab === 'tab-restaurants') {
             if (window._editingRestaurantId) {
-                document.getElementById('save-edit-rest-btn').onclick = () => {
-                    const r = memoryRestaurants.find(r => r.id === window._editingRestaurantId);
-                    if (!r) return;
-                    const newName = document.getElementById('edit-rest-name').value.trim();
-                    if (!newName) { showToast('店名不能為空', 'error'); return; }
-                    r.name = newName;
-                    r.phone = document.getElementById('edit-rest-phone').value.trim();
-                    r.address = document.getElementById('edit-rest-address').value.trim();
-                    r.menuUrl = document.getElementById('edit-rest-menu').value.trim();
-                    const checked = [...document.querySelectorAll('input[name="edit-open-day"]:checked')].map(cb => cb.value);
-                    r.openDays = checked.join(',');
-                    window._editingRestaurantId = null;
-                    saveRestaurants([...memoryRestaurants]);
-                    renderSettingsTab();
-                    renderVotingSection();
-                };
-                document.getElementById('cancel-edit-rest-btn').onclick = () => {
-                    window._editingRestaurantId = null;
-                    renderSettingsTab();
-                };
+                const saveBtn = document.getElementById('save-edit-rest-btn');
+                if (saveBtn) {
+                    saveBtn.onclick = () => {
+                        const r = memoryRestaurants.find(r => r.id === window._editingRestaurantId);
+                        if (!r) return;
+                        const newName = document.getElementById('edit-rest-name').value.trim();
+                        if (!newName) { showToast('店名不能為空', 'error'); return; }
+                        r.name = newName;
+                        r.phone = document.getElementById('edit-rest-phone').value.trim();
+                        r.address = document.getElementById('edit-rest-address').value.trim();
+                        r.menuUrl = document.getElementById('edit-rest-menu').value.trim();
+                        const checked = [...document.querySelectorAll('input[name="edit-open-day"]:checked')].map(cb => cb.value);
+                        r.openDays = checked.join(',');
+                        window._editingRestaurantId = null;
+                        saveRestaurants([...memoryRestaurants]);
+                        showToast(`已更新餐廳：${newName}`);
+                        renderSettingsTab();
+                        renderVotingSection();
+                    };
+                }
+                const cancelBtn = document.getElementById('cancel-edit-rest-btn');
+                if (cancelBtn) {
+                    cancelBtn.onclick = () => {
+                        window._editingRestaurantId = null;
+                        renderSettingsTab();
+                    };
+                }
             } else {
-                document.getElementById('add-rest-btn').onclick = () => {
-                    const n = document.getElementById('new-rest-name').value.trim();
-                    if (!n) { showToast('請輸入店名', 'error'); return; }
-                    const phone = document.getElementById('new-rest-phone').value.trim();
-                    const address = document.getElementById('new-rest-address').value.trim();
-                    const menuUrl = document.getElementById('new-rest-menu').value.trim();
-                    const checked = [...document.querySelectorAll('input[name="new-open-day"]:checked')].map(cb => cb.value);
-                    const newRest = { id: 'R' + Date.now(), name: n, phone, address, openDays: checked.join(','), menuUrl };
-                    saveRestaurants([...memoryRestaurants, newRest]);
-                    renderSettingsTab();
-                    renderVotingSection();
-                };
+                const addBtn = document.getElementById('add-rest-btn');
+                if (addBtn) {
+                    addBtn.onclick = () => {
+                        const n = document.getElementById('new-rest-name').value.trim();
+                        if (!n) { showToast('請輸入店名', 'error'); return; }
+                        const phone = document.getElementById('new-rest-phone').value.trim();
+                        const address = document.getElementById('new-rest-address').value.trim();
+                        const menuUrl = document.getElementById('new-rest-menu').value.trim();
+                        const checked = [...document.querySelectorAll('input[name="new-open-day"]:checked')].map(cb => cb.value);
+                        const newRest = { id: 'R' + Date.now(), name: n, phone, address, openDays: checked.join(','), menuUrl };
+                        saveRestaurants([...memoryRestaurants, newRest]);
+                        showToast(`已新增餐廳：${n}`);
+                        renderSettingsTab();
+                        renderVotingSection();
+                    };
+                }
             }
         } else if (activeSettingsTab === 'tab-config') {
             document.getElementById('save-config-btn').onclick = () => {
@@ -1496,8 +1539,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
+                showToast('系統設定儲存成功');
+                renderSettingsTab();
                 renderVotingSection();
-                showToast('設定已儲存', 'success');
             };
 
             document.getElementById('add-cutoff-btn').onclick = () => {
@@ -1525,6 +1569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
+                showToast('日期設定新增成功');
                 renderSettingsTab();
                 renderVotingSection();
             };
@@ -1535,7 +1580,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteUser = function (id) {
         if (confirm('確定刪除此人員？')) {
+            const user = memoryUsers.find(u => u.id === id);
             saveUsers(memoryUsers.filter(u => u.id !== id));
+            showToast(`已刪除人員：${user ? user.name : ''}`);
             renderSettingsTab();
         }
     };
@@ -1547,7 +1594,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteRestaurant = function (id) {
         if (confirm('確定刪除此餐廳？')) {
+            const rest = memoryRestaurants.find(r => r.id === id);
             saveRestaurants(memoryRestaurants.filter(r => r.id !== id));
+            showToast(`已刪除餐廳：${rest ? rest.name : ''}`);
             renderSettingsTab();
             renderVotingSection();
         }
@@ -1565,6 +1614,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             delete memoryConfig[key];
             saveCloudData("saveConfig", newConfig);
+            showToast('日期設定已刪除');
             renderSettingsTab();
             renderVotingSection();
         }
@@ -1592,7 +1642,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (storedTime !== undefined && storedTime !== '') {
             storedTime = normalizeTime(storedTime);
         }
-        const voteCutoff = storedTime || curTimeStr;
+        // ★ 核心修復：如果未設定專屬投票截止時間，預設使用主畫面的「鎖單時間」
+        const defaultCutoff = document.getElementById('cutoff-time')?.value || '10:30';
+        const voteCutoff = storedTime || defaultCutoff;
         const mType = document.getElementById('meal-type').value || '午餐';
 
         // 此餐期的現有訂單——改用 getOrders() 確保拿到最新本地訂單，遠首著隱藏投票區
