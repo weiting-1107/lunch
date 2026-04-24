@@ -1370,8 +1370,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (r) {
                     const openDaysArr = r.openDays ? r.openDays.split(',').map(d => d.trim()) : ['1', '2', '3', '4', '5'];
                     const dayChecks = dayNames.map((day, i) =>
-                        `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;">
-                            <input type="checkbox" name="edit-open-day" value="${i}" ${openDaysArr.includes(String(i)) ? 'checked' : ''}> 週${day}
+                        `<label class="day-toggle-item">
+                            <input type="checkbox" name="edit-open-day" value="${i}" ${openDaysArr.includes(String(i)) ? 'checked' : ''}>
+                            <span class="day-toggle-btn">週${day}</span>
                         </label>`).join('');
                     html += `<div style="background:var(--input-bg);border:1px solid var(--primary);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">`;
                     html += `<h4 style="margin-top:0;color:var(--primary);">✏️ 編輯：${r.name}</h4>`;
@@ -1379,21 +1380,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     html += `<div class="form-group"><label>電話</label><input type="text" id="edit-rest-phone" class="restaurant-input" placeholder="02-1234-5678" value="${r.phone || ''}"></div>`;
                     html += `<div class="form-group"><label>地址</label><input type="text" id="edit-rest-address" class="restaurant-input" placeholder="台北市..." value="${r.address || ''}"></div>`;
                     html += `<div class="form-group"><label>菜單網址 (選填)</label><input type="text" id="edit-rest-menu" class="restaurant-input" placeholder="https://..." value="${r.menuUrl || ''}"></div>`;
-                    html += `<div class="form-group"><label>營業日</label><div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.5rem;">${dayChecks}</div></div>`;
+                    html += `<div class="form-group"><label>營業日</label><div class="day-toggle-group">${dayChecks}</div></div>`;
                     html += `<div style="display:flex;gap:0.5rem;margin-top:1rem;"><button id="save-edit-rest-btn" class="primary-btn" style="flex:1;">💾 儲存變更</button><button id="cancel-edit-rest-btn" class="secondary-btn">取消</button></div>`;
                     html += `</div>`;
                 }
             } else {
                 // ─── 新增表單 ─────────────────────────────────
                 const newDayChecks = dayNames.map((day, i) =>
-                    `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;">
-                        <input type="checkbox" name="new-open-day" value="${i}" ${i >= 1 && i <= 5 ? 'checked' : ''}> 週${day}
+                    `<label class="day-toggle-item">
+                        <input type="checkbox" name="new-open-day" value="${i}" ${i >= 1 && i <= 5 ? 'checked' : ''}>
+                        <span class="day-toggle-btn">週${day}</span>
                     </label>`).join('');
                 html += `<div style="background:var(--input-bg);border:1px solid var(--border);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">`;
                 html += `<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" id="new-rest-name" class="restaurant-input" placeholder="店名 *" style="flex:2;"><input type="text" id="new-rest-phone" class="restaurant-input" placeholder="電話 (選填)" style="flex:1;"></div>`;
                 html += `<input type="text" id="new-rest-address" class="restaurant-input" placeholder="地址 (選填)" style="width:100%;margin-bottom:0.5rem;">`;
                 html += `<input type="text" id="new-rest-menu" class="restaurant-input" placeholder="菜單網址 (選填，如 Facebook 或圖片網址)" style="width:100%;margin-bottom:0.5rem;">`;
-                html += `<div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.5rem;">${newDayChecks}</div>`;
+                html += `<div class="day-toggle-group">${newDayChecks}</div>`;
                 html += `<button id="add-rest-btn" class="primary-btn" style="width:100%;">➕ 新增便當店</button>`;
                 html += `</div>`;
                 // ─── 列表表格 ─────────────────────────────────

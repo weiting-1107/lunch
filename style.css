@@ -1700,3 +1700,45 @@ input[type="number"] {
     background: var(--input-bg);
     color: var(--text-main);
 }
+
+/* 營業日勾選按鈕樣式 (Toggle Buttons) */
+.day-toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.day-toggle-item {
+    cursor: pointer;
+}
+
+.day-toggle-item input[type="checkbox"] {
+    display: none; /* 隱藏原生勾選框 */
+}
+
+.day-toggle-btn {
+    display: inline-block;
+    padding: 0.5rem 0.8rem;
+    border-radius: 0.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    user-select: none;
+    text-align: center;
+    min-width: 3.2rem;
+}
+
+.day-toggle-item:hover .day-toggle-btn {
+    border-color: var(--primary);
+    background: var(--input-bg);
+}
+
+.day-toggle-item input[type="checkbox"]:checked + .day-toggle-btn {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
