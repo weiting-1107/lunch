@@ -1430,20 +1430,34 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<input type="time" id="config-vote-time" class="restaurant-input time-input" value="${currentCutoff}"></div>`;
 
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>指定特定日期的投票截止時間 (優先於預設)</label>`;
-            html += `<div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;"><input type="date" id="new-cutoff-date" class="restaurant-input time-input" value="${todayStr}"><input type="time" id="new-cutoff-time" class="restaurant-input time-input" value="${currentCutoff}"><button id="add-cutoff-btn" class="primary-btn" style="white-space:nowrap;">新增設定</button></div>`;
-            html += `<table class="excel-table"><thead><tr><th>指定日期</th><th>截止時間</th><th>操作</th></tr></thead><tbody>`;
+            html += `<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
+                <input type="date" id="new-cutoff-date" class="restaurant-input time-input" style="flex:1; min-width:120px;" value="${todayStr}">
+                <select id="new-cutoff-meal" class="restaurant-input" style="flex:1; min-width:100px;">
+                    <option value="全天">全天 (通用)</option>
+                    <option value="早餐">早餐</option>
+                    <option value="午餐" selected>午餐</option>
+                    <option value="下午茶">下午茶</option>
+                    <option value="晚餐">晚餐</option>
+                    <option value="宵夜">宵夜</option>
+                </select>
+                <input type="time" id="new-cutoff-time" class="restaurant-input time-input" style="flex:1; min-width:100px;" value="${currentCutoff}">
+                <button id="add-cutoff-btn" class="primary-btn" style="flex:none;">新增設定</button>
+            </div>`;
+            html += `<table class="excel-table"><thead><tr><th>指定日期</th><th>餐期</th><th>截止時間</th><th>操作</th></tr></thead><tbody>`;
 
             let hasOverrides = false;
             Object.keys(memoryConfig).forEach(k => {
                 if (k.startsWith('cutoff_')) {
                     hasOverrides = true;
-                    const dateStr = k.replace('cutoff_', '');
+                    const parts = k.replace('cutoff_', '').split('_');
+                    const dateStr = parts[0];
+                    const mealStr = parts[1] || '全天';
                     const timeStr = normalizeTime(memoryConfig[k]);
-                    html += `<tr><td data-label="指定日期">${dateStr}</td><td data-label="截止時間">${timeStr}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteCutoffOverride('${k}')">刪除</button></td></tr>`;
+                    html += `<tr><td data-label="指定日期">${dateStr}</td><td data-label="餐期">${mealStr}</td><td data-label="截止時間">${timeStr}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteCutoffOverride('${k}')">刪除</button></td></tr>`;
                 }
             });
-            if (!hasOverrides) html += `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
-            html += `</table></div>`;
+            if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
+            html += `</tbody></table></div>`;
 
             html += `<div class="form-group" style="margin-bottom:1rem;">
                 <label>🔒 修改系統設定密碼</label>
@@ -1546,6 +1560,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('add-cutoff-btn').onclick = () => {
                 const dateVal = document.getElementById('new-cutoff-date').value;
+                const mealVal = document.getElementById('new-cutoff-meal').value;
                 const timeVal = document.getElementById('new-cutoff-time').value;
                 if (!dateVal || !timeVal) {
                     showToast('請完整選取日期與時間', 'error');
@@ -1559,7 +1574,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const key = 'cutoff_' + dateVal;
+                // 修改 key 的組成，加入餐期區分
+                const key = 'cutoff_' + dateVal + (mealVal === '全天' ? '' : '_' + mealVal);
                 memoryConfig[key] = timeVal;
 
                 const newConfig = [];
@@ -1569,7 +1585,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
-                showToast('日期設定新增成功');
+                showToast(`已新增 ${dateVal} ${mealVal} 的時間設定`);
                 renderSettingsTab();
                 renderVotingSection();
             };
@@ -1634,7 +1650,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const todayStr = getTodayString();
         const selectedDateStr = orderDateInput.value || todayStr;
 
-        let storedTime = memoryConfig['cutoff_' + selectedDateStr];
+        const mType = document.getElementById('meal-type').value || '午餐';
+        // ★ 核心修復：優先尋找該餐期的專屬時間，其次是全天通用時間，最後才是預設時間
+        let storedTime = memoryConfig['cutoff_' + selectedDateStr + '_' + mType] || memoryConfig['cutoff_' + selectedDateStr];
+        
         if (storedTime === undefined || storedTime === '') {
             storedTime = memoryConfig.voteCutoffTime;
         }
@@ -1645,7 +1664,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // ★ 核心修復：如果未設定專屬投票截止時間，預設使用主畫面的「鎖單時間」
         const defaultCutoff = document.getElementById('cutoff-time')?.value || '10:30';
         const voteCutoff = storedTime || defaultCutoff;
-        const mType = document.getElementById('meal-type').value || '午餐';
 
         // 此餐期的現有訂單——改用 getOrders() 確保拿到最新本地訂單，遠首著隱藏投票區
         const sessionOrders = getOrders().filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
