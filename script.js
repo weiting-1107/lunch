@@ -292,8 +292,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!API_URL.startsWith("http")) return; // 防止未設定時報錯
         if (isSyncing) return; // ★ 如果正在寫入，跳過本次自動刷新
         
-        // ★ 核心修復：如果剛儲存過，15 秒內不進行自動刷新，避免舊資料覆蓋新資料
-        if (Date.now() - lastSaveTimestamp < 15000) return; 
+        // ★ 核心優化：縮短保護時間至 5 秒，配合「即時本地快取」提升反應速度
+        const lastSave = parseInt(localStorage.getItem('lunch_last_save') || '0');
+        if (Date.now() - lastSave < 5000) return; 
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
@@ -331,13 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // ★★ 儲存快取，下次開啟頁面可立刻顯示，不用等雲端 ★★
-                try {
-                    localStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({
-                        orders: memoryOrders, users: memoryUsers,
-                        restaurants: memoryRestaurants, votes: memoryVotes,
-                        config: Object.entries(memoryConfig).map(([key, value]) => ({ key, value }))
-                    }));
-                } catch (e) { /* 快取失敗無妨 */ }
+                updateLocalCache();
 
                 updateDatalists();
                 updateGrandTotal();
@@ -373,6 +368,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return memoryOrders;
     }
 
+    // 更新本地快取 (立即同步，解決重整後看到舊資料的問題)
+    function updateLocalCache() {
+        try {
+            localStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({
+                orders: memoryOrders,
+                users: memoryUsers,
+                restaurants: memoryRestaurants,
+                votes: memoryVotes,
+                config: Object.entries(memoryConfig).map(([key, value]) => ({ key, value }))
+            }));
+        } catch (e) { }
+    }
+
     async function saveCloudData(action, dataArray) {
         if (!API_URL.startsWith("http")) return;
         isSyncing = true;
@@ -386,17 +394,20 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             isSyncing = false;
             lastSaveTimestamp = Date.now(); // 儲存完畢更新時間戳
+            localStorage.setItem('lunch_last_save', lastSaveTimestamp); // ★ 持久化存檔時間，防止重整後立刻抓雲端舊資料
         }
     }
 
     function saveOrders(orders) {
         memoryOrders = orders;
         updateDatalists();
+        updateLocalCache(); // ★ 立即更新本地快取
         saveCloudData("saveOrders", orders);
     }
 
     function saveUsers(users) {
         memoryUsers = users;
+        updateLocalCache();
         saveCloudData("saveUsers", users);
         updateDatalists();
         if (typeof renderVotingSection === 'function') renderVotingSection();
@@ -404,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveRestaurants(rests) {
         memoryRestaurants = rests;
+        updateLocalCache();
         saveCloudData("saveRestaurants", rests);
         updateDatalists();
         if (typeof renderVotingSection === 'function') renderVotingSection();
@@ -411,6 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveVotes(votes) {
         memoryVotes = votes;
+        updateLocalCache();
         saveCloudData("saveVotes", votes);
     }
 
@@ -537,25 +550,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 鎖單檢查 (包含日期與餐期)
+    // 鎖單檢查 (包含日期、餐期順序與截止時間)
     function isSessionLocked(dateStr, mealTypeStr) {
         const todayStr = getTodayString();
         if (dateStr < todayStr) return true; // 過去日期一律鎖死
 
         if (dateStr === todayStr) {
+            // 1. 餐期順序檢查 (如果現在已經是後續餐期，則前面的餐期自動鎖定)
+            const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+            const currentPeriod = getCurrentMealPeriod();
+            const selectedIdx = mealOrder.indexOf(mealTypeStr);
+            const currentIdx = mealOrder.indexOf(currentPeriod);
+            if (selectedIdx < currentIdx) return true; 
+
+            // 2. 截止時間檢查 (讀取目前畫面上的鎖單時間，或該餐期已定案的時間)
             const orders = getOrders();
             const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
-            if (sessionOrders.length > 0) {
-                const groupCutoff = sessionOrders[0].cutoffTime || cutoffTimeInput.value;
-                if (!groupCutoff) return false;
+            const activeCutoff = (sessionOrders.length > 0 ? sessionOrders[0].cutoffTime : null) || cutoffTimeInput.value || '10:30';
+            
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const currentTimeStr = `${hh}:${mm}`;
 
-                const now = new Date();
-                const hh = String(now.getHours()).padStart(2, '0');
-                const mm = String(now.getMinutes()).padStart(2, '0');
-                const currentTimeStr = `${hh}:${mm}`;
-
-                if (currentTimeStr >= groupCutoff) return true;
-            }
+            if (currentTimeStr >= normalizeTime(activeCutoff)) return true;
         }
         return false;
     }
@@ -613,7 +631,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (lockedWarning) {
                 lockedWarning.classList.remove('hidden');
                 const menuLink = getMenuLinkHtml(anyOrder ? anyOrder.restaurant : (restaurantNameInput ? restaurantNameInput.value : ''));
-                lockedWarning.innerHTML = `⚠️ 【${selectedMealType}】已於 ${selectedDate} ${cutoffTimeInput.value} 截止，訂單已鎖定。${menuLink}`;
+                
+                // 判斷鎖定原因，讓訊息更精確
+                const currentPeriod = getCurrentMealPeriod();
+                const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+                const selectedIdx = mealOrder.indexOf(selectedMealType);
+                const currentIdx = mealOrder.indexOf(currentPeriod);
+                
+                let lockReason = '';
+                if (selectedDate < getTodayString()) {
+                    lockReason = '日期已過';
+                } else if (selectedIdx < currentIdx) {
+                    lockReason = `目前已進入【${currentPeriod}】時段`;
+                } else {
+                    lockReason = `已超過截止時間 ${cutoffTimeInput.value}`;
+                }
+
+                lockedWarning.innerHTML = `⚠️ 【${selectedMealType}】訂單已鎖定（${lockReason}）。${menuLink}`;
             }
             if (orderFormContainer) orderFormContainer.classList.add('locked-form');
             if (submitOrderBtn) {
@@ -780,20 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = itemNameInput.value.trim();
         const inputs = getCommonInputs();
 
-        // ★ 新增：檢查餐期是否已過 (針對當天)
-        if (inputs.date === getTodayString()) {
-            const currentPeriod = getCurrentMealPeriod();
-            const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
-            const selectedIdx = mealOrder.indexOf(inputs.meal);
-            const currentIdx = mealOrder.indexOf(currentPeriod);
-            
-            if (selectedIdx < currentIdx) {
-                showToast(`⚠️ ${inputs.meal}時間已過，現在是${currentPeriod}！`, "error");
-                // 不強制阻擋，但給予強烈警告 (若 user 堅持點餐則繼續，或者您可以改為 return 阻擋)
-                if (!confirm(`您選的是【${inputs.meal}】，但現在已經是【${currentPeriod}】時間了。確定要繼續點餐嗎？`)) return;
-            }
-        }
-
+        // 鎖定檢查已整合至 isSessionLocked
         if (isSessionLocked(inputs.date, inputs.meal)) {
             showToast("此餐期已鎖定，無法新增訂單！", "error");
             return;
@@ -1641,8 +1662,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 投票系統 UI ===
     function renderVotingSection() {
         const vSec = document.getElementById('voting-section');
-        const orderDateInput = document.getElementById('order-date'); // 取得選取的日期
-        if (!vSec || !orderDateInput) return;
+        const selectedDateStr = (document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value) || getTodayString();
+        const mType = (document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value) || '午餐';
+        
+        if (!vSec) return;
 
         const now = new Date();
         const curHH = String(now.getHours()).padStart(2, '0');
@@ -1650,33 +1673,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const curTimeStr = `${curHH}:${curMM}`;
 
         const todayStr = getTodayString();
-        const selectedDateStr = orderDateInput.value || todayStr;
 
-        const mType = document.getElementById('meal-type').value || '午餐';
-        // ★ 核心修復：優先尋找該餐期的專屬時間，其次是全天通用時間，最後才是預設時間
+        // ★ 核心修復：優先尋找該餐期的專屬日期設定
         let storedTime = memoryConfig['cutoff_' + selectedDateStr + '_' + mType] || memoryConfig['cutoff_' + selectedDateStr];
         
-        if (storedTime === undefined || storedTime === '') {
-            storedTime = memoryConfig.voteCutoffTime;
-        }
-
+        // 如果沒有特定日期設定，則優先跟隨主畫面的「鎖單時間」 (餐期截止時間)
+        const currentOrderCutoff = document.getElementById('cutoff-time')?.value || document.getElementById('cutoff-time-mob')?.value || '10:30';
+        
         if (storedTime !== undefined && storedTime !== '') {
             storedTime = normalizeTime(storedTime);
         }
-        // ★ 核心修復：如果未設定專屬投票截止時間，預設使用主畫面的「鎖單時間」
-        const defaultCutoff = document.getElementById('cutoff-time')?.value || '10:30';
-        const voteCutoff = storedTime || defaultCutoff;
+
+        // 最終截止時間：有特定日期設定就用它，否則跟隨鎖單時間
+        const voteCutoff = storedTime || currentOrderCutoff;
 
         // 此餐期的現有訂單——改用 getOrders() 確保拿到最新本地訂單，遠首著隱藏投票區
         const sessionOrders = getOrders().filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
 
-        // 判斷是否超過開放投票的時間
-        // 如果是過去的日期 -> 關閉
-        // 如果是今天的日期，且現在時間大於每日開票時間 -> 關閉
-        const isPastCutoff = (selectedDateStr < todayStr) || (selectedDateStr === todayStr && curTimeStr >= voteCutoff);
+        // ★ 核心修復：使用統一的 isSessionLocked 判定是否應隱藏投票區
+        const isLocked = isSessionLocked(selectedDateStr, mType);
 
         // 如果現在過了每日投票時間，強制關閉投票並統計
-        if (isPastCutoff || sessionOrders.length > 0) {
+        if (isLocked || sessionOrders.length > 0) {
             vSec.classList.add('hidden');
 
             // 如果還沒有任何訂單，我們嘗試從此餐期的投票中選出最高分的自動填入餐廳名字
@@ -1798,8 +1816,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // ★ 記住此次選擇的人
         localStorage.setItem('lunch_last_person', person);
 
-        const selectedDateStr = document.getElementById('order-date').value || getTodayString();
-        const mType = document.getElementById('meal-type').value || '午餐';
+        const selectedDateStr = (document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value) || getTodayString();
+        const mType = (document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value) || '午餐';
 
         // 找尋是否有投過了
         let updatedVotes = [...memoryVotes];
@@ -1854,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { /* 快取損壞，略過 */ }
 
     fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
-    setInterval(fetchFromCloud, 10000); // 每 10 秒自動同步
+    setInterval(fetchFromCloud, 5000); // ★ 優化：從 10 秒縮短至 5 秒自動同步
 
     if (!localStorage.getItem(CLOUD_CACHE_KEY)) {
         // 無快取時才做初始 render（有快取的話上面已做過）

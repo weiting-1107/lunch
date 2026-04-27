@@ -1742,3 +1742,25 @@ input[type="number"] {
     color: white;
     border-color: var(--primary);
 }
+
+/* 投票區捲動優化 */
+#voting-options {
+    max-height: 270px;
+    overflow-y: auto;
+    padding-right: 4px; /* 為捲軸留空間 */
+}
+
+/* 自定義投票區捲軸樣式 */
+#voting-options::-webkit-scrollbar {
+    width: 4px;
+}
+#voting-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+#voting-options::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+}
+#voting-options::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
