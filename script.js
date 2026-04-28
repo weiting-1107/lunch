@@ -1107,7 +1107,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             tdDate.setAttribute('data-label', '日期 / 餐廳');
                             tdDate.rowSpan = sessionOrders.length + 1;
                             const mTypeBadge = `<span style="font-size:0.75rem; background:var(--bg-main); padding:0.1rem 0.3rem; border-radius:0.25rem; font-weight:600; color:var(--text-main); margin-left:0.25rem; border: 1px solid var(--border);">${mType}</span>`;
-                            tdDate.innerHTML = `<b style="color:${dateColor}">${order.date}</b> <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left: 0.25rem;">${dayLabel}</span> ${mTypeBadge} <span style="color:var(--primary); font-size:0.9rem; font-weight:600; margin-left:0.5rem;">${sessionRest}</span>`;
+                            tdDate.innerHTML = `
+                                <div style="margin-bottom:0.25rem;">
+                                    <b style="color:${dateColor}">${order.date}</b> 
+                                    <span style="font-size:0.8em; color:${isWeekend ? 'var(--danger)' : 'var(--text-muted)'}; margin-left: 0.25rem;">${dayLabel}</span>
+                                    ${mTypeBadge}
+                                </div>
+                                <div style="color:var(--primary); font-size:0.95rem; font-weight:600;">
+                                    🏠 ${sessionRest}
+                                </div>
+                            `;
                             tdDate.style.verticalAlign = 'middle';
                             tr.appendChild(tdDate);
                         }
@@ -1277,9 +1286,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let statusHtml = '';
             if (isAllPaid) {
-                statusHtml = `<div style="color:var(--success);">✅ 已結清</div>`;
+                statusHtml = `<div style="color:var(--success); white-space:nowrap;">✅ 已結清</div>`;
             } else {
-                statusHtml = `<div style="color:var(--danger); margin-bottom:0.25rem;">❌ 未結清</div>`;
+                statusHtml = `<div style="color:var(--danger); margin-bottom:0.25rem; white-space:nowrap;">❌ 未結清</div>`;
             }
 
             tr.innerHTML = `
@@ -1299,6 +1308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const settleBtn = document.createElement('button');
                 settleBtn.className = 'settle-all-btn';
                 settleBtn.innerText = '💸 一鍵結清';
+                settleBtn.style.whiteSpace = 'nowrap';
                 settleBtn.title = '結清該人員本週全部欠款';
                 settleBtn.addEventListener('click', () => {
                     if (confirm(`確定要將【${name}】本週尚未結清的 $${remains} 欠款全部改為「已付清」嗎？`)) {
