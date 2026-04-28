@@ -303,13 +303,22 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchFromCloud() {
         if (!API_URL.startsWith("http")) return; // 防止未設定時報錯
         if (isSyncing) return; // ★ 如果正在寫入，跳過本次自動刷新
+        
+        // 紀錄目前的同步狀態
+        const currentSyncID = Date.now(); 
+        this._lastFetchID = currentSyncID;
 
         // ★ 核心優化：縮短保護時間至 5 秒，配合「即時本地快取」提升反應速度
         const lastSave = parseInt(localStorage.getItem('lunch_last_save') || '0');
         if (Date.now() - lastSave < 5000) return;
+        
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
+
+            // ★ 核心修復：如果在此期間有新的本地寫入，或是這不是最後一個請求，則捨棄此舊資料
+            if (isSyncing || this._lastFetchID !== currentSyncID) return; 
+
             if (data) {
                 // 如果是新版結構 (有 orders 屬性)
                 if (data.orders) {
@@ -1899,23 +1908,23 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('lunch_last_person', person);
 
         const selectedDateStr = (document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value) || getTodayString();
-        const mType = (document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value) || '午餐';
+        const mType = ((document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value) || '午餐').trim();
 
         // 找尋是否有投過了
-        let updatedVotes = [...memoryVotes];
-        const existingVoteIndex = updatedVotes.findIndex(v => v.date === selectedDateStr && v.mealType === mType && v.userName === person);
+        let updatedVotes = memoryVotes.filter(v => !(v.date === selectedDateStr && v.mealType === mType && v.userName === person));
+        
+        const isModifying = updatedVotes.length < memoryVotes.length;
+        const newVote = { date: selectedDateStr, mealType: mType, userName: person, restaurantName: restRadio.value };
+        
+        updatedVotes.push(newVote);
 
-        if (existingVoteIndex >= 0) {
-            // 取代舊票
-            updatedVotes[existingVoteIndex].restaurantName = restRadio.value;
+        if (isModifying) {
             showToast('已修改您的投票！', 'success');
         } else {
-            updatedVotes.push({ date: selectedDateStr, mealType: mType, userName: person, restaurantName: restRadio.value });
             showToast('✅ 投票成功！', 'success');
         }
 
-        const myNewVote = { date: selectedDateStr, mealType: mType, userName: person, restaurantName: restRadio.value };
-        saveVotes(updatedVotes, myNewVote);
+        saveVotes(updatedVotes, newVote);
         renderVotingSection();
     });
 
