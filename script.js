@@ -411,13 +411,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: JSON.stringify({ action, data: dataArray })
             });
+            return true; // ★ 成功
         } catch (err) {
             showToast('雲端儲存失敗', 'error');
+            return false; // ★ 失敗
         } finally {
             isSyncing = false;
             hideSyncLoader(); // ★ 存檔結束
-            lastSaveTimestamp = Date.now(); // 儲存完畢更新時間戳
-            localStorage.setItem('lunch_last_save', lastSaveTimestamp); // ★ 持久化存檔時間，防止重整後立刻抓雲端舊資料
+            lastSaveTimestamp = Date.now(); 
+            localStorage.setItem('lunch_last_save', lastSaveTimestamp);
         }
     }
 
@@ -448,13 +450,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof renderVotingSection === 'function') renderVotingSection();
     }
 
-    function saveVotes(votes, singleVoteObj = null) {
+    async function saveVotes(votes, singleVoteObj = null) {
         memoryVotes = votes;
         updateLocalCache();
         if (singleVoteObj) {
-            saveCloudData("submitVote", singleVoteObj);
+            return await saveCloudData("submitVote", singleVoteObj);
         } else {
-            saveCloudData("saveVotes", votes);
+            return await saveCloudData("saveVotes", votes);
         }
     }
 
@@ -1919,13 +1921,23 @@ document.addEventListener('DOMContentLoaded', () => {
         updatedVotes.push(newVote);
 
         if (isModifying) {
-            showToast('已修改您的投票！', 'success');
+            showToast('正在修改投票...', 'info');
         } else {
-            showToast('✅ 投票成功！', 'success');
+            showToast('正在送出投票...', 'info');
         }
 
-        saveVotes(updatedVotes, newVote);
-        renderVotingSection();
+        saveVotes(updatedVotes, newVote).then(success => {
+            if (success) {
+                if (isModifying) {
+                    showToast('已修改您的投票！', 'success');
+                } else {
+                    showToast('✅ 投票成功！', 'success');
+                }
+                renderVotingSection();
+            } else {
+                alert('⚠️ 投票失敗！\n這可能是因為網路連線不穩或後端暫時無回應。\n請檢查網路並重新嘗試。');
+            }
+        });
     });
 
     // 監聽重新選餐期以重繪投票 (已在上方 syncAndRefresh 處理，故此處移除冗餘或增加安全檢查)
