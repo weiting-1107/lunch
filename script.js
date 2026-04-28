@@ -15,7 +15,8 @@ let memoryRestaurants = [];
 let memoryVotes = [];
 let memoryConfig = {};
 
-// 狀態追蹤：用於判定何時該自動跳轉鎖單時間
+// 請求追蹤與狀態
+let lastFetchID = 0;
 let lastViewedMeal = '';
 let lastViewedDate = '';
 
@@ -303,21 +304,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchFromCloud() {
         if (!API_URL.startsWith("http")) return; // 防止未設定時報錯
         if (isSyncing) return; // ★ 如果正在寫入，跳過本次自動刷新
-        
+
         // 紀錄目前的同步狀態
-        const currentSyncID = Date.now(); 
-        this._lastFetchID = currentSyncID;
+        const currentSyncID = Date.now();
+        lastFetchID = currentSyncID;
 
         // ★ 核心優化：縮短保護時間至 5 秒，配合「即時本地快取」提升反應速度
         const lastSave = parseInt(localStorage.getItem('lunch_last_save') || '0');
         if (Date.now() - lastSave < 5000) return;
-        
+
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
 
             // ★ 核心修復：如果在此期間有新的本地寫入，或是這不是最後一個請求，則捨棄此舊資料
-            if (isSyncing || this._lastFetchID !== currentSyncID) return; 
+            if (isSyncing || lastFetchID !== currentSyncID) return;
 
             if (data) {
                 // 如果是新版結構 (有 orders 屬性)
@@ -418,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             isSyncing = false;
             hideSyncLoader(); // ★ 存檔結束
-            lastSaveTimestamp = Date.now(); 
+            lastSaveTimestamp = Date.now();
             localStorage.setItem('lunch_last_save', lastSaveTimestamp);
         }
     }
@@ -847,15 +848,15 @@ document.addEventListener('DOMContentLoaded', () => {
     safeListenAll('#cutoff-time, #cutoff-time-mob', 'change', (e) => {
         const val = e.target.value;
         syncAndRefresh(cutoffInputs, val, true);
-        
+
         const settings = getSettings();
         const currentMeal = document.getElementById('meal-type')?.value || '午餐';
-        
+
         // ★ 核心優化：記憶此餐期的專屬預設時間
         settings.mealCutoffs[currentMeal] = val;
-        settings.cutoffTime = val; 
+        settings.cutoffTime = val;
         saveSettings(settings);
-        
+
         if (!excelModal.classList.contains('hidden')) renderOrders();
     });
 
@@ -932,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 模擬異步完成後的 UI 恢復 (實際會由 saveCloudData 控制)
         setTimeout(() => {
-            if (!submitOrderBtn.disabled) return; 
+            if (!submitOrderBtn.disabled) return;
             submitOrderBtn.innerHTML = originalText;
             submitOrderBtn.disabled = false;
         }, 3000);
@@ -1550,17 +1551,40 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
             html += `<table class="excel-table"><thead><tr><th>指定日期</th><th>餐期</th><th>截止時間</th><th>操作</th></tr></thead><tbody>`;
 
+            let needSilentCleanup = false;
             let hasOverrides = false;
+
             Object.keys(memoryConfig).forEach(k => {
                 if (k.startsWith('cutoff_')) {
-                    hasOverrides = true;
                     const parts = k.replace('cutoff_', '').split('_');
                     const dateStr = parts[0];
+
+                    // ★ 核心優化：如果日期已過，自動從列表排除並標記需要清理
+                    if (dateStr < todayStr) {
+                        delete memoryConfig[k];
+                        needSilentCleanup = true;
+                        return;
+                    }
+
+                    hasOverrides = true;
                     const mealStr = parts[1] || '全天';
                     const timeStr = normalizeTime(memoryConfig[k]);
                     html += `<tr><td data-label="指定日期">${dateStr}</td><td data-label="餐期">${mealStr}</td><td data-label="截止時間">${timeStr}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteCutoffOverride('${k}')">刪除</button></td></tr>`;
                 }
             });
+
+            // ★ 如果有過期設定，自動同步回雲端以保持資料庫整潔
+            if (needSilentCleanup) {
+                const newConfig = [];
+                Object.keys(memoryConfig).forEach(k => {
+                    let val = memoryConfig[k];
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
+                    newConfig.push({ key: k, value: val });
+                });
+                saveCloudData("saveConfig", newConfig);
+                console.log("已自動清理過期的日期設定");
+            }
+
             if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
 
@@ -1914,10 +1938,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 找尋是否有投過了
         let updatedVotes = memoryVotes.filter(v => !(v.date === selectedDateStr && v.mealType === mType && v.userName === person));
-        
+
         const isModifying = updatedVotes.length < memoryVotes.length;
         const newVote = { date: selectedDateStr, mealType: mType, userName: person, restaurantName: restRadio.value };
-        
+
         updatedVotes.push(newVote);
 
         if (isModifying) {
