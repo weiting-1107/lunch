@@ -15,6 +15,10 @@ let memoryRestaurants = [];
 let memoryVotes = [];
 let memoryConfig = {};
 
+// 狀態追蹤：用於判定何時該自動跳轉鎖單時間
+let lastViewedMeal = '';
+let lastViewedDate = '';
+
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -27,6 +31,14 @@ function showToast(msg, type = 'success') {
         toast.classList.add('diminish');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// --- 同步指示器控制 ---
+function showSyncLoader() {
+    document.body.classList.add('sync-active');
+}
+function hideSyncLoader() {
+    document.body.classList.remove('sync-active');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -384,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveCloudData(action, dataArray) {
         if (!API_URL.startsWith("http")) return;
         isSyncing = true;
+        showSyncLoader(); // ★ 開始存檔
         try {
             await fetch(API_URL, {
                 method: 'POST',
@@ -393,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('雲端儲存失敗', 'error');
         } finally {
             isSyncing = false;
+            hideSyncLoader(); // ★ 存檔結束
             lastSaveTimestamp = Date.now(); // 儲存完畢更新時間戳
             localStorage.setItem('lunch_last_save', lastSaveTimestamp); // ★ 持久化存檔時間，防止重整後立刻抓雲端舊資料
         }
@@ -608,11 +622,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedDate = orderDateInput.value;
         const selectedMealType = mealTypeInput.value;
         const locked = isSessionLocked(selectedDate, selectedMealType);
+        const anyOrder = getOrders().find(o => o.date === selectedDate && o.mealType === selectedMealType);
+
+        // ★ 核心優化：判定是否為「新切換」的餐期或日期
+        const isSessionChanged = (selectedDate !== lastViewedDate || selectedMealType !== lastViewedMeal);
 
         // 餐廳與時間設定鎖定：
-        const orders = getOrders();
-        const sessionOrders = orders.filter(o => o.date === selectedDate && o.mealType === selectedMealType);
-        const anyOrder = sessionOrders.length > 0 ? sessionOrders[0] : null;
+        const sessionOrders = getOrders().filter(o => o.date === selectedDate && o.mealType === selectedMealType);
 
         // ★ 如果此餐期已有訂單，同步顯示雲端的餐廳名稱與鎖單時間
         if (anyOrder) {
@@ -893,10 +909,22 @@ document.addEventListener('DOMContentLoaded', () => {
             paid: false // 新單預設未付款
         };
 
+        // ★ 視覺反饋：按鈕進入發送狀態
+        const originalText = submitOrderBtn.innerHTML;
+        submitOrderBtn.disabled = true;
+        submitOrderBtn.innerHTML = '🚀 傳送中...';
+
         const orders = getOrders();
         orders.push(newOrder);
         // ★ 核心優化：改用 addOrder 原子操作
         saveOrders(orders, "addOrder", newOrder);
+
+        // 模擬異步完成後的 UI 恢復 (實際會由 saveCloudData 控制)
+        setTimeout(() => {
+            if (!submitOrderBtn.disabled) return; 
+            submitOrderBtn.innerHTML = originalText;
+            submitOrderBtn.disabled = false;
+        }, 3000);
 
         // 觸發重新檢查狀態 (會讓餐廳欄位上鎖)
         handleFormState();
@@ -1040,8 +1068,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">本週無流水帳明細</td>`;
                 tbody.appendChild(tr);
             } else {
-                // 將每日訂單依照 mealType 再次分群
-                const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))];
+                // ★ 核心優化：將餐期按照時間線排序
+                const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+                const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))]
+                    .sort((a, b) => mealOrder.indexOf(a) - mealOrder.indexOf(b));
 
                 mealTypes.forEach(mType => {
                     const sessionOrders = dayOrders.filter(o => (o.mealType || '午餐') === mType);
@@ -1158,7 +1188,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayOrders = allOrders.filter(o => o.date === dateString);
             if (dayOrders.length === 0) return;
 
-            const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))];
+            const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+            const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))]
+                .sort((a, b) => mealOrder.indexOf(a) - mealOrder.indexOf(b));
 
             mealTypes.forEach(mType => {
                 const sessionOrders = dayOrders.filter(o => (o.mealType || '午餐') === mType);

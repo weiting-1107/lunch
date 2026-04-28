@@ -1761,6 +1761,27 @@ input[type="number"] {
     background: var(--border);
     border-radius: 10px;
 }
-#voting-options::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+
+/* --- Sync Loader --- */
+.sync-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary), #ffffff, var(--primary), transparent);
+    background-size: 200% 100%;
+    z-index: 10000;
+    display: none;
+    animation: sync-flow 2s infinite linear;
+    box-shadow: 0 0 10px var(--primary);
+}
+
+@keyframes sync-flow {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.sync-active .sync-loader {
+    display: block;
 }
