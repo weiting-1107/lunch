@@ -673,10 +673,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
         const settings = getSettings();
         const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
-        
+
         if (anyOrder || (isVotePast && todaysVotes.length > 0)) {
             let winner = anyOrder ? anyOrder.restaurant : '';
-            
+
             // 如果沒訂單但投票已截止，則計算贏家
             if (!winner && todaysVotes.length > 0) {
                 const counts = {};
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
                 });
                 const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
-                
+
                 // 使用種子隨機選出贏家 (與 renderVotingSection 一致)
                 const seedStr = selectedDate + selectedMealType;
                 let hash = 0;
@@ -774,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (anyOrder && lockedWarning) {
                 lockedWarning.classList.remove('hidden');
                 const menuLink = getMenuLinkHtml(anyOrder.restaurant);
-                lockedWarning.innerHTML = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}，餐廳：${anyOrder.restaurant || '未設定'} ${menuLink}`;
+                lockedWarning.innerHTML = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}</br>餐廳：${anyOrder.restaurant || '未設定'} ${menuLink}`;
                 lockedWarning.style.background = 'var(--input-bg)';
                 lockedWarning.style.borderColor = 'var(--primary)';
                 lockedWarning.style.color = 'var(--primary)';
@@ -901,8 +901,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 鎖單時間確認按鈕
     const handleCutoffConfirm = () => {
-        const val = document.getElementById('cutoff-time')?.offsetParent !== null 
-            ? document.getElementById('cutoff-time').value 
+        const val = document.getElementById('cutoff-time')?.offsetParent !== null
+            ? document.getElementById('cutoff-time').value
             : document.getElementById('cutoff-time-mob').value;
 
         // ★ 核心修復：必須先將新時間存入 Settings，後續 syncAndRefresh 觸發的 handleFormState 才能讀到正確的值
@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 存檔後再同步並刷新畫面
         syncAndRefresh(cutoffInputs, val, true);
-        
+
         showToast('鎖單時間已更新！');
 
         if (!excelModal.classList.contains('hidden')) renderOrders();
@@ -1006,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 觸發重新檢查狀態 (會讓餐廳欄位上鎖)
         handleFormState();
 
-personNameInput.value = '';
+        personNameInput.value = '';
         itemNameInput.value = '';
         itemPriceInput.value = '';
         personNameInput.focus();
@@ -1872,7 +1872,7 @@ personNameInput.value = '';
         const d1 = document.getElementById('order-date');
         const d2 = document.getElementById('order-date-mob');
         const selectedDateStr = (d1 && d1.value ? d1.value : (d2 ? d2.value : '')) || getTodayString();
-        
+
         const m1 = document.getElementById('meal-type');
         const m2 = document.getElementById('meal-type-mob');
         const mType = ((m1 && m1.value ? m1.value : (m2 ? m2.value : '')) || '午餐').trim();
