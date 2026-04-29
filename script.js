@@ -611,10 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentIdx = mealOrder.indexOf(currentPeriod);
             if (selectedIdx < currentIdx) return true;
 
-            // 2. 截止時間檢查 (優先抓取目前可見的輸入框)
-            const c1 = document.getElementById('cutoff-time');
-            const c2 = document.getElementById('cutoff-time-mob');
-            const currentOrderCutoff = (c1 && c1.offsetParent !== null ? c1.value : (c2 ? c2.value : '')) || '10:30';
+            // 2. 截止時間檢查 (使用強化的偵測邏輯)
+            const currentOrderCutoff = getActiveCutoffTime();
 
             const orders = getOrders();
             const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
@@ -630,9 +628,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
+    function getActiveCutoffTime() {
+        const c1 = document.getElementById('cutoff-time');
+        const c2 = document.getElementById('cutoff-time-mob');
+        // 判斷哪個輸入框是真正可見且在被使用的
+        if (c1 && c1.offsetParent !== null) return c1.value;
+        if (c2 && c2.offsetParent !== null) return c2.value;
+        // 如果都不可見，嘗試抓取非空的那個，或是回傳預設值
+        return (c1 ? c1.value : (c2 ? c2.value : '10:30')) || '10:30';
+    }
+
     // 處理主表單狀態 (包含解鎖、上鎖、與餐廳名稱鎖定)
     function handleFormState() {
-        if (!orderDateInput || !mealTypeInput || !cutoffTimeInput) return;
+        if (!orderDateInput || !mealTypeInput) return;
 
         const selectedDate = orderDateInput.value;
         const selectedMealType = mealTypeInput.value;
@@ -645,18 +653,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // 餐廳與時間設定鎖定：
         const sessionOrders = getOrders().filter(o => o.date === selectedDate && o.mealType === selectedMealType);
 
-        // 鎖單時間讀取 (優先抓取目前可見的輸入框)
-        const c1 = document.getElementById('cutoff-time');
-        const c2 = document.getElementById('cutoff-time-mob');
-        const currentOrderCutoff = (c1 && c1.offsetParent !== null ? c1.value : (c2 ? c2.value : '')) || '10:30';
+        // 鎖單時間讀取 (使用強化的偵測邏輯)
+        const currentOrderCutoff = getActiveCutoffTime();
 
         const now = new Date();
         const currentTimeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
         const todayStr = getTodayString();
 
-        // ★ 核心優化：判定投票是否已截止 (提前 30 分鐘)
+        // ★ 核心優化：判定投票是否已截止 (改為提前 15 分鐘，避免緩衝過長)
         const [h, m] = currentOrderCutoff.split(':').map(Number);
-        let totalMins = h * 60 + m - 30;
+        let totalMins = h * 60 + m - 15;
         if (totalMins < 0) totalMins = 0;
         const vH = String(Math.floor(totalMins / 60)).padStart(2, '0');
         const vM = String(totalMins % 60).padStart(2, '0');
@@ -1881,28 +1887,20 @@ personNameInput.value = '';
         // ★ 核心修復：優先尋找該餐期的專屬日期設定
         let storedTime = memoryConfig['cutoff_' + selectedDateStr + '_' + mType] || memoryConfig['cutoff_' + selectedDateStr];
 
-        // 讀取主畫面的「鎖單時間」 (優先讀取目前可見的)
-        const c1 = document.getElementById('cutoff-time');
-        const c2 = document.getElementById('cutoff-time-mob');
-        const currentOrderCutoff = (c1 && c1.offsetParent !== null ? c1.value : (c2 ? c2.value : '')) || '10:30';
+        // 讀取主畫面的「鎖單時間」 (使用強化的偵測邏輯)
+        const currentOrderCutoff = getActiveCutoffTime();
 
         if (storedTime !== undefined && storedTime !== '') {
             storedTime = normalizeTime(storedTime);
         }
 
-        // 最終截止時間：有特定日期設定就用它，否則預設比鎖單時間早 30 分鐘 (預留點餐時間)
-        let voteCutoff = '';
-        if (storedTime) {
-            voteCutoff = storedTime;
-        } else {
-            // 解析鎖單時間並減去 30 分鐘
-            const [h, m] = currentOrderCutoff.split(':').map(Number);
-            let totalMins = h * 60 + m - 30;
-            if (totalMins < 0) totalMins = 0;
-            const vH = String(Math.floor(totalMins / 60)).padStart(2, '0');
-            const vM = String(totalMins % 60).padStart(2, '0');
-            voteCutoff = `${vH}:${vM}`;
-        }
+        // 統一規則：直接以畫面上看到的鎖單時間為基準，減去 15 分鐘作為投票截止
+        const [h, m] = currentOrderCutoff.split(':').map(Number);
+        let totalMins = h * 60 + m - 15;
+        if (totalMins < 0) totalMins = 0;
+        const vH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+        const vM = String(totalMins % 60).padStart(2, '0');
+        const voteCutoff = `${vH}:${vM}`;
 
         // 此餐期的現有訂單——改用 getOrders() 確保拿到最新本地訂單，遠首著隱藏投票區
         const sessionOrders = getOrders().filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
@@ -1964,7 +1962,9 @@ personNameInput.value = '';
         // 可以顯示投票區
         vSec.classList.remove('hidden');
         const countdownEl = document.getElementById('voting-countdown');
-        if (countdownEl) countdownEl.innerText = `截止時間：${selectedDateStr} ${voteCutoff}`;
+        if (countdownEl) {
+            countdownEl.innerHTML = `<div>目前鎖單時間：<b>${currentOrderCutoff}</b></div><div style="color:var(--primary);">投票截止時間：<b>${voteCutoff}</b> (鎖單前 15 分)</div>`;
+        }
 
         const container = document.getElementById('voting-options');
         if (!container) return;
