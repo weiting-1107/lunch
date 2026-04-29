@@ -518,15 +518,27 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDatalists() {
         const orders = getOrders();
 
-        // 更新人員下拉選單 (從 Users DB) - 僅更新投票區的選單，不干擾手動輸入的姓名框
+        // 更新人員下拉選單 (從 Users DB)
         if (personNameInput) {
+            const oldName = personNameInput.value;
+            personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
+            
             const votePersonSel = document.getElementById('vote-person');
             if (votePersonSel) {
                 votePersonSel.innerHTML = '<option value="" disabled selected>請選擇姓名</option>';
-                memoryUsers.forEach(u => {
+            }
+
+            memoryUsers.forEach(u => {
+                personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                if (votePersonSel) {
                     votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-                });
-                
+                }
+            });
+            
+            // 復原原本的選取值
+            personNameInput.value = oldName || "";
+            
+            if (votePersonSel) {
                 // 如果沒有舊選擇，自動帶入上次用過的名字
                 const lastPerson = localStorage.getItem('lunch_last_person');
                 votePersonSel.value = votePersonSel.value || lastPerson || "";
