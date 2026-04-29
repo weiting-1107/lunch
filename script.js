@@ -1114,6 +1114,11 @@ personNameInput.value = '';
     }
 
     function renderOrders() {
+        // ★ 核心優化：記憶目前的捲動位置，避免重新渲染時跳回頂部
+        const modalBody = document.querySelector('.modal-body');
+        const savedScrollTop = modalBody ? modalBody.scrollTop : 0;
+        const savedScrollLeft = modalBody ? modalBody.scrollLeft : 0;
+
         const { weekDates, weekOrders, allOrders, labelText } = getWeekData(currentViewDate);
         if (currentWeekLabel) currentWeekLabel.textContent = labelText;
 
@@ -1132,6 +1137,12 @@ personNameInput.value = '';
             renderCallerTable(weekDates, allOrders, container);
         } else if (currentActiveTab === 'tab-person') {
             renderPersonTable(weekOrders, grandTotal, container);
+        }
+
+        // ★ 核心優化：渲染完成後恢復捲動位置
+        if (modalBody) {
+            modalBody.scrollTop = savedScrollTop;
+            modalBody.scrollLeft = savedScrollLeft;
         }
     }
 
