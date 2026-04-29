@@ -166,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
     dateInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(dateInputs, e.target.value)));
     mealTypeInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(mealTypeInputs, e.target.value)));
     restaurantInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(restaurantInputs, e.target.value)));
-    cutoffInputs.forEach(el => safeListen(el, 'change', (e) => syncAndRefresh(cutoffInputs, e.target.value, false)));
 
     // 導航按鈕 (側邊欄與底部同步)
     safeListenAll('.nav-home-btn', 'click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
@@ -612,10 +611,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentIdx = mealOrder.indexOf(currentPeriod);
             if (selectedIdx < currentIdx) return true;
 
-            // 2. 截止時間檢查 (讀取目前畫面上的鎖單時間，或該餐期已定案的時間)
+            // 2. 截止時間檢查 (優先抓取目前可見的輸入框)
+            const c1 = document.getElementById('cutoff-time');
+            const c2 = document.getElementById('cutoff-time-mob');
+            const currentOrderCutoff = (c1 && c1.offsetParent !== null ? c1.value : (c2 ? c2.value : '')) || '10:30';
+
             const orders = getOrders();
             const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
-            const activeCutoff = (sessionOrders.length > 0 ? sessionOrders[0].cutoffTime : null) || cutoffTimeInput.value || '10:30';
+            const activeCutoff = (sessionOrders.length > 0 ? sessionOrders[0].cutoffTime : null) || currentOrderCutoff;
 
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
@@ -642,37 +645,78 @@ document.addEventListener('DOMContentLoaded', () => {
         // 餐廳與時間設定鎖定：
         const sessionOrders = getOrders().filter(o => o.date === selectedDate && o.mealType === selectedMealType);
 
-        // ★ 如果此餐期已有訂單，同步顯示雲端的餐廳名稱與鎖單時間
-        if (anyOrder) {
+        // 鎖單時間讀取 (優先抓取目前可見的輸入框)
+        const c1 = document.getElementById('cutoff-time');
+        const c2 = document.getElementById('cutoff-time-mob');
+        const currentOrderCutoff = (c1 && c1.offsetParent !== null ? c1.value : (c2 ? c2.value : '')) || '10:30';
+
+        const now = new Date();
+        const currentTimeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const todayStr = getTodayString();
+
+        // ★ 核心優化：判定投票是否已截止 (提前 30 分鐘)
+        const [h, m] = currentOrderCutoff.split(':').map(Number);
+        let totalMins = h * 60 + m - 30;
+        if (totalMins < 0) totalMins = 0;
+        const vH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+        const vM = String(totalMins % 60).padStart(2, '0');
+        const voteCutoff = `${vH}:${vM}`;
+        const isVotePast = (selectedDate < todayStr) || (selectedDate === todayStr && currentTimeStr >= voteCutoff);
+
+        // 如果此餐期已有訂單，或者投票已經截止且有結果，則鎖定餐廳欄位
+        const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
+        const settings = getSettings();
+        const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
+        
+        if (anyOrder || (isVotePast && todaysVotes.length > 0)) {
+            let winner = anyOrder ? anyOrder.restaurant : '';
+            
+            // 如果沒訂單但投票已截止，則計算贏家
+            if (!winner && todaysVotes.length > 0) {
+                const counts = {};
+                let maxCount = 0;
+                todaysVotes.forEach(v => {
+                    counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
+                    if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
+                });
+                const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
+                
+                // 使用種子隨機選出贏家 (與 renderVotingSection 一致)
+                const seedStr = selectedDate + selectedMealType;
+                let hash = 0;
+                for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+                winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
+            }
+
             restaurantInputs.forEach(input => {
-                if (anyOrder.restaurant) input.value = anyOrder.restaurant;
+                if (winner) input.value = winner;
                 input.disabled = true;
-                input.title = "今日此餐期已開單，不可更改餐廳";
+                input.title = anyOrder ? "今日此餐期已開單，不可更改餐廳" : "投票已結束，餐廳已定案";
                 input.style.background = "var(--input-bg)";
                 input.style.color = "var(--text-muted)";
             });
 
-            // 鎖單時間：雲端值 > 餐期專屬設定值 > 預設值
-            const settings = getSettings();
-            const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
-            const syncedCutoff = anyOrder.cutoffTime || mealDefault;
+            // 鎖單時間設定 (已有訂單則跟隨訂單，否則跟隨畫面設定)
+            const syncedCutoff = anyOrder ? (anyOrder.cutoffTime || mealDefault) : currentOrderCutoff;
             cutoffInputs.forEach(input => {
                 input.value = syncedCutoff;
                 input.disabled = true;
-                input.title = "今日此餐期已開單，時間規則不可隨意更改";
+                input.title = "今日此餐期狀態已鎖定";
                 input.style.background = "var(--input-bg)";
                 input.style.color = "var(--text-muted)";
             });
         } else {
             restaurantInputs.forEach(input => {
+                // ★ 核心修正：只有在「真正切換餐期」時才清空，避免背景刷新時洗掉使用者的手選結果
+                if (isSessionChanged) {
+                    input.value = '';
+                }
                 input.disabled = false;
-                input.title = "請輸入此餐期要叫的餐廳名稱";
+                input.title = "請選擇餐廳";
                 input.style.background = "transparent";
                 input.style.color = "var(--text-main)";
             });
 
-            const settings = getSettings();
-            const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
             cutoffInputs.forEach(input => {
                 input.value = mealDefault;
                 input.disabled = false;
@@ -742,6 +786,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateRestaurantMenuDisplay();
         updateActiveRestaurantCard();
+
+        // 紀錄最後瀏覽狀態
+        lastViewedDate = selectedDate;
+        lastViewedMeal = selectedMealType;
     }
 
     function updateActiveRestaurantCard() {
@@ -845,20 +893,31 @@ document.addEventListener('DOMContentLoaded', () => {
         syncAndRefresh(mealTypeInputs, e.target.value, true);
     });
 
-    safeListenAll('#cutoff-time, #cutoff-time-mob', 'change', (e) => {
-        const val = e.target.value;
-        syncAndRefresh(cutoffInputs, val, true);
+    // 鎖單時間確認按鈕
+    const handleCutoffConfirm = () => {
+        const val = document.getElementById('cutoff-time')?.offsetParent !== null 
+            ? document.getElementById('cutoff-time').value 
+            : document.getElementById('cutoff-time-mob').value;
 
+        // ★ 核心修復：必須先將新時間存入 Settings，後續 syncAndRefresh 觸發的 handleFormState 才能讀到正確的值
         const settings = getSettings();
-        const currentMeal = document.getElementById('meal-type')?.value || '午餐';
+        const m1 = document.getElementById('meal-type');
+        const m2 = document.getElementById('meal-type-mob');
+        const currentMeal = ((m1 && m1.offsetParent !== null ? m1.value : (m2 ? m2.value : '')) || '午餐').trim();
 
-        // ★ 核心優化：記憶此餐期的專屬預設時間
         settings.mealCutoffs[currentMeal] = val;
         settings.cutoffTime = val;
         saveSettings(settings);
 
+        // 存檔後再同步並刷新畫面
+        syncAndRefresh(cutoffInputs, val, true);
+        
+        showToast('鎖單時間已更新！');
+
         if (!excelModal.classList.contains('hidden')) renderOrders();
-    });
+    };
+
+    safeListenAll('#confirm-cutoff-btn, #confirm-cutoff-mob-btn', 'click', handleCutoffConfirm);
 
     window.deleteOrder = function (id) {
         if (!confirm('確定要刪除這筆訂單嗎？')) return;
@@ -941,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 觸發重新檢查狀態 (會讓餐廳欄位上鎖)
         handleFormState();
 
-        personNameInput.value = '';
+personNameInput.value = '';
         itemNameInput.value = '';
         itemPriceInput.value = '';
         personNameInput.focus();
@@ -950,6 +1009,18 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGrandTotal();
         showToast(`訂購成功：${item}`, 'success');
     });
+
+    function normalizeDate(val) {
+        if (!val) return '';
+        // 如果已經是 YYYY-MM-DD 字串，直接回傳
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return String(val).trim();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
 
     itemPriceInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') submitOrderBtn.click();
@@ -1778,10 +1849,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 投票系統 UI ===
     function renderVotingSection() {
         const vSec = document.getElementById('voting-section');
-        const selectedDateStr = (document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value) || getTodayString();
-        const mType = (document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value) || '午餐';
-
         if (!vSec) return;
+
+        // 讀取日期與餐期
+        const d1 = document.getElementById('order-date');
+        const d2 = document.getElementById('order-date-mob');
+        const selectedDateStr = (d1 && d1.value ? d1.value : (d2 ? d2.value : '')) || getTodayString();
+        
+        const m1 = document.getElementById('meal-type');
+        const m2 = document.getElementById('meal-type-mob');
+        const mType = ((m1 && m1.value ? m1.value : (m2 ? m2.value : '')) || '午餐').trim();
 
         const now = new Date();
         const curHH = String(now.getHours()).padStart(2, '0');
@@ -1793,14 +1870,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // ★ 核心修復：優先尋找該餐期的專屬日期設定
         let storedTime = memoryConfig['cutoff_' + selectedDateStr + '_' + mType] || memoryConfig['cutoff_' + selectedDateStr];
 
-        // 如果沒有特定日期設定，則優先跟隨主畫面的「鎖單時間」 (餐期截止時間)
-        const currentOrderCutoff = document.getElementById('cutoff-time')?.value || document.getElementById('cutoff-time-mob')?.value || '10:30';
+        // 讀取主畫面的「鎖單時間」 (優先讀取目前可見的)
+        const c1 = document.getElementById('cutoff-time');
+        const c2 = document.getElementById('cutoff-time-mob');
+        const currentOrderCutoff = (c1 && c1.offsetParent !== null ? c1.value : (c2 ? c2.value : '')) || '10:30';
 
         if (storedTime !== undefined && storedTime !== '') {
             storedTime = normalizeTime(storedTime);
         }
 
-        // 最終截止時間：有特定日期設定就用它，否則預設比鎖單時間早 15 分鐘 (預留點餐時間)
+        // 最終截止時間：有特定日期設定就用它，否則預設比鎖單時間早 30 分鐘 (預留點餐時間)
         let voteCutoff = '';
         if (storedTime) {
             voteCutoff = storedTime;
@@ -1817,11 +1896,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 此餐期的現有訂單——改用 getOrders() 確保拿到最新本地訂單，遠首著隱藏投票區
         const sessionOrders = getOrders().filter(o => o.date === selectedDateStr && (o.mealType || '午餐') === mType);
 
-        // ★ 核心修復：使用統一的 isSessionLocked 判定是否應隱藏投票區
-        const isLocked = isSessionLocked(selectedDateStr, mType);
+        // ★ 核心優化：投票區的隱藏只看「時間是否已過」或「是否已開單」
+        // 不再受 isLocked (餐期順序) 的限制，避免早餐時段看不見午餐投票的問題
+        const isTimePast = (selectedDateStr < todayStr) || (selectedDateStr === todayStr && curTimeStr >= voteCutoff);
 
-        // 如果現在過了每日投票時間，強制關閉投票並統計
-        if (isLocked || sessionOrders.length > 0) {
+        if (sessionOrders.length > 0 || isTimePast) {
             vSec.classList.add('hidden');
 
             // 如果還沒有任何訂單，我們嘗試從此餐期的投票中選出最高分的自動填入餐廳名字
@@ -1856,9 +1935,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         winner = tiedRests[0];
                     }
 
-                    if (winner && document.getElementById('restaurant-name').value === '') {
-                        document.getElementById('restaurant-name').value = winner;
-                        if (typeof updateRestaurantMenuDisplay === 'function') updateRestaurantMenuDisplay();
+                    const ri1 = document.getElementById('restaurant-name');
+                    const ri2 = document.getElementById('restaurant-name-mob');
+                    if (winner) {
+                        // ★ 終極修正：截止後強制覆寫，不再檢查是否為空，確保結果一定會出現
+                        if (ri1) ri1.value = winner;
+                        if (ri2) ri2.value = winner;
+                        if (typeof updateRestaurantMenuDisplay === 'function') {
+                            updateRestaurantMenuDisplay();
+                        }
                     }
                 }
             }
@@ -1975,12 +2060,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 監聽重新選餐期以重繪投票 (已在上方 syncAndRefresh 處理，故此處移除冗餘或增加安全檢查)
-    if (document.getElementById('meal-type')) {
-        document.getElementById('meal-type').addEventListener('change', () => {
-            renderVotingSection();
-            handleFormState();
-        });
-    }
+    // 監聽重新選餐期以重繪投票
+    const mt1 = document.getElementById('meal-type');
+    const mt2 = document.getElementById('meal-type-mob');
+    const syncMeal = (e) => {
+        if (mt1) mt1.value = e.target.value;
+        if (mt2) mt2.value = e.target.value;
+        renderVotingSection();
+        handleFormState();
+    };
+    if (mt1) mt1.addEventListener('change', syncMeal);
+    if (mt2) mt2.addEventListener('change', syncMeal);
+
+    // 同步日期
+    const dt1 = document.getElementById('order-date');
+    const dt2 = document.getElementById('order-date-mob');
+    const syncDate = (e) => {
+        if (dt1) dt1.value = e.target.value;
+        if (dt2) dt2.value = e.target.value;
+        renderOrders();
+        renderVotingSection();
+        handleFormState();
+    };
+    if (dt1) dt1.addEventListener('change', syncDate);
+    if (dt2) dt2.addEventListener('change', syncDate);
 
     // 事件綁定 (使用 safeListen)
     safeListen(document.getElementById('close-modal-btn'), 'click', () => {
