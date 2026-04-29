@@ -320,6 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSyncing || lastFetchID !== currentSyncID) return;
 
             if (data) {
+                // ★ 終極優化：如果雲端資料與上次同步的完全相同，則跳過所有 DOM 重新渲染，徹底消除打字中斷問題
+                const dataString = JSON.stringify(data);
+                if (window._lastCloudDataString === dataString) return;
+                window._lastCloudDataString = dataString;
+
                 // 如果是新版結構 (有 orders 屬性)
                 if (data.orders) {
                     memoryOrders = data.orders.map(o => {
@@ -513,22 +518,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDatalists() {
         const orders = getOrders();
 
-        // 更新人員下拉選單 (從 Users DB)
+        // 更新人員下拉選單 (從 Users DB) - 僅更新投票區的選單，不干擾手動輸入的姓名框
         if (personNameInput) {
-            const oldName = personNameInput.value;
-            personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
             const votePersonSel = document.getElementById('vote-person');
-            if (votePersonSel) votePersonSel.innerHTML = '<option value="" disabled selected>請選擇姓名</option>';
-
-            memoryUsers.forEach(u => {
-                personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-                if (votePersonSel) votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-            });
-            personNameInput.value = oldName || "";
             if (votePersonSel) {
+                votePersonSel.innerHTML = '<option value="" disabled selected>請選擇姓名</option>';
+                memoryUsers.forEach(u => {
+                    votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                });
+                
                 // 如果沒有舊選擇，自動帶入上次用過的名字
                 const lastPerson = localStorage.getItem('lunch_last_person');
-                // 注意：這裡如果 votePersonSel.value 找不到對應選項會變空值
                 votePersonSel.value = votePersonSel.value || lastPerson || "";
             }
         }
@@ -724,7 +724,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             cutoffInputs.forEach(input => {
-                input.value = mealDefault;
+                // ★ 核心修正：只有在切換餐期時才套用預設值，避免打字到一半被洗掉
+                if (isSessionChanged) {
+                    input.value = mealDefault;
+                }
                 input.disabled = false;
                 input.title = "鎖單時間 (一旦有人訂購即鎖定)";
                 input.style.background = "transparent";
