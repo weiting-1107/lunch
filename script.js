@@ -469,11 +469,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 將設定維持在 LocalStorage，因為個人設定不需要全公司同步
     function getSettings() {
         const defaultCutoffs = {
-            '早餐': '08:00',
-            '午餐': '10:30',
-            '下午茶': '14:30',
-            '晚餐': '16:30',
-            '宵夜': '21:30'
+            '早餐': '09:00',
+            '午餐': '11:00',
+            '下午茶': '15:30',
+            '晚餐': '18:00',
+            '宵夜': '22:30'
         };
         try {
             const s = JSON.parse(localStorage.getItem(SETTINGS_KEY));
@@ -719,24 +719,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.style.color = "var(--text-muted)";
             });
 
+            // ★ 關鍵修正：如果只是時間到 (isTimeUp) 但「還沒有人點餐」，允許修改時間來解除鎖定
+            const canEditTime = !anyOrder; 
+
             cutoffInputs.forEach(input => {
                 input.value = anyOrder ? (sessionOrders[0].cutoffTime || currentOrderCutoff) : currentOrderCutoff;
-                input.disabled = true;
-                input.title = anyOrder ? "已有訂單，不可更改鎖單時間" : "鎖單時間已過";
-                input.style.background = "var(--input-bg)";
-                input.style.color = "var(--text-muted)";
+                input.disabled = !canEditTime;
+                input.title = anyOrder ? "已有訂單，不可更改鎖單時間" : (isTimeUp ? "時間已過，請調整時間以解鎖" : "鎖單時間");
+                input.style.background = canEditTime ? "transparent" : "var(--input-bg)";
+                input.style.color = canEditTime ? "var(--text-main)" : "var(--text-muted)";
             });
 
-            // 鎖定「確定」按鈕
+            // 鎖定「確定」按鈕 (僅在有人點餐時真正鎖死)
             const confirmCutoffBtns = document.querySelectorAll('#confirm-cutoff-btn, #confirm-cutoff-mob-btn');
             confirmCutoffBtns.forEach(btn => {
-                if (btn.disabled) return;
-                btn.disabled = true;
-                btn.innerHTML = '🔒 鎖定';
-                btn.style.background = 'var(--input-bg)';
-                btn.style.color = 'var(--text-muted)';
-                btn.style.borderColor = 'var(--border)';
-                btn.style.cursor = 'not-allowed';
+                const shouldDisable = anyOrder; // 只有有人點餐才禁用
+                // 只有在狀態需要改變時才去觸發 DOM 更新，避免干擾
+                if (btn.disabled === shouldDisable && btn.innerHTML === (shouldDisable ? '🔒 鎖定' : '確定')) return;
+                
+                btn.disabled = shouldDisable;
+                btn.innerHTML = shouldDisable ? '🔒 鎖定' : '確定';
+                btn.style.background = shouldDisable ? 'var(--input-bg)' : 'var(--primary)';
+                btn.style.color = shouldDisable ? 'var(--text-muted)' : '';
+                btn.style.borderColor = shouldDisable ? 'var(--border)' : '';
+                btn.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
             });
         } else {
             restaurantInputs.forEach(input => {
