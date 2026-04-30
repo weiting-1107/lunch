@@ -320,61 +320,62 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSyncing || lastFetchID !== currentSyncID) return;
 
             if (data) {
-                // ★ 終極優化：如果雲端資料與上次同步的完全相同，則跳過所有 DOM 重新渲染，徹底消除打字中斷問題
                 const dataString = JSON.stringify(data);
-                if (window._lastCloudDataString === dataString) return;
-                window._lastCloudDataString = dataString;
+                if (window._lastCloudDataString !== dataString) {
+                    window._lastCloudDataString = dataString;
 
-                // 如果是新版結構 (有 orders 屬性)
-                if (data.orders) {
-                    memoryOrders = data.orders.map(o => {
-                        o.date = normalizeDate(o.date);
-                        o.mealType = o.mealType || '午餐';
-                        o.price = Number(o.price) || 0;
-                        o.paid = o.paid === true || o.paid === 'TRUE';
-                        o.cutoffTime = normalizeTime(o.cutoffTime);
-                        return o;
-                    }).filter(o => o.date);
+                    // 如果是新版結構 (有 orders 屬性)
+                    if (data.orders) {
+                        memoryOrders = data.orders.map(o => {
+                            o.date = normalizeDate(o.date);
+                            o.mealType = o.mealType || '午餐';
+                            o.price = Number(o.price) || 0;
+                            o.paid = o.paid === true || o.paid === 'TRUE';
+                            o.cutoffTime = normalizeTime(o.cutoffTime);
+                            return o;
+                        }).filter(o => o.date);
 
-                    memoryUsers = data.users || [];
-                    memoryRestaurants = data.restaurants || [];
-                    memoryVotes = (data.votes || []).map(v => {
-                        v.date = normalizeDate(v.date);
-                        return v;
-                    });
-                    memoryConfig = {};
-                    (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
+                        memoryUsers = data.users || [];
+                        memoryRestaurants = data.restaurants || [];
+                        memoryVotes = (data.votes || []).map(v => {
+                            v.date = normalizeDate(v.date);
+                            return v;
+                        });
+                        memoryConfig = {};
+                        (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
 
-                } else if (Array.isArray(data)) {
-                    // 相容舊版陣列
-                    memoryOrders = data.map(o => {
-                        o.date = normalizeDate(o.date);
-                        o.mealType = o.mealType || '午餐';
-                        o.price = Number(o.price) || 0;
-                        o.paid = o.paid === true || o.paid === 'TRUE';
-                        o.cutoffTime = normalizeTime(o.cutoffTime);
-                        return o;
-                    }).filter(o => o.date);
+                    } else if (Array.isArray(data)) {
+                        memoryOrders = data.map(o => {
+                            o.date = normalizeDate(o.date);
+                            o.mealType = o.mealType || '午餐';
+                            o.price = Number(o.price) || 0;
+                            o.paid = o.paid === true || o.paid === 'TRUE';
+                            o.cutoffTime = normalizeTime(o.cutoffTime);
+                            return o;
+                        }).filter(o => o.date);
+                    }
+
+                    // ★★ 儲存快取與更新資料相關 UI ★★
+                    updateLocalCache();
+                    updateDatalists();
+                    updateGrandTotal();
+
+                    // 若正在瀏覽表格，立刻觸發畫面刷新
+                    if (!document.getElementById('excel-modal').classList.contains('hidden')) {
+                        renderOrders();
+                    }
+
+                    // 動態渲染系統維護畫面 (若開啟的話)
+                    const settingsModal = document.getElementById('settings-modal');
+                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                        renderSettingsTab();
+                    }
                 }
 
-                // ★★ 儲存快取，下次開啟頁面可立刻顯示，不用等雲端 ★★
-                updateLocalCache();
-
-                updateDatalists();
-                updateGrandTotal();
+                // ★ 核心優化：無論資料有無異動，每 5 秒都必須執行一次狀態檢查
+                // 這樣鎖單時間與倒數計時才會隨時間即時更新
                 handleFormState();
-                renderVotingSection(); // ★ 新增：每次刷新時更新投票區
-
-                // 若正在瀏覽表格，立刻觸發畫面刷新
-                if (!document.getElementById('excel-modal').classList.contains('hidden')) {
-                    renderOrders();
-                }
-
-                // 動態渲染系統維護畫面 (若開啟的話)
-                const settingsModal = document.getElementById('settings-modal');
-                if (settingsModal && !settingsModal.classList.contains('hidden')) {
-                    renderSettingsTab();
-                }
+                renderVotingSection();
             }
         } catch (err) {
             console.error("雲端同步失敗", err);
@@ -522,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (personNameInput) {
             const oldName = personNameInput.value;
             personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
-            
+
             const votePersonSel = document.getElementById('vote-person');
             if (votePersonSel) {
                 votePersonSel.innerHTML = '<option value="" disabled selected>請選擇姓名</option>';
@@ -534,10 +535,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
                 }
             });
-            
+
             // 復原原本的選取值
             personNameInput.value = oldName || "";
-            
+
             if (votePersonSel) {
                 // 如果沒有舊選擇，自動帶入上次用過的名字
                 const lastPerson = localStorage.getItem('lunch_last_person');
@@ -623,12 +624,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentIdx = mealOrder.indexOf(currentPeriod);
             if (selectedIdx < currentIdx) return true;
 
-            // 2. 截止時間檢查 (使用強化的偵測邏輯)
-            const currentOrderCutoff = getActiveCutoffTime();
-
+            // 2. 截止時間檢查
+            const settings = getSettings();
+            const mealDefault = settings.mealCutoffs[mealTypeStr] || settings.cutoffTime || '10:30';
+            
             const orders = getOrders();
             const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
-            const activeCutoff = (sessionOrders.length > 0 ? sessionOrders[0].cutoffTime : null) || currentOrderCutoff;
+            
+            // 優先順序：已開單的時間 > 畫面手動輸入的時間 (若是當前餐期) > 系統預設時間
+            let activeCutoff = mealDefault;
+            if (sessionOrders.length > 0 && sessionOrders[0].cutoffTime) {
+                activeCutoff = sessionOrders[0].cutoffTime;
+            } else {
+                const currentSelectedMeal = document.getElementById('meal-type')?.value;
+                if (currentSelectedMeal === mealTypeStr) {
+                    activeCutoff = getActiveCutoffTime();
+                }
+            }
 
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
@@ -656,79 +668,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const selectedDate = orderDateInput.value;
         const selectedMealType = mealTypeInput.value;
-        const locked = isSessionLocked(selectedDate, selectedMealType);
-        const anyOrder = getOrders().find(o => o.date === selectedDate && o.mealType === selectedMealType);
-
+        
         // ★ 核心優化：判定是否為「新切換」的餐期或日期
         const isSessionChanged = (selectedDate !== lastViewedDate || selectedMealType !== lastViewedMeal);
-
-        // 餐廳與時間設定鎖定：
         const sessionOrders = getOrders().filter(o => o.date === selectedDate && o.mealType === selectedMealType);
+        const anyOrder = sessionOrders.length > 0;
 
-        // 鎖單時間讀取 (使用強化的偵測邏輯)
-        const currentOrderCutoff = getActiveCutoffTime();
-
-        const now = new Date();
-        const currentTimeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-        const todayStr = getTodayString();
-
-        // ★ 核心優化：判定投票是否已截止 (改為提前 15 分鐘，避免緩衝過長)
-        const [h, m] = currentOrderCutoff.split(':').map(Number);
-        let totalMins = h * 60 + m - 15;
-        if (totalMins < 0) totalMins = 0;
-        const vH = String(Math.floor(totalMins / 60)).padStart(2, '0');
-        const vM = String(totalMins % 60).padStart(2, '0');
-        const voteCutoff = `${vH}:${vM}`;
-        const isVotePast = (selectedDate < todayStr) || (selectedDate === todayStr && currentTimeStr >= voteCutoff);
-
-        // 如果此餐期已有訂單，或者投票已經截止且有結果，則鎖定餐廳欄位
-        const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
+        // ★ 核心優化：先更新 UI 的預設時間，再進行鎖單判定
         const settings = getSettings();
         const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
+        
+        if (isSessionChanged && !anyOrder) {
+            cutoffInputs.forEach(input => {
+                if (input) input.value = mealDefault;
+            });
+        }
 
-        if (anyOrder || (isVotePast && todaysVotes.length > 0)) {
-            let winner = anyOrder ? anyOrder.restaurant : '';
+        const isTimeUp = isSessionLocked(selectedDate, selectedMealType);
+        
+        // 只有時間到了才是真正的「全域鎖定」
+        const locked = isTimeUp; 
+        const settingsLocked = isTimeUp || anyOrder;
 
-            // 如果沒訂單但投票已截止，則計算贏家
-            if (!winner && todaysVotes.length > 0) {
-                const counts = {};
-                let maxCount = 0;
-                todaysVotes.forEach(v => {
-                    counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
-                    if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
-                });
-                const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
+        // 鎖單時間讀取 (使用更新後的 UI 值)
+        const currentOrderCutoff = getActiveCutoffTime();
 
-                // 使用種子隨機選出贏家 (與 renderVotingSection 一致)
-                const seedStr = selectedDate + selectedMealType;
-                let hash = 0;
-                for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
-                winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
+        if (settingsLocked) {
+            let winner = '';
+            if (anyOrder) {
+                winner = sessionOrders[0].restaurant;
+            } else if (isTimeUp) {
+                // 如果沒訂單但時間到了，嘗試計算投票贏家
+                const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
+                if (todaysVotes.length > 0) {
+                    const counts = {};
+                    let maxCount = 0;
+                    todaysVotes.forEach(v => {
+                        counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
+                        if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
+                    });
+                    const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
+                    const seedStr = selectedDate + selectedMealType;
+                    let hash = 0;
+                    for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+                    winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
+                }
             }
 
             restaurantInputs.forEach(input => {
                 if (winner) input.value = winner;
                 input.disabled = true;
-                input.title = anyOrder ? "今日此餐期已開單，不可更改餐廳" : "投票已結束，餐廳已定案";
+                input.title = anyOrder ? "今日此餐期已有人點餐，不可更改餐廳" : "鎖單時間已過，餐廳已定案";
                 input.style.background = "var(--input-bg)";
                 input.style.color = "var(--text-muted)";
             });
 
-            // 鎖單時間設定 (已有訂單則跟隨訂單，否則跟隨畫面設定)
-            const syncedCutoff = anyOrder ? (anyOrder.cutoffTime || mealDefault) : currentOrderCutoff;
             cutoffInputs.forEach(input => {
-                input.value = syncedCutoff;
+                input.value = anyOrder ? (sessionOrders[0].cutoffTime || currentOrderCutoff) : currentOrderCutoff;
                 input.disabled = true;
-                input.title = "今日此餐期狀態已鎖定";
+                input.title = anyOrder ? "已有訂單，不可更改鎖單時間" : "鎖單時間已過";
                 input.style.background = "var(--input-bg)";
                 input.style.color = "var(--text-muted)";
             });
+
+            // 鎖定「確定」按鈕
+            const confirmCutoffBtns = document.querySelectorAll('#confirm-cutoff-btn, #confirm-cutoff-mob-btn');
+            confirmCutoffBtns.forEach(btn => {
+                if (btn.disabled) return;
+                btn.disabled = true;
+                btn.innerHTML = '🔒 鎖定';
+                btn.style.background = 'var(--input-bg)';
+                btn.style.color = 'var(--text-muted)';
+                btn.style.borderColor = 'var(--border)';
+                btn.style.cursor = 'not-allowed';
+            });
         } else {
             restaurantInputs.forEach(input => {
-                // ★ 核心修正：只有在「真正切換餐期」時才清空，避免背景刷新時洗掉使用者的手選結果
-                if (isSessionChanged) {
-                    input.value = '';
-                }
+                if (isSessionChanged) input.value = '';
                 input.disabled = false;
                 input.title = "請選擇餐廳";
                 input.style.background = "transparent";
@@ -736,14 +752,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             cutoffInputs.forEach(input => {
-                // ★ 核心修正：只有在切換餐期時才套用預設值，避免打字到一半被洗掉
-                if (isSessionChanged) {
-                    input.value = mealDefault;
-                }
+                if (isSessionChanged) input.value = mealDefault;
                 input.disabled = false;
                 input.title = "鎖單時間 (一旦有人訂購即鎖定)";
                 input.style.background = "transparent";
                 input.style.color = "var(--text-main)";
+            });
+
+            // 恢復「確定」按鈕
+            const confirmCutoffBtns = document.querySelectorAll('#confirm-cutoff-btn, #confirm-cutoff-mob-btn');
+            confirmCutoffBtns.forEach(btn => {
+                if (!btn.disabled && btn.innerHTML === '確定') return;
+                btn.disabled = false;
+                btn.innerHTML = '確定';
+                btn.style.background = 'var(--primary)';
+                btn.style.color = '';
+                btn.style.borderColor = '';
+                btn.style.cursor = 'pointer';
             });
         }
 
@@ -765,7 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (selectedIdx < currentIdx) {
                     lockReason = `目前已進入【${currentPeriod}】時段`;
                 } else {
-                    lockReason = `已超過截止時間 ${cutoffTimeInput.value}`;
+                    lockReason = `已超過截止時間 ${getActiveCutoffTime()}`;
                 }
 
                 lockedWarning.innerHTML = `⚠️ 【${selectedMealType}】訂單已鎖定（${lockReason}）。${menuLink}`;
@@ -788,8 +813,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // ★ 如果此餐期已有人點餐但還沒超過截止時間，顯示友善提示
             if (anyOrder && lockedWarning) {
                 lockedWarning.classList.remove('hidden');
-                const menuLink = getMenuLinkHtml(anyOrder.restaurant);
-                lockedWarning.innerHTML = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${cutoffTimeInput.value}</br>餐廳：${anyOrder.restaurant || '未設定'} ${menuLink}`;
+                const menuLink = getMenuLinkHtml(sessionOrders[0].restaurant);
+                lockedWarning.innerHTML = `🕐 【${selectedMealType}】已有 ${sessionOrders.length} 人訂餐，截止時間：${selectedDate} ${currentOrderCutoff}</br>餐廳：${sessionOrders[0].restaurant || '未設定'} ${menuLink}`;
                 lockedWarning.style.background = 'var(--input-bg)';
                 lockedWarning.style.borderColor = 'var(--primary)';
                 lockedWarning.style.color = 'var(--primary)';
