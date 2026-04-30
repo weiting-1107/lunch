@@ -611,6 +611,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ★ 新增：每秒更新系統時間顯示與自動檢查餐期跳轉
+    setInterval(() => {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timeDisplay = document.getElementById('current-system-time');
+        if (timeDisplay) timeDisplay.innerText = `🕒 系統時間：${timeStr}`;
+
+        // 檢查是否需要自動切換餐期 (若目前選取的餐期已鎖定且時間已進入下一餐)
+        autoCheckMealSwitch();
+    }, 1000);
+
+    function autoCheckMealSwitch() {
+        const currentSelected = document.getElementById('meal-type')?.value;
+        const recommended = getCurrentMealPeriod();
+        if (currentSelected && currentSelected !== recommended) {
+            // 如果目前的餐期已經鎖定，就自動跳轉到推薦的下一餐
+            if (isSessionLocked(getTodayString(), currentSelected)) {
+                document.querySelectorAll('#meal-type, #meal-type-mob').forEach(sel => {
+                    if (sel) {
+                        sel.value = recommended;
+                        // 觸發變更事件以刷新 UI
+                        sel.dispatchEvent(new Event('change'));
+                    }
+                });
+                showToast(`🕛 時間已過，已自動切換至【${recommended}】`, 'info');
+            }
+        }
+    }
+
     // 鎖單檢查 (包含日期、餐期順序與截止時間)
     function isSessionLocked(dateStr, mealTypeStr) {
         const todayStr = getTodayString();
