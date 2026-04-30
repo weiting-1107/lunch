@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const timeDisplay = document.getElementById('current-system-time');
-        if (timeDisplay) timeDisplay.innerText = `🕒 系統時間：${timeStr}`;
+        if (timeDisplay) timeDisplay.innerText = `🕒 ${timeStr}`;
 
         // 檢查是否需要自動切換餐期 (若目前選取的餐期已鎖定且時間已進入下一餐)
         autoCheckMealSwitch();
