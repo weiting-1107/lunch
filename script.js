@@ -631,22 +631,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const orders = getOrders();
             const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
             
-            // 優先順序：已開單的時間 > 畫面手動輸入的時間 (若是當前餐期) > 系統預設時間
+            // 核心邏輯：優先使用已開單的時間，若無訂單則使用該餐期的系統預設時間
+            // 避免因為抓到 UI 殘留的舊資料 (例如午餐的 10:30) 導致誤鎖
             let activeCutoff = mealDefault;
             if (sessionOrders.length > 0 && sessionOrders[0].cutoffTime) {
                 activeCutoff = sessionOrders[0].cutoffTime;
-            } else {
-                const currentSelectedMeal = document.getElementById('meal-type')?.value;
-                if (currentSelectedMeal === mealTypeStr) {
-                    activeCutoff = getActiveCutoffTime();
-                }
             }
 
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
             const currentTimeStr = `${hh}:${mm}`;
-
+            
             if (currentTimeStr >= normalizeTime(activeCutoff)) return true;
         }
         return false;
