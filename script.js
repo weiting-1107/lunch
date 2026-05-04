@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getRecommendedRestaurant(date, mealType) {
         const orders = getOrders();
         const sessionOrders = orders.filter(o => o.date === date && o.mealType === mealType);
-        
+
         // 1. 優先權最高：已有人下單
         if (sessionOrders.length > 0) {
             return { name: sessionOrders[0].restaurant, source: 'order' };
@@ -2690,7 +2690,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderVotingSection(); // ★ 用快取立即顯示投票區（0ms！）
             }
         }
-    } catch (e) { 
+    } catch (e) {
         console.error("Cache boot failed:", e);
     }
 
