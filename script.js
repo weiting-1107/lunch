@@ -859,9 +859,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (anyOrder) {
                 winner = sessionOrders[0].restaurant;
             } else if (cloudRest) {
-                winner = cloudRest; // 優先權：1. 已有點餐 2. 管理員預定餐廳
-            } else if (isTimeUp) {
-                // 如果沒訂單但時間到了，嘗試計算投票贏家
+                winner = cloudRest; // 優先權：1. 已有點餐 2. 管理員特定日期預定
+            } else {
+                // 檢查是否有投票結果
                 const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
                 if (todaysVotes.length > 0) {
                     const counts = {};
@@ -875,6 +875,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     let hash = 0;
                     for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
                     winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
+                } else if (isTimeUp) {
+                    // ★ 核心功能 (v197)：若無人投票且時間已到，自動套用每週排餐
+                    const dow = new Date(selectedDate + 'T12:00:00').getDay(); // 0=日, 1=一...
+                    const weeklyKey = `weekly_${dow === 0 ? 7 : dow}`; // 轉為 1=一...7=日
+                    winner = memoryConfig[weeklyKey] || '';
                 }
             }
 
@@ -1889,22 +1894,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentPwd = memoryConfig.adminPwd || '';
             const todayStr = getTodayString();
 
-            // === 快速開餐 UI (v196) ===
-            html += `<div class="form-group" style="margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-main); border-radius:0.75rem; border:2px solid var(--primary); box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                <label style="color:var(--primary); font-weight:bold; font-size:1.1rem; margin-bottom:0.75rem; display:block;">🚀 快速開餐 (管理員專屬)</label>
-                <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
-                    <div style="flex:1; min-width:140px;"><label style="font-size:0.75rem;">日期</label><input type="date" id="quick-open-date" class="restaurant-input" value="${todayStr}"></div>
-                    <div style="flex:1; min-width:100px;"><label style="font-size:0.75rem;">餐期</label><select id="quick-open-meal" class="restaurant-input">
-                        <option value="早餐">早餐</option><option value="午餐" selected>午餐</option><option value="下午茶">下午茶</option><option value="晚餐">晚餐</option><option value="宵夜">宵夜</option>
-                    </select></div>
-                    <div style="flex:2; min-width:180px;"><label style="font-size:0.75rem;">今日餐廳</label><select id="quick-open-rest" class="restaurant-input">
-                        <option value="">請選擇餐廳...</option>
-                        ${memoryRestaurants.map(r => `<option value="${r.name}">${r.name}</option>`).join('')}
-                    </select></div>
-                    <div style="flex:0.8; min-width:90px;"><label style="font-size:0.75rem;">截止時間</label><input type="time" id="quick-open-time" class="restaurant-input" value="${currentCutoff}"></div>
-                    <button id="quick-open-btn" onclick="handleQuickOpen()" class="primary-btn" style="flex:none; padding:0.8rem 1.5rem;">啟動訂餐</button>
-                </div>
-                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.75rem; border-top:1px dashed var(--border); padding-top:0.5rem;">💡 提示：啟動後會強制設定該餐期的餐廳，並開放給所有人點餐。</p>
+            const todayStr = getTodayString();
+ 
+            // === 每週固定排餐 UI (v197) ===
+            html += `<div class="form-group" style="margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-main); border-radius:0.75rem; border:2px solid var(--primary);">
+                <label style="color:var(--primary); font-weight:bold; font-size:1.1rem; margin-bottom:0.75rem; display:block;">📅 每週預定排餐表 (無人投票時的自動備案)</label>
+                <div style="overflow-x:auto;">
+                    <table class="excel-table" style="font-size:0.9rem;">
+                        <thead><tr><th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th></tr></thead>
+                        <tbody><tr>`;
+            
+            for (let i = 1; i <= 7; i++) {
+                const key = `weekly_${i}`;
+                const val = memoryConfig[key] || '';
+                html += `<td><select class="weekly-schedule-select" data-day="${i}" style="width:100%; padding:4px; border-radius:4px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-main);">
+                    <option value="">(無)</option>
+                    ${memoryRestaurants.map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
+                </select></td>`;
+            }
+            html += `</tr></tbody></table></div>
+                <button id="save-weekly-btn" class="primary-btn" onclick="handleSaveWeekly()" style="margin-top:1rem; width:100%;">💾 儲存每週排餐設定</button>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.75rem;">💡 說明：若當天投票截止後無人投票，系統會自動抓取此表設定的餐廳。</p>
             </div>`;
 
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>預設每天投票截止時間</label>`;
@@ -2549,26 +2559,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 快速開餐功能 (v196)
-    window.handleQuickOpen = function() {
-        const date = document.getElementById('quick-open-date').value;
-        const meal = document.getElementById('quick-open-meal').value;
-        const rest = document.getElementById('quick-open-rest').value;
-        const time = document.getElementById('quick-open-time').value;
+    // 儲存每週排餐功能 (v197)
+    window.handleSaveWeekly = function() {
+        const selects = document.querySelectorAll('.weekly-schedule-select');
+        selects.forEach(sel => {
+            const day = sel.getAttribute('data-day');
+            memoryConfig[`weekly_${day}`] = sel.value;
+        });
 
-        if (!rest) { showToast("請選擇開餐餐廳", "error"); return; }
-        
-        const sessionKey = `${date}_${meal}`;
-        memoryConfig[`restaurant_${sessionKey}`] = rest;
-        memoryConfig[`cutoff_${sessionKey}`] = time;
+        const newConfig = Object.entries(memoryConfig).map(([key, value]) => {
+            // 對於時間或排餐設定，確保儲存為字串格式
+            let val = value;
+            if (key === 'voteCutoffTime' || key.startsWith('cutoff_') || key.startsWith('weekly_') || key.startsWith('restaurant_')) {
+                val = "'" + String(value).replace(/^'/, '');
+            }
+            return { key, value: val };
+        });
 
-        const newConfig = Object.entries(memoryConfig).map(([key, value]) => ({ key, value }));
         saveCloudData("saveConfig", newConfig).then(success => {
             if (success) {
-                showToast(`✅ 已啟動 ${date} (${meal}) 的訂餐！`, "success");
+                showToast(`✅ 每週排餐設定已儲存！`, "success");
                 handleFormState();
-                renderVotingSection();
-                renderSettingsTab(); // 重新渲染列表以看到新增項
+                renderSettingsTab();
             }
         });
     };
