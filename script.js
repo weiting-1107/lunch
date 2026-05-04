@@ -370,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: JSON.stringify({ action: 'fetchData' })
             });
-            
+
             if (!res.ok) {
                 console.error(`[Cloud Sync] 伺服器回傳錯誤: ${res.status}`);
                 return;
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasImg = dataArray.some(r => r.menuImage);
             const totalImgSize = dataArray.reduce((acc, r) => acc + (r.menuImage ? r.menuImage.length : 0), 0);
             console.log(`[Debug] 餐廳資料包含圖片: ${hasImg ? '是' : '否'}, 圖片總字元數: ${totalImgSize.toLocaleString()}`);
-            
+
             if (totalImgSize > 500000) {
                 console.warn("[Cloud Sync] 警告：圖片資料量極大 (" + totalImgSize + ")，建議縮小圖片或降低品質。");
             }
@@ -831,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ★ 核心優化：先更新 UI 的預設時間，再進行鎖單判定
         const settings = getSettings();
-        
+
         // 優先讀取雲端指定的餐廳與時間設定
         const sessionKey = `${selectedDate}_${selectedMealType}`;
         const cloudRest = memoryConfig[`restaurant_${sessionKey}`];
@@ -1444,7 +1444,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         const isAdmin = currentUser && currentUser.role === 'admin';
-                        const priceDisplay = isAdmin 
+                        const priceDisplay = isAdmin
                             ? `<input type="number" value="${order.price}" class="inline-edit-price" onchange="updateOrderPrice('${order.id}', this.value)" style="width:60px; padding:2px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main); font-weight:bold; text-align:right;">`
                             : `$${order.price}`;
 
@@ -1894,8 +1894,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentPwd = memoryConfig.adminPwd || '';
             const todayStr = getTodayString();
 
-            const todayStr = getTodayString();
- 
+
             // === 每週固定排餐 UI (v197) ===
             html += `<div class="form-group" style="margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-main); border-radius:0.75rem; border:2px solid var(--primary);">
                 <label style="color:var(--primary); font-weight:bold; font-size:1.1rem; margin-bottom:0.75rem; display:block;">📅 每週預定排餐表 (無人投票時的自動備案)</label>
@@ -1903,7 +1902,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <table class="excel-table" style="font-size:0.9rem;">
                         <thead><tr><th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th></tr></thead>
                         <tbody><tr>`;
-            
+
             for (let i = 1; i <= 7; i++) {
                 const key = `weekly_${i}`;
                 const val = memoryConfig[key] || '';
@@ -2546,7 +2545,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderOrders(); // 刷新表格 (角色過濾)
     }
 
-    window.updateOrderPrice = function(id, newPrice) {
+    window.updateOrderPrice = function (id, newPrice) {
         const price = parseFloat(newPrice) || 0;
         const orders = getOrders();
         const idx = orders.findIndex(o => o.id === id);
@@ -2560,7 +2559,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // 儲存每週排餐功能 (v197)
-    window.handleSaveWeekly = function() {
+    window.handleSaveWeekly = function () {
         const selects = document.querySelectorAll('.weekly-schedule-select');
         selects.forEach(sel => {
             const day = sel.getAttribute('data-day');
