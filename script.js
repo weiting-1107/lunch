@@ -810,6 +810,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
+    // ★ 核心邏輯：計算建議/勝選餐廳 (v197)
+    function getRecommendedRestaurant(date, mealType) {
+        const orders = getOrders();
+        const sessionOrders = orders.filter(o => o.date === date && o.mealType === mealType);
+        
+        // 1. 優先權最高：已有人下單
+        if (sessionOrders.length > 0) {
+            return { name: sessionOrders[0].restaurant, source: 'order' };
+        }
+
+        // 2. 優先權次之：管理員特定日期預定
+        const cloudRest = memoryConfig[`restaurant_${date}_${mealType}`];
+        if (cloudRest) {
+            return { name: cloudRest, source: 'cloud' };
+        }
+
+        // 3. 優先權：投票結果
+        const todaysVotes = memoryVotes.filter(v => v.date === date && v.mealType === mealType);
+        if (todaysVotes.length > 0) {
+            const counts = {};
+            let maxCount = 0;
+            todaysVotes.forEach(v => {
+                counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
+                if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
+            });
+            const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
+            const seedStr = date + mealType;
+            let hash = 0;
+            for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+            const winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
+            return { name: winner, source: 'vote' };
+        }
+
+        // 4. Fallback：每週排餐 (作為預設建議)
+        const dow = new Date(date + 'T12:00:00').getDay();
+        const weeklyKey = `weekly_${dow === 0 ? 7 : dow}`;
+        const weeklyRest = memoryConfig[weeklyKey] || '';
+        if (weeklyRest) return { name: weeklyRest, source: 'weekly' };
+
+        return { name: '', source: 'none' };
+    }
+
     function getActiveCutoffTime() {
         const c1 = document.getElementById('cutoff-time');
         const c2 = document.getElementById('cutoff-time-mob');
@@ -853,39 +895,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // 只有時間到了才是真正的「全域鎖定」
         const locked = isTimeUp;
         const settingsLocked = isTimeUp || anyOrder;
-
-        // 鎖單時間讀取 (使用更新後的 UI 值)
         const currentOrderCutoff = getActiveCutoffTime();
 
-        if (settingsLocked) {
-            let winner = '';
-            if (anyOrder) {
-                winner = sessionOrders[0].restaurant;
-            } else if (cloudRest) {
-                winner = cloudRest; // 優先權：1. 已有點餐 2. 管理員特定日期預定
-            } else {
-                // 檢查是否有投票結果
-                const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
-                if (todaysVotes.length > 0) {
-                    const counts = {};
-                    let maxCount = 0;
-                    todaysVotes.forEach(v => {
-                        counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
-                        if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
-                    });
-                    const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
-                    const seedStr = selectedDate + selectedMealType;
-                    let hash = 0;
-                    for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
-                    winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
-                } else if (isTimeUp) {
-                    // ★ 核心功能 (v197)：若無人投票且時間已到，自動套用每週排餐
-                    const dow = new Date(selectedDate + 'T12:00:00').getDay(); // 0=日, 1=一...
-                    const weeklyKey = `weekly_${dow === 0 ? 7 : dow}`; // 轉為 1=一...7=日
-                    winner = memoryConfig[weeklyKey] || '';
-                }
-            }
+        // ★ 統一計算建議餐廳 (v197)
+        const recommendation = getRecommendedRestaurant(selectedDate, selectedMealType);
+        const winner = recommendation.name;
 
+        if (settingsLocked) {
             restaurantInputs.forEach(input => {
                 if (winner) input.value = winner;
                 input.disabled = true;
@@ -921,7 +937,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else {
             restaurantInputs.forEach(input => {
-                if (isSessionChanged) input.value = '';
+                // 如果是新切換餐期，且沒有建議餐廳，才清空
+                if (isSessionChanged && !winner) {
+                    input.value = '';
+                } else if (isSessionChanged && winner) {
+                    input.value = winner;
+                }
                 input.disabled = false;
                 input.title = "請選擇餐廳";
                 input.style.background = "transparent";
@@ -935,6 +956,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.style.background = "transparent";
                 input.style.color = "var(--text-main)";
             });
+
+            // ★ 修正：沒鎖定時，若有雲端指定或排餐備案，也自動顯示但不鎖定
+            if (isSessionChanged && winner) {
+                restaurantInputs.forEach(input => {
+                    input.value = winner;
+                });
+            }
 
             // 恢復「確定」按鈕
             const confirmCutoffBtns = document.querySelectorAll('#confirm-cutoff-btn, #confirm-cutoff-mob-btn');
@@ -2250,48 +2278,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sessionOrders.length > 0 || isTimePast) {
             vSec.classList.add('hidden');
 
-            // 如果還沒有任何訂單，我們嘗試從此餐期的投票中選出最高分的自動填入餐廳名字
-            if (sessionOrders.length === 0) {
-                const todaysVotes = memoryVotes.filter(v => v.date === selectedDateStr && v.mealType === mType);
-                if (todaysVotes.length > 0) {
-                    const counts = {};
-                    let maxCount = 0;
-                    todaysVotes.forEach(v => {
-                        counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
-                        if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
-                    });
+            // ★ 統一使用建議餐廳邏輯 (v197)
+            const recommendation = getRecommendedRestaurant(selectedDateStr, mType);
+            const winner = recommendation.name;
 
-                    // ★ 修改：平手隨機決策
-                    const tiedRests = Object.entries(counts)
-                        .filter(([name, count]) => count === maxCount)
-                        .map(([name]) => name)
-                        .sort(); // 排序確保種子選取一致
-
-                    let winner = '';
-                    if (tiedRests.length > 1) {
-                        // 使用日期+餐期作為種子，讓每個人看到的「隨機」結果是一樣的
-                        const seedStr = selectedDateStr + mType;
-                        let hash = 0;
-                        for (let i = 0; i < seedStr.length; i++) {
-                            hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
-                            hash |= 0;
-                        }
-                        const index = Math.abs(hash) % tiedRests.length;
-                        winner = tiedRests[index];
-                    } else {
-                        winner = tiedRests[0];
-                    }
-
-                    const ri1 = document.getElementById('restaurant-name');
-                    const ri2 = document.getElementById('restaurant-name-mob');
-                    if (winner) {
-                        // ★ 終極修正：截止後強制覆寫，不再檢查是否為空，確保結果一定會出現
-                        if (ri1) ri1.value = winner;
-                        if (ri2) ri2.value = winner;
-                        if (typeof updateRestaurantMenuDisplay === 'function') {
-                            updateRestaurantMenuDisplay();
-                        }
-                    }
+            if (winner) {
+                const ri1 = document.getElementById('restaurant-name');
+                const ri2 = document.getElementById('restaurant-name-mob');
+                // 自動帶入建議餐廳（若目前為空）
+                if (ri1 && !ri1.value) ri1.value = winner;
+                if (ri2 && !ri2.value) ri2.value = winner;
+                if (typeof updateRestaurantMenuDisplay === 'function') {
+                    updateRestaurantMenuDisplay();
                 }
             }
             return;
