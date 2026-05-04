@@ -753,11 +753,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 
     function autoCheckMealSwitch() {
+        const todayStr = getTodayString();
+        if (orderDateInput.value !== todayStr) return; // ★ 修正：只有在選擇「今天」時才自動切換餐期
+
         const currentSelected = document.getElementById('meal-type')?.value;
         const recommended = getCurrentMealPeriod();
         if (currentSelected && currentSelected !== recommended) {
             // 如果目前的餐期已經鎖定，就自動跳轉到推薦的下一餐
-            if (isSessionLocked(getTodayString(), currentSelected)) {
+            if (isSessionLocked(todayStr, currentSelected)) {
                 document.querySelectorAll('#meal-type, #meal-type-mob').forEach(sel => {
                     if (sel) {
                         sel.value = recommended;
@@ -959,9 +962,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentIdx = mealOrder.indexOf(currentPeriod);
 
                 let lockReason = '';
-                if (selectedDate < getTodayString()) {
+                const todayStr = getTodayString();
+                if (selectedDate < todayStr) {
                     lockReason = '日期已過';
-                } else if (selectedIdx < currentIdx) {
+                } else if (selectedDate === todayStr && selectedIdx < currentIdx) {
                     lockReason = `目前已進入【${currentPeriod}】時段`;
                 } else {
                     lockReason = `已超過截止時間 ${getActiveCutoffTime()}`;
