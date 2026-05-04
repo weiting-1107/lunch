@@ -1181,14 +1181,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGrandTotal();
     };
 
-    window.togglePaid = function (id) {
+    window.togglePaid = function (id, isPaid) {
         const orders = getOrders();
-        const order = orders.find(o => o.id === id);
-        if (order) {
-            order.paid = !order.paid;
-            // ★ 核心優化：改用 updateOrderPaid 原子操作
-            saveOrders(orders, "updateOrderPaid", { id: id, paid: order.paid });
-            renderOrders();
+        const idx = orders.findIndex(o => o.id === id);
+        if (idx !== -1) {
+            const updatedOrder = { ...orders[idx], paid: isPaid };
+            orders[idx] = updatedOrder;
+            // 統一使用 updateOrder 動作 (v199)
+            saveOrders(orders, "updateOrder", updatedOrder);
             updateGrandTotal();
         }
     };
@@ -2554,7 +2554,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (idx !== -1) {
             const updatedOrder = { ...orders[idx], price: price };
             orders[idx] = updatedOrder;
-            // 使用 updateOrder 行動同步至雲端
+            // 統一使用 updateOrder 動作 (v199)
             saveOrders(orders, "updateOrder", updatedOrder);
             updateGrandTotal();
         }
