@@ -10,10 +10,50 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=171">
+    <link rel="stylesheet" href="style.css?v=177">
 </head>
 
 <body>
+    <!-- 帳號制登入層 (v173 新增) -->
+    <div id="login-overlay" class="modal-overlay"
+        style="display: none; z-index: 2000; backdrop-filter: blur(15px); background: rgba(0,0,0,0.75);">
+        <div class="modal-content"
+            style="max-width: 400px; text-align: center; padding: 2.5rem 2rem; border: 1px solid var(--glass-border);">
+            <div style="font-size: 3.5rem; margin-bottom: 1rem;">🍱</div>
+            <h2 id="login-title" style="margin-bottom: 0.5rem;">登入系統</h2>
+            <p id="login-subtitle" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">請輸入您的姓名與密碼
+            </p>
+
+            <!-- 登入/註冊 表單內容 -->
+            <div id="login-form">
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label style="text-align: left; display: block; margin-bottom: 0.5rem;">👤 使用者姓名</label>
+                    <input type="text" id="auth-name" class="restaurant-input" placeholder="請輸入姓名"
+                        style="text-align: center; font-size: 1.1rem;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label style="text-align: left; display: block; margin-bottom: 0.5rem;">🔒 登入密碼</label>
+                    <input type="password" id="auth-pass" class="restaurant-input" placeholder="請輸入密碼"
+                        style="text-align: center; font-size: 1.1rem;">
+                </div>
+
+                <button id="auth-submit-btn" class="primary-btn"
+                    style="width: 100%; margin-top: 1rem; padding: 1rem; font-size: 1.1rem;">立即登入</button>
+
+                <div id="auth-switch-note" style="margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
+                    還沒有帳號嗎？ <a href="#" id="auth-switch-link"
+                        style="color: var(--primary); text-decoration: none; font-weight: 600;">點我註冊</a>
+                </div>
+            </div>
+
+            <p id="register-note"
+                style="display: none; color: var(--warning); font-size: 0.8rem; margin-top: 1rem; background: var(--bg-main); padding: 0.5rem; border-radius: 0.25rem;">
+                💡 註冊成功後，預設權限為「點餐者」。
+            </p>
+        </div>
+    </div>
+
     <div class="app-layout">
         <!-- 側邊欄 (電腦版顯示) -->
         <aside class="sidebar">
@@ -23,13 +63,17 @@
                     <button class="theme-toggle desktop-only" id="theme-toggle-desktop" title="切換深淺模式">🌙</button>
                 </div>
                 <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.25rem;">訂餐管理系統</p>
-                <div id="current-system-time" style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace; letter-spacing: -0.5px;">🕒 --:--:--</div>
+                <div id="current-system-time"
+                    style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace; letter-spacing: -0.5px;">
+                    🕒 --:--:--</div>
             </div>
             <nav class="sidebar-nav">
                 <button class="nav-btn nav-home-btn active">🏠 點餐首頁</button>
                 <button class="nav-btn nav-details-btn">📝 查看明細</button>
                 <button class="nav-btn nav-person-btn">💸 收錢總帳</button>
-                <button class="nav-btn nav-settings-btn">⚙️ 系統設定</button>
+                <button class="nav-btn nav-settings-btn admin-only">⚙️ 系統設定</button>
+                <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
+                    登出系統</button>
             </nav>
             <div class="sidebar-settings-group desktop-only">
                 <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
@@ -53,8 +97,8 @@
                         <option value="">請選擇餐廳...</option>
                     </select>
                 </div>
-                <div class="sidebar-setting-item">
-                    <label>⛔ 鎖單時間</label>
+                <div class="sidebar-setting-item admin-only">
+                    <label>⚙️ 鎖單時間設定</label>
                     <div style="display:flex; gap:0.5rem; align-items:center;">
                         <input type="time" id="cutoff-time" value="10:30" class="time-input" style="width:50%;">
                         <button id="confirm-cutoff-btn" class="primary-btn"
@@ -153,11 +197,11 @@
                         <input type="text" id="item-name" placeholder="例如：排骨便當" list="item-history" required
                             autocomplete="off">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group admin-only">
                         <label for="item-price">金額 <span class="required">*</span></label>
                         <div class="price-input-wrapper">
                             <span class="currency-symbol">$</span>
-                            <input type="number" id="item-price" placeholder="0" min="0" step="1" required>
+                            <input type="number" id="item-price" placeholder="0" min="0" step="1">
                         </div>
                         <div class="quick-prices" id="quick-prices-container"></div>
                     </div>
@@ -330,7 +374,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=171"></script>
+    <script src="script.js?v=177"></script>
 </body>
 
 </html>

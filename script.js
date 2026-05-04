@@ -3,7 +3,7 @@ const theme = localStorage.getItem('lunch_theme') || 'light';
 if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 // --- 雲端配置與全域狀態 ---
-const API_URL = "https://script.google.com/macros/s/AKfycby-7q3Q2FWh2Ok7zAMYA9lHHfSviHF0pX6zVhdBvtogsvQ9nKQFM1_wgqiQDrMoJq54/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyIEYV4Zw1dzGOnuUSukUACow0GDQokNdp3B7-xYi-KS13eDA0aOVGyZtyixHS9h5rf/exec";
 const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
 const SETTINGS_KEY = 'lunch_settings';
 
@@ -19,6 +19,7 @@ let memoryConfig = {};
 let lastFetchID = 0;
 let lastViewedMeal = '';
 let lastViewedDate = '';
+let currentUser = null; // { name: '', role: 'admin'|'user' }
 
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -32,6 +33,36 @@ function showToast(msg, type = 'success') {
         toast.classList.add('diminish');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// --- Lightbox 邏輯 (v176) - 移至全域範圍確保可存取 ---
+function showMenuLightbox(src, title) {
+    let lightbox = document.getElementById('menu-lightbox');
+    if (!lightbox) {
+        lightbox = document.createElement('div');
+        lightbox.id = 'menu-lightbox';
+        lightbox.className = 'modal-overlay';
+        lightbox.style.zIndex = '3000';
+        lightbox.innerHTML = `
+            <div class="modal-content" style="max-width:90%; max-height:90%; padding:1.5rem; position:relative; overflow:hidden; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h3 id="lightbox-title" style="margin:0;"></h3>
+                    <button id="close-lightbox" class="close-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-main);">✖</button>
+                </div>
+                <div style="overflow:auto; flex:1; display:flex; justify-content:center; align-items:flex-start;">
+                    <img id="lightbox-img" src="" style="max-width:100%; display:block; border-radius:0.5rem; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+                </div>
+            </div>
+        `;
+        document.body.appendChild(lightbox);
+        lightbox.querySelector('#close-lightbox').onclick = () => lightbox.classList.add('hidden');
+        lightbox.onclick = (e) => { if (e.target === lightbox) lightbox.classList.add('hidden'); };
+    }
+    const titleEl = document.getElementById('lightbox-title');
+    const imgEl = document.getElementById('lightbox-img');
+    if (titleEl) titleEl.innerText = `📄 ${title} 的菜單`;
+    if (imgEl) imgEl.src = src;
+    lightbox.classList.remove('hidden');
 }
 
 // --- 同步指示器控制 ---
@@ -59,6 +90,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemNameInput = document.getElementById('item-name');
     const itemPriceInput = document.getElementById('item-price');
     const submitOrderBtn = document.getElementById('submit-order-btn');
+
+    const authNameInput = document.getElementById('auth-name');
+    const authPassInput = document.getElementById('auth-pass');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const authSwitchLink = document.getElementById('auth-switch-link');
+    const loginTitle = document.getElementById('login-title');
+    const loginSubtitle = document.getElementById('login-subtitle');
+    const registerNote = document.getElementById('register-note');
+    const loginOverlay = document.getElementById('login-overlay');
+
+    let authMode = 'login'; // 'login' | 'register'
     const orderFormContainer = document.getElementById('order-form-container');
     const lockedWarning = document.getElementById('locked-warning');
 
@@ -115,10 +157,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentRestName = document.getElementById('restaurant-name')?.value || document.getElementById('restaurant-name-mob')?.value || '';
         const restaurant = memoryRestaurants.find(r => r.name === currentRestName);
 
-        if (restaurant && restaurant.menuUrl) {
-            displayRestMenu.href = restaurant.menuUrl;
+        if (restaurant && (restaurant.menuUrl || restaurant.menuImage)) {
             displayRestMenu.classList.remove('hidden');
             displayRestMenu.style.display = 'inline-block';
+
+            if (restaurant.menuImage) {
+                // 優先顯示照片 (v176)
+                displayRestMenu.href = "#";
+                displayRestMenu.onclick = (e) => {
+                    e.preventDefault();
+                    showMenuLightbox(restaurant.menuImage, restaurant.name);
+                };
+            } else {
+                displayRestMenu.href = restaurant.menuUrl;
+                displayRestMenu.onclick = null;
+            }
         } else {
             displayRestMenu.classList.add('hidden');
             displayRestMenu.style.display = 'none';
@@ -313,8 +366,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Date.now() - lastSave < 5000) return;
 
         try {
-            const res = await fetch(API_URL);
-            const data = await res.json();
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'fetchData' })
+            });
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.warn("[Cloud Sync] 收到非格式化資料:", text.substring(0, 50));
+                return;
+            }
 
             // ★ 核心修復：如果在此期間有新的本地寫入，或是這不是最後一個請求，則捨棄此舊資料
             if (isSyncing || lastFetchID !== currentSyncID) return;
@@ -412,14 +475,48 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!API_URL.startsWith("http")) return;
         isSyncing = true;
         showSyncLoader(); // ★ 開始存檔
+
+        // --- 偵錯資訊：計算 Payload 大小 ---
+        const payload = JSON.stringify({ action, data: dataArray });
+        const payloadSize = payload.length;
+        console.log(`[Cloud Sync] Action: ${action}, Payload Size: ${payloadSize.toLocaleString()} chars`);
+
+        if (action === "saveRestaurants") {
+            const hasImg = dataArray.some(r => r.menuImage);
+            console.log(`[Debug] 餐廳資料包含圖片: ${hasImg ? '是' : '否'}`);
+        }
+
         try {
-            await fetch(API_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
-                body: JSON.stringify({ action, data: dataArray })
+                body: payload
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error! Status: ${response.status}`);
+            }
+
+            const text = await response.text();
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                // 如果不是 JSON，但文字是 "success"，代表也成功
+                if (text.trim() === "success") {
+                    return true;
+                }
+                // 其他非 JSON 文字視為普通訊息
+                result = { status: 'info', message: text };
+            }
+
+            if (result && result.status === 'error') {
+                throw new Error(result.message || '後端回傳錯誤');
+            }
+
             return true; // ★ 成功
         } catch (err) {
-            showToast('雲端儲存失敗', 'error');
+            console.error("雲端儲存失敗:", err);
+            showToast(`雲端儲存失敗: ${err.message}`, 'error');
             return false; // ★ 失敗
         } finally {
             isSyncing = false;
@@ -441,19 +538,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function saveUsers(users) {
-        memoryUsers = users;
+        // 確保要儲存的資料中，剛註冊的帳號一定有密碼
+        const validatedUsers = users.map(u => {
+            if (u.name === currentUser?.name && currentUser?.password) {
+                u.password = u.password || currentUser.password;
+            }
+            return u;
+        });
+        memoryUsers = validatedUsers;
         updateLocalCache();
-        saveCloudData("saveUsers", users);
+        saveCloudData("saveUsers", validatedUsers);
         updateDatalists();
         if (typeof renderVotingSection === 'function') renderVotingSection();
     }
 
-    function saveRestaurants(rests) {
-        memoryRestaurants = rests;
-        updateLocalCache();
-        saveCloudData("saveRestaurants", rests);
-        updateDatalists();
-        if (typeof renderVotingSection === 'function') renderVotingSection();
+    async function saveRestaurants(rests) {
+        if (!rests || rests.length === 0) {
+            if (memoryRestaurants.length > 0 && !confirm("您確定要刪除所有餐廳資料嗎？")) return;
+        }
+
+        showSyncLoader();
+        try {
+            // 直接儲存資料，由後端處理長字串切片
+            memoryRestaurants = rests;
+            updateLocalCache();
+            const success = await saveCloudData("saveRestaurants", rests);
+            if (success) {
+                updateDatalists();
+                renderVotingSection();
+            }
+        } catch (err) {
+            console.error("餐廳儲存流程中斷:", err);
+            showToast(err.message, 'error');
+        } finally {
+            hideSyncLoader();
+        }
     }
 
     async function saveVotes(votes, singleVoteObj = null) {
@@ -656,10 +775,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. 截止時間檢查
             const settings = getSettings();
             const mealDefault = settings.mealCutoffs[mealTypeStr] || settings.cutoffTime || '10:30';
-            
+
             const orders = getOrders();
             const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
-            
+
             // 核心邏輯：優先使用已開單的時間，若無訂單則使用該餐期的系統預設時間
             // 避免因為抓到 UI 殘留的舊資料 (例如午餐的 10:30) 導致誤鎖
             let activeCutoff = mealDefault;
@@ -671,7 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
             const currentTimeStr = `${hh}:${mm}`;
-            
+
             if (currentTimeStr >= normalizeTime(activeCutoff)) return true;
         }
         return false;
@@ -693,7 +812,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const selectedDate = orderDateInput.value;
         const selectedMealType = mealTypeInput.value;
-        
+
         // ★ 核心優化：判定是否為「新切換」的餐期或日期
         const isSessionChanged = (selectedDate !== lastViewedDate || selectedMealType !== lastViewedMeal);
         const sessionOrders = getOrders().filter(o => o.date === selectedDate && o.mealType === selectedMealType);
@@ -702,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ★ 核心優化：先更新 UI 的預設時間，再進行鎖單判定
         const settings = getSettings();
         const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
-        
+
         if (isSessionChanged && !anyOrder) {
             cutoffInputs.forEach(input => {
                 if (input) input.value = mealDefault;
@@ -710,9 +829,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const isTimeUp = isSessionLocked(selectedDate, selectedMealType);
-        
+
         // 只有時間到了才是真正的「全域鎖定」
-        const locked = isTimeUp; 
+        const locked = isTimeUp;
         const settingsLocked = isTimeUp || anyOrder;
 
         // 鎖單時間讀取 (使用更新後的 UI 值)
@@ -749,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // ★ 關鍵修正：如果只是時間到 (isTimeUp) 但「還沒有人點餐」，允許修改時間來解除鎖定
-            const canEditTime = !anyOrder; 
+            const canEditTime = !anyOrder;
 
             cutoffInputs.forEach(input => {
                 input.value = anyOrder ? (sessionOrders[0].cutoffTime || currentOrderCutoff) : currentOrderCutoff;
@@ -765,7 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const shouldDisable = anyOrder; // 只有有人點餐才禁用
                 // 只有在狀態需要改變時才去觸發 DOM 更新，避免干擾
                 if (btn.disabled === shouldDisable && btn.innerHTML === (shouldDisable ? '🔒 鎖定' : '確定')) return;
-                
+
                 btn.disabled = shouldDisable;
                 btn.innerHTML = shouldDisable ? '🔒 鎖定' : '確定';
                 btn.style.background = shouldDisable ? 'var(--input-bg)' : 'var(--primary)';
@@ -1029,10 +1148,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 新增訂單邏輯
     submitOrderBtn.addEventListener('click', () => {
-        const name = personNameInput.value.trim();
-        const price = parseFloat(itemPriceInput.value);
-        const item = itemNameInput.value.trim();
         const inputs = getCommonInputs();
+        const name = personNameInput.value.trim();
+        const item = itemNameInput.value.trim();
 
         // 鎖定檢查已整合至 isSessionLocked
         if (isSessionLocked(inputs.date, inputs.meal)) {
@@ -1040,8 +1158,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!name || isNaN(price) || price <= 0 || !item || !inputs.rest) {
-            showToast("請確實填寫姓名、餐點、金額，並確定餐廳單已填寫！", "error");
+        // 點餐者身分：金額強制為 0，且使用登入姓名
+        let finalPrice = parseFloat(itemPriceInput.value);
+        if (currentUser && currentUser.role === 'user') {
+            finalPrice = 0;
+        }
+
+        if (!name || (!inputs.rest)) {
+            showToast("請確實填寫姓名、餐點，並確定餐廳單已填寫！", "error");
+            return;
+        }
+
+        if (currentUser && currentUser.role === 'admin' && (isNaN(finalPrice) || finalPrice <= 0)) {
+            showToast("開餐者請務必輸入餐點正確金額！", "error");
             return;
         }
 
@@ -1051,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mealType: inputs.meal,
             name: name,
             item: item,
-            price: price,
+            price: finalPrice,
             restaurant: inputs.rest,
             cutoffTime: inputs.cutoff,
             paid: false // 新單預設未付款
@@ -1191,15 +1320,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderOrders() {
+        const { weekDates, weekOrders, allOrders, labelText } = getWeekData(currentViewDate);
+        if (currentWeekLabel) currentWeekLabel.innerText = labelText;
+
         // ★ 核心優化：記憶目前的捲動位置，避免重新渲染時跳回頂部
         const modalBody = document.querySelector('.modal-body');
         const savedScrollTop = modalBody ? modalBody.scrollTop : 0;
         const savedScrollLeft = modalBody ? modalBody.scrollLeft : 0;
 
-        const { weekDates, weekOrders, allOrders, labelText } = getWeekData(currentViewDate);
-        if (currentWeekLabel) currentWeekLabel.textContent = labelText;
+        // 身分過濾：如果角色是 User，則只看得到自己的訂單
+        let filteredWeekDates = weekDates;
+        let filteredWeekOrders = weekOrders;
+        let filteredAllOrders = allOrders;
 
-        const grandTotal = weekOrders.reduce((sum, o) => sum + o.price, 0);
+        if (currentUser && currentUser.role === 'user') {
+            filteredWeekOrders = weekOrders.filter(o => o.name === currentUser.name);
+            filteredAllOrders = allOrders.filter(o => o.name === currentUser.name);
+        }
+
+        const grandTotal = filteredWeekOrders.reduce((sum, o) => sum + o.price, 0);
 
         // 強制重新取一次容器，確保不會因為 DOM 結構變動而失效
         const container = document.getElementById('dynamic-table-container');
@@ -1209,11 +1348,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return; // 若找不到容器則不執行
         }
         if (currentActiveTab === 'tab-details') {
-            renderDetailsTable(weekDates, allOrders, grandTotal, container);
+            renderDetailsTable(filteredWeekDates, filteredAllOrders, grandTotal, container);
         } else if (currentActiveTab === 'tab-caller') {
-            renderCallerTable(weekDates, allOrders, container);
+            renderCallerTable(filteredWeekDates, filteredAllOrders, container);
         } else if (currentActiveTab === 'tab-person') {
-            renderPersonTable(weekOrders, grandTotal, container);
+            renderPersonTable(filteredWeekOrders, grandTotal, container);
         }
 
         // ★ 核心優化：渲染完成後恢復捲動位置
@@ -1653,6 +1792,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     html += `<div class="form-group"><label>電話</label><input type="text" id="edit-rest-phone" class="restaurant-input" placeholder="02-1234-5678" value="${r.phone || ''}"></div>`;
                     html += `<div class="form-group"><label>地址</label><input type="text" id="edit-rest-address" class="restaurant-input" placeholder="台北市..." value="${r.address || ''}"></div>`;
                     html += `<div class="form-group"><label>菜單網址 (選填)</label><input type="text" id="edit-rest-menu" class="restaurant-input" placeholder="https://..." value="${r.menuUrl || ''}"></div>`;
+
+                    // 照片上傳區 (v176)
+                    html += `<div class="form-group"><label>📸 菜單照片 (取代網址)</label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="file" id="edit-rest-file" accept="image/*" style="display:none;">
+                            <button type="button" onclick="document.getElementById('edit-rest-file').click()" class="nav-btn" style="flex:1; justify-content:center; background:var(--bg-main);">📸 選擇照片</button>
+                            ${r.menuImage ? `<button id="del-edit-rest-img" class="secondary-btn" style="color:var(--danger);">🗑️ 移除</button>` : ''}
+                        </div>
+                        <div id="edit-rest-img-preview" style="margin-top:0.5rem; ${r.menuImage ? '' : 'display:none;'} border-radius:0.5rem; overflow:hidden; border:1px solid var(--border);">
+                            <img src="${r.menuImage || ''}" style="width:100%; display:block;">
+                        </div>
+                    </div>`;
+
                     html += `<div class="form-group"><label>營業日</label><div class="day-toggle-group">${dayChecks}</div></div>`;
                     html += `<div style="display:flex;gap:0.5rem;margin-top:1rem;"><button id="save-edit-rest-btn" class="primary-btn" style="flex:1;">💾 儲存變更</button><button id="cancel-edit-rest-btn" class="secondary-btn">取消</button></div>`;
                     html += `</div>`;
@@ -1667,7 +1819,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `<div style="background:var(--input-bg);border:1px solid var(--border);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">`;
                 html += `<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" id="new-rest-name" class="restaurant-input" placeholder="店名 *" style="flex:2;"><input type="text" id="new-rest-phone" class="restaurant-input" placeholder="電話 (選填)" style="flex:1;"></div>`;
                 html += `<input type="text" id="new-rest-address" class="restaurant-input" placeholder="地址 (選填)" style="width:100%;margin-bottom:0.5rem;">`;
-                html += `<input type="text" id="new-rest-menu" class="restaurant-input" placeholder="菜單網址 (選填，如 Facebook 或圖片網址)" style="width:100%;margin-bottom:0.5rem;">`;
+                html += `<input type="text" id="new-rest-menu" class="restaurant-input" placeholder="菜單網址 (選填)" style="width:100%;margin-bottom:0.5rem;">`;
+
+                // 新增模式的照片上傳 (v176)
+                html += `<div class="form-group" style="margin-bottom:0.5rem;"><label style="font-size:0.85rem; color:var(--text-muted);">📸 菜單照片 (選填)</label>
+                    <input type="file" id="new-rest-file" accept="image/*" style="display:none;">
+                    <div style="display:flex; gap:0.5rem;">
+                        <button type="button" onclick="document.getElementById('new-rest-file').click()" class="nav-btn" style="flex:1; font-size:0.85rem; justify-content:center;">📸 選擇照片</button>
+                    </div>
+                    <div id="new-rest-img-preview" style="margin-top:0.5rem; display:none; border-radius:0.5rem; overflow:hidden; border:1px solid var(--border);">
+                        <img src="" style="width:100%; display:block;">
+                    </div>
+                </div>`;
+
                 html += `<div class="day-toggle-group">${newDayChecks}</div>`;
                 html += `<button id="add-rest-btn" class="primary-btn" style="width:100%;">➕ 新增便當店</button>`;
                 html += `</div>`;
@@ -1799,6 +1963,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         r.phone = document.getElementById('edit-rest-phone').value.trim();
                         r.address = document.getElementById('edit-rest-address').value.trim();
                         r.menuUrl = document.getElementById('edit-rest-menu').value.trim();
+
+                        // 處理照片 (v176)
+                        const previewImg = document.querySelector('#edit-rest-img-preview img');
+                        if (previewImg && previewImg.src.startsWith('data:image')) {
+                            r.menuImage = previewImg.src;
+                        } else if (!previewImg || previewImg.src === '') {
+                            r.menuImage = '';
+                        }
+
                         const checked = [...document.querySelectorAll('input[name="edit-open-day"]:checked')].map(cb => cb.value);
                         r.openDays = checked.join(',');
                         window._editingRestaurantId = null;
@@ -1806,6 +1979,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast(`已更新餐廳：${newName}`);
                         renderSettingsTab();
                         renderVotingSection();
+                    };
+                }
+
+                // 綁定檔案選取監聽器 (v176)
+                const editFile = document.getElementById('edit-rest-file');
+                if (editFile) {
+                    editFile.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) handleImageFile(file, '#edit-rest-img-preview');
+                    };
+                }
+                const delEditImg = document.getElementById('del-edit-rest-img');
+                if (delEditImg) {
+                    delEditImg.onclick = () => {
+                        const container = document.getElementById('edit-rest-img-preview');
+                        container.style.display = 'none';
+                        container.querySelector('img').src = '';
                     };
                 }
                 const cancelBtn = document.getElementById('cancel-edit-rest-btn');
@@ -1824,12 +2014,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         const phone = document.getElementById('new-rest-phone').value.trim();
                         const address = document.getElementById('new-rest-address').value.trim();
                         const menuUrl = document.getElementById('new-rest-menu').value.trim();
+
+                        // 處理照片 (v176)
+                        const previewImg = document.querySelector('#new-rest-img-preview img');
+                        const menuImage = (previewImg && previewImg.src.startsWith('data:image')) ? previewImg.src : '';
+
                         const checked = [...document.querySelectorAll('input[name="new-open-day"]:checked')].map(cb => cb.value);
-                        const newRest = { id: 'R' + Date.now(), name: n, phone, address, openDays: checked.join(','), menuUrl };
+                        const newRest = {
+                            id: 'R' + Date.now(),
+                            name: n,
+                            phone,
+                            address,
+                            openDays: checked.join(','),
+                            menuUrl,
+                            menuImage // v176
+                        };
                         saveRestaurants([...memoryRestaurants, newRest]);
                         showToast(`已新增餐廳：${n}`);
                         renderSettingsTab();
                         renderVotingSection();
+                    };
+                }
+
+                // 綁定檔案選取監聽器 (v176)
+                const newFile = document.getElementById('new-rest-file');
+                if (newFile) {
+                    newFile.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) handleImageFile(file, '#new-rest-img-preview');
                     };
                 }
             }
@@ -2172,6 +2384,168 @@ document.addEventListener('DOMContentLoaded', () => {
         const modal = document.getElementById('excel-modal');
         if (modal) modal.classList.add('hidden');
     });
+
+    // --- 帳號制驗證系統 (v173) ---
+    function checkAuth() {
+        const storedUser = localStorage.getItem('lunch_user');
+        if (storedUser) {
+            currentUser = JSON.parse(storedUser);
+            loginOverlay.style.display = 'none';
+            toggleRoleUI();
+        } else {
+            loginOverlay.style.display = 'flex';
+        }
+    }
+
+    function toggleAuthMode() {
+        authMode = (authMode === 'login') ? 'register' : 'login';
+        loginTitle.innerText = (authMode === 'login') ? '登入系統' : '註冊新帳號';
+        loginSubtitle.innerText = (authMode === 'login') ? '請輸入您的姓名與密碼' : '請設定您的帳號姓名與密碼';
+        authSubmitBtn.innerText = (authMode === 'login') ? '立即登入' : '完成註冊並登入';
+        document.getElementById('auth-switch-link').innerText = (authMode === 'login') ? '點我註冊' : '已有帳號？點我登入';
+        document.getElementById('auth-switch-note').firstChild.textContent = (authMode === 'login') ? '還沒有帳號嗎？ ' : '';
+        registerNote.style.display = (authMode === 'login') ? 'none' : 'block';
+    }
+
+    function handleAuthSubmit() {
+        const name = authNameInput.value.trim();
+        const pass = authPassInput.value.trim();
+
+        if (!name || !pass) {
+            showToast("請完整輸入姓名與密碼", "error");
+            return;
+        }
+
+        if (authMode === 'login') {
+            // 登入邏輯
+            // 1. 檢查預設 Admin
+            if (name === 'admin' && pass === '1234') {
+                loginSuccess(name, 'admin');
+                return;
+            }
+
+            // 2. 檢查資料庫使用者
+            const user = memoryUsers.find(u => u.name === name);
+            if (user && user.password === pass) {
+                loginSuccess(name, user.role || 'user');
+            } else {
+                showToast("姓名或密碼錯誤", "error");
+            }
+        } else {
+            // 註冊邏輯
+            const exists = memoryUsers.some(u => u.name === name);
+            if (exists || name === 'admin') {
+                showToast("此姓名已被使用", "error");
+                return;
+            }
+
+            const newUser = {
+                id: 'U' + Date.now(),
+                name: name,
+                password: pass,
+                role: 'user'
+            };
+
+            // 立即設定當前使用者狀態，防止被同步覆蓋
+            currentUser = { name: name, role: 'user', password: pass };
+            memoryUsers.push(newUser);
+            saveUsers(memoryUsers);
+            loginSuccess(name, 'user', pass);
+        }
+    }
+
+    function loginSuccess(name, role, password = '') {
+        // 如果有傳入密碼或是從資料庫找到密碼，就存入 currentUser
+        const finalPassword = password || memoryUsers.find(u => u.name === name)?.password || '';
+        currentUser = { name: name, role: role, password: finalPassword };
+        localStorage.setItem('lunch_user', JSON.stringify(currentUser));
+        loginOverlay.style.display = 'none';
+        showToast(`歡迎回來，${name}！`, "success");
+        toggleRoleUI();
+    }
+
+    function toggleRoleUI() {
+        if (!currentUser) return;
+        const isAdmin = currentUser.role === 'admin';
+
+        // 切換 Admin 專屬元素
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = isAdmin ? '' : 'none';
+        });
+
+        // 點餐者自動帶入姓名且鎖定
+        if (personNameInput) {
+            personNameInput.value = currentUser.name;
+            personNameInput.disabled = true;
+        }
+
+        renderOrders(); // 刷新表格 (角色過濾)
+    }
+
+    safeListen(authSwitchLink, 'click', (e) => {
+        e.preventDefault();
+        toggleAuthMode();
+    });
+
+    safeListen(authSubmitBtn, 'click', handleAuthSubmit);
+    safeListen(authPassInput, 'keypress', (e) => {
+        if (e.key === 'Enter') handleAuthSubmit();
+    });
+
+    safeListen(document.getElementById('logout-btn'), 'click', () => {
+        if (confirm("確定要登出系統嗎？")) {
+            localStorage.removeItem('lunch_user');
+            location.reload();
+        }
+    });
+
+    // --- 輔助工具：高品質圖片處理 (v186) ---
+    function handleImageFile(file, previewSelector) {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showToast("請選擇圖片檔案", "error");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const container = document.querySelector(previewSelector);
+            const img = container.querySelector('img');
+
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                // 恢復高品質模式：1200px 寬度
+                const canvas = document.createElement('canvas');
+                let width = tempImg.width;
+                let height = tempImg.height;
+                const maxWidth = 1200;
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.filter = 'contrast(1.05) brightness(1.02)';
+                ctx.drawImage(tempImg, 0, 0, width, height);
+
+                // 使用 WebP 提升清晰度，品質 0.85
+                let base64 = canvas.toDataURL('image/webp', 0.85);
+                if (!base64.startsWith('data:image/webp')) {
+                    base64 = canvas.toDataURL('image/jpeg', 0.85);
+                }
+
+                img.src = base64;
+                container.style.display = 'block';
+                showToast("高畫質照片預覽已生成", "success");
+            };
+            tempImg.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // --- Boot ---
+    checkAuth();
 
     // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
     try {
