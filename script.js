@@ -831,7 +831,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ★ 核心優化：先更新 UI 的預設時間，再進行鎖單判定
         const settings = getSettings();
-        const mealDefault = settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
+        
+        // 優先讀取雲端指定的餐廳與時間設定
+        const sessionKey = `${selectedDate}_${selectedMealType}`;
+        const cloudRest = memoryConfig[`restaurant_${sessionKey}`];
+        const cloudCutoff = memoryConfig[`cutoff_${sessionKey}`];
+
+        const mealDefault = cloudCutoff || settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
 
         if (isSessionChanged && !anyOrder) {
             cutoffInputs.forEach(input => {
@@ -852,6 +858,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let winner = '';
             if (anyOrder) {
                 winner = sessionOrders[0].restaurant;
+            } else if (cloudRest) {
+                winner = cloudRest; // 優先權：1. 已有點餐 2. 管理員預定餐廳
             } else if (isTimeUp) {
                 // 如果沒訂單但時間到了，嘗試計算投票贏家
                 const todaysVotes = memoryVotes.filter(v => v.date === selectedDate && v.mealType === selectedMealType);
@@ -1430,10 +1438,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             tr.appendChild(tdDate);
                         }
 
+                        const isAdmin = currentUser && currentUser.role === 'admin';
+                        const priceDisplay = isAdmin 
+                            ? `<input type="number" value="${order.price}" class="inline-edit-price" onchange="updateOrderPrice('${order.id}', this.value)" style="width:60px; padding:2px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main); font-weight:bold; text-align:right;">`
+                            : `$${order.price}`;
+
                         tr.innerHTML += `
                             <td data-label="姓名">${order.name}</td>
                             <td data-label="餐點">${order.item}</td>
-                            <td data-label="金額" class="amount-value">$${order.price}</td>
+                            <td data-label="金額" class="amount-value">${priceDisplay}</td>
                         `;
 
                         // Paid Checkbox
@@ -1875,6 +1888,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentCutoff = storedTime || currentTimeStr;
             const currentPwd = memoryConfig.adminPwd || '';
             const todayStr = getTodayString();
+
+            // === 快速開餐 UI (v196) ===
+            html += `<div class="form-group" style="margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-main); border-radius:0.75rem; border:2px solid var(--primary); box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <label style="color:var(--primary); font-weight:bold; font-size:1.1rem; margin-bottom:0.75rem; display:block;">🚀 快速開餐 (管理員專屬)</label>
+                <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+                    <div style="flex:1; min-width:140px;"><label style="font-size:0.75rem;">日期</label><input type="date" id="quick-open-date" class="restaurant-input" value="${todayStr}"></div>
+                    <div style="flex:1; min-width:100px;"><label style="font-size:0.75rem;">餐期</label><select id="quick-open-meal" class="restaurant-input">
+                        <option value="早餐">早餐</option><option value="午餐" selected>午餐</option><option value="下午茶">下午茶</option><option value="晚餐">晚餐</option><option value="宵夜">宵夜</option>
+                    </select></div>
+                    <div style="flex:2; min-width:180px;"><label style="font-size:0.75rem;">今日餐廳</label><select id="quick-open-rest" class="restaurant-input">
+                        <option value="">請選擇餐廳...</option>
+                        ${memoryRestaurants.map(r => `<option value="${r.name}">${r.name}</option>`).join('')}
+                    </select></div>
+                    <div style="flex:0.8; min-width:90px;"><label style="font-size:0.75rem;">截止時間</label><input type="time" id="quick-open-time" class="restaurant-input" value="${currentCutoff}"></div>
+                    <button id="quick-open-btn" onclick="handleQuickOpen()" class="primary-btn" style="flex:none; padding:0.8rem 1.5rem;">啟動訂餐</button>
+                </div>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.75rem; border-top:1px dashed var(--border); padding-top:0.5rem;">💡 提示：啟動後會強制設定該餐期的餐廳，並開放給所有人點餐。</p>
+            </div>`;
 
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>預設每天投票截止時間</label>`;
             html += `<input type="time" id="config-vote-time" class="restaurant-input time-input" value="${currentCutoff}"></div>`;
@@ -2486,12 +2517,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 點餐者自動帶入姓名且鎖定
         if (personNameInput) {
-            personNameInput.value = currentUser.name;
-            personNameInput.disabled = true;
+            if (!isAdmin) {
+                personNameInput.value = currentUser.name;
+                personNameInput.disabled = true;
+                // 同步手機版與投票人的姓名 (如果也是 User 角色)
+                const votePersonSel = document.getElementById('vote-person');
+                if (votePersonSel) {
+                    votePersonSel.value = currentUser.name;
+                    votePersonSel.disabled = true;
+                }
+            } else {
+                personNameInput.disabled = false;
+                const votePersonSel = document.getElementById('vote-person');
+                if (votePersonSel) votePersonSel.disabled = false;
+            }
         }
 
         renderOrders(); // 刷新表格 (角色過濾)
     }
+
+    window.updateOrderPrice = function(id, newPrice) {
+        const price = parseFloat(newPrice) || 0;
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === id);
+        if (idx !== -1) {
+            const updatedOrder = { ...orders[idx], price: price };
+            orders[idx] = updatedOrder;
+            // 使用 updateOrder 行動同步至雲端
+            saveOrders(orders, "updateOrder", updatedOrder);
+            updateGrandTotal();
+        }
+    };
+
+    // 快速開餐功能 (v196)
+    window.handleQuickOpen = function() {
+        const date = document.getElementById('quick-open-date').value;
+        const meal = document.getElementById('quick-open-meal').value;
+        const rest = document.getElementById('quick-open-rest').value;
+        const time = document.getElementById('quick-open-time').value;
+
+        if (!rest) { showToast("請選擇開餐餐廳", "error"); return; }
+        
+        const sessionKey = `${date}_${meal}`;
+        memoryConfig[`restaurant_${sessionKey}`] = rest;
+        memoryConfig[`cutoff_${sessionKey}`] = time;
+
+        const newConfig = Object.entries(memoryConfig).map(([key, value]) => ({ key, value }));
+        saveCloudData("saveConfig", newConfig).then(success => {
+            if (success) {
+                showToast(`✅ 已啟動 ${date} (${meal}) 的訂餐！`, "success");
+                handleFormState();
+                renderVotingSection();
+                renderSettingsTab(); // 重新渲染列表以看到新增項
+            }
+        });
+    };
 
     safeListen(authSwitchLink, 'click', (e) => {
         e.preventDefault();
