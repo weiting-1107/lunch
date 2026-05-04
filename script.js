@@ -370,6 +370,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: JSON.stringify({ action: 'fetchData' })
             });
+            
+            if (!res.ok) {
+                console.error(`[Cloud Sync] 伺服器回傳錯誤: ${res.status}`);
+                return;
+            }
+
             const text = await res.text();
             let data;
             try {
@@ -483,7 +489,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (action === "saveRestaurants") {
             const hasImg = dataArray.some(r => r.menuImage);
-            console.log(`[Debug] 餐廳資料包含圖片: ${hasImg ? '是' : '否'}`);
+            const totalImgSize = dataArray.reduce((acc, r) => acc + (r.menuImage ? r.menuImage.length : 0), 0);
+            console.log(`[Debug] 餐廳資料包含圖片: ${hasImg ? '是' : '否'}, 圖片總字元數: ${totalImgSize.toLocaleString()}`);
+            
+            if (totalImgSize > 500000) {
+                console.warn("[Cloud Sync] 警告：圖片資料量極大 (" + totalImgSize + ")，建議縮小圖片或降低品質。");
+            }
         }
 
         try {
@@ -2529,10 +2540,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.filter = 'contrast(1.05) brightness(1.02)';
                 ctx.drawImage(tempImg, 0, 0, width, height);
 
-                // 使用 WebP 提升清晰度，品質 0.85
-                let base64 = canvas.toDataURL('image/webp', 0.85);
+                // 使用 WebP 提升清晰度，品質 0.8
+                let base64 = canvas.toDataURL('image/webp', 0.8);
                 if (!base64.startsWith('data:image/webp')) {
-                    base64 = canvas.toDataURL('image/jpeg', 0.85);
+                    base64 = canvas.toDataURL('image/jpeg', 0.8);
+                }
+
+                // 檢查是否過大
+                if (base64.length > 450000) {
+                    console.warn("圖片過大，嘗試進一步壓縮...");
+                    base64 = canvas.toDataURL('image/webp', 0.6);
                 }
 
                 img.src = base64;
@@ -2544,7 +2561,14 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     }
 
-    // --- Boot ---
+    // ★ Boot：檢查是否為本地檔案開啟
+    if (window.location.protocol === 'file:') {
+        console.error("🛑 偵測到使用 file:// 協議開啟。雲端同步可能會因 CORS 政策失敗。請使用 Live Server 或託管網站。");
+        setTimeout(() => {
+            alert("⚠️ 系統偵測到您直接開啟 HTML 檔案。\n\n請注意：直接開啟檔案會導致「雲端同步」失敗 (CORS 錯誤)。\n建議您使用 VS Code 的 Live Server 外掛開啟，或將檔案上傳至伺服器/GitHub Pages。");
+        }, 1000);
+    }
+
     checkAuth();
 
     // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
