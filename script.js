@@ -395,14 +395,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // 如果是新版結構 (有 orders 屬性)
                     if (data.orders) {
-                        memoryOrders = data.orders.map(o => {
-                            o.date = normalizeDate(o.date);
-                            o.mealType = o.mealType || '午餐';
-                            o.price = Number(o.price) || 0;
-                            o.paid = o.paid === true || o.paid === 'TRUE';
-                            o.cutoffTime = normalizeTime(o.cutoffTime);
-                            return o;
-                        }).filter(o => o.date);
+                        // ★ 重要修正：如果最近 3 秒內有儲存動作，先不要覆蓋本地訂單，避免 Race Condition
+                        if (Date.now() - lastSaveTimestamp < 3000) {
+                            console.log("跳過本次同步，避免覆蓋剛儲存的資料");
+                        } else {
+                            memoryOrders = data.orders.map(o => {
+                                o.date = normalizeDate(o.date);
+                                o.mealType = o.mealType || '午餐';
+                                o.price = Number(o.price) || 0;
+                                o.paid = o.paid === true || o.paid === 'TRUE';
+                                o.cutoffTime = normalizeTime(o.cutoffTime);
+                                return o;
+                            }).filter(o => o.date);
+                        }
 
                         memoryUsers = data.users || [];
                         memoryRestaurants = data.restaurants || [];
@@ -1477,7 +1482,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const isAdmin = currentUser && currentUser.role === 'admin';
                         const priceDisplay = isAdmin
-                            ? `<input type="number" value="${order.price}" class="inline-edit-price" onchange="window.updateOrderPrice('${order.id}', this.value)" style="width:60px; padding:2px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main); font-weight:bold; text-align:right;">`
+                            ? `<input type="number" value="${order.price}" class="inline-edit-price" 
+                                onchange="window.updateOrderPrice('${order.id}', this.value)" 
+                                onkeypress="if(event.key === 'Enter') { window.updateOrderPrice('${order.id}', this.value); this.blur(); }"
+                                style="width:60px; padding:2px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main); font-weight:bold; text-align:right;">`
                             : `$${order.price}`;
 
                         tr.innerHTML += `
@@ -2554,7 +2562,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (idx !== -1) {
             const updatedOrder = { ...orders[idx], price: price };
             orders[idx] = updatedOrder;
-            // 統一使用 updateOrder 動作 (v199)
+            
+            showToast("⏳ 正在儲存金額...", "info");
+            // 標記最後儲存時間，防止 fetchFromCloud 立刻蓋掉它
+            lastSaveTimestamp = Date.now(); 
+            
             saveOrders(orders, "updateOrder", updatedOrder);
             updateGrandTotal();
         }
