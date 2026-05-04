@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const isAdmin = currentUser && currentUser.role === 'admin';
                         const priceDisplay = isAdmin
-                            ? `<input type="number" value="${order.price}" class="inline-edit-price" onchange="updateOrderPrice('${order.id}', this.value)" style="width:60px; padding:2px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main); font-weight:bold; text-align:right;">`
+                            ? `<input type="number" value="${order.price}" class="inline-edit-price" onchange="window.updateOrderPrice('${order.id}', this.value)" style="width:60px; padding:2px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main); font-weight:bold; text-align:right;">`
                             : `$${order.price}`;
 
                         tr.innerHTML += `
@@ -1462,7 +1462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         chk.type = 'checkbox';
                         chk.className = 'paid-checkbox';
                         chk.checked = order.paid;
-                        chk.addEventListener('change', (e) => togglePaid(order.id, e.target.checked));
+                        chk.addEventListener('change', (e) => window.togglePaid(order.id, e.target.checked));
                         tdPaid.appendChild(chk);
                         tr.appendChild(tdPaid);
 
@@ -1908,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const val = memoryConfig[key] || '';
                 html += `<td><select class="weekly-schedule-select" data-day="${i}" style="width:100%; padding:4px; border-radius:4px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-main);">
                     <option value="">(無)</option>
-                    ${memoryRestaurants.map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
+                    ${memoryRestaurants.filter(r => r && r.name).map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
                 </select></td>`;
             }
             html += `</tr></tbody></table></div>
@@ -2660,28 +2660,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    checkAuth();
+    try {
+        checkAuth();
+    } catch (e) {
+        console.error("Auth initialization failed:", e);
+    }
 
     // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
     try {
-        const cached = JSON.parse(localStorage.getItem(CLOUD_CACHE_KEY));
-        if (cached) {
-            if (cached.orders) memoryOrders = cached.orders;
-            if (cached.users) memoryUsers = cached.users;
-            if (cached.restaurants) memoryRestaurants = cached.restaurants;
-            if (cached.votes) {
-                memoryVotes = cached.votes.map(v => { v.date = normalizeDate(v.date); return v; });
+        const cachedStr = localStorage.getItem(CLOUD_CACHE_KEY);
+        if (cachedStr) {
+            const cached = JSON.parse(cachedStr);
+            if (cached) {
+                if (Array.isArray(cached.orders)) memoryOrders = cached.orders;
+                if (Array.isArray(cached.users)) memoryUsers = cached.users;
+                if (Array.isArray(cached.restaurants)) memoryRestaurants = cached.restaurants;
+                if (Array.isArray(cached.votes)) {
+                    memoryVotes = cached.votes.map(v => { v.date = normalizeDate(v.date); return v; });
+                }
+                if (Array.isArray(cached.config)) {
+                    memoryConfig = {};
+                    cached.config.forEach(c => { if (c && c.key) memoryConfig[c.key] = c.value; });
+                }
+                updateDatalists();
+                handleFormState();
+                updateGrandTotal();
+                renderVotingSection(); // ★ 用快取立即顯示投票區（0ms！）
             }
-            if (cached.config) {
-                memoryConfig = {};
-                cached.config.forEach(c => { memoryConfig[c.key] = c.value; });
-            }
-            updateDatalists();
-            handleFormState();
-            updateGrandTotal();
-            renderVotingSection(); // ★ 用快取立即顯示投票區（0ms！）
         }
-    } catch (e) { /* 快取損壞，略過 */ }
+    } catch (e) { 
+        console.error("Cache boot failed:", e);
+    }
 
     fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
     setInterval(fetchFromCloud, 5000); // ★ 優化：從 10 秒縮短至 5 秒自動同步
