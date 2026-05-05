@@ -389,69 +389,59 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSyncing || lastFetchID !== currentSyncID) return;
 
             if (data) {
-                const dataString = JSON.stringify(data);
-                if (window._lastCloudDataString !== dataString) {
-                    window._lastCloudDataString = dataString;
+                // 強制執行資料校正與姓名映射
+                if (data.orders) {
+                    memoryOrders = data.orders.map(o => {
+                        if (!o.name && o.userName) o.name = o.userName;
+                        if (o.name && !o.userName) o.userName = o.name;
+                        
+                        o.date = normalizeDate(o.date);
+                        o.mealType = o.mealType || '午餐';
+                        o.price = Number(o.price) || 0;
+                        o.paid = o.paid === true || o.paid === 'TRUE';
+                        o.cutoffTime = normalizeTime(o.cutoffTime);
+                        return o;
+                    }).filter(o => o.date);
 
-                    // 如果是新版結構 (有 orders 屬性)
-                    if (data.orders) {
-                        // ★ 重要修正：如果最近 3 秒內有儲存動作，先不要覆蓋本地訂單，避免 Race Condition
-                        if (Date.now() - lastSaveTimestamp < 3000) {
-                            console.log("跳過本次同步，避免覆蓋剛儲存的資料");
-                        } else {
-                            memoryOrders = data.orders.map(o => {
-                                // 將雲端的 userName 映射回前端使用的 name
-                                if (!o.name && o.userName) o.name = o.userName;
-                                if (o.name && !o.userName) o.userName = o.name;
-                                
-                                o.date = normalizeDate(o.date);
-                                o.mealType = o.mealType || '午餐';
-                                o.price = Number(o.price) || 0;
-                                o.paid = o.paid === true || o.paid === 'TRUE';
-                                o.cutoffTime = normalizeTime(o.cutoffTime);
-                                return o;
-                            }).filter(o => o.date);
-                        }
+                    memoryUsers = data.users || [];
+                    memoryRestaurants = data.restaurants || [];
+                    memoryVotes = (data.votes || []).map(v => {
+                        v.date = normalizeDate(v.date);
+                        return v;
+                    });
+                    memoryConfig = {};
+                    (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
 
-                        memoryUsers = data.users || [];
-                        memoryRestaurants = data.restaurants || [];
-                        memoryVotes = (data.votes || []).map(v => {
-                            v.date = normalizeDate(v.date);
-                            return v;
-                        });
-                        memoryConfig = {};
-                        (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
+                } else if (Array.isArray(data)) {
+                    memoryOrders = data.map(o => {
+                        if (!o.name && o.userName) o.name = o.userName;
+                        if (o.name && !o.userName) o.userName = o.name;
 
-                    } else if (Array.isArray(data)) {
-                        memoryOrders = data.map(o => {
-                            if (!o.name && o.userName) o.name = o.userName;
-                            if (o.name && !o.userName) o.userName = o.name;
-
-                            o.date = normalizeDate(o.date);
-                            o.mealType = o.mealType || '午餐';
-                            o.price = Number(o.price) || 0;
-                            o.paid = o.paid === true || o.paid === 'TRUE';
-                            o.cutoffTime = normalizeTime(o.cutoffTime);
-                            return o;
-                        }).filter(o => o.date);
-                    }
-
-                    // ★★ 儲存快取與更新資料相關 UI ★★
-                    updateLocalCache();
-                    updateDatalists();
-                    updateGrandTotal();
-
-                    // 若正在瀏覽表格，立刻觸發畫面刷新
-                    if (!document.getElementById('excel-modal').classList.contains('hidden')) {
-                        renderOrders();
-                    }
-
-                    // 動態渲染系統維護畫面 (若開啟的話)
-                    const settingsModal = document.getElementById('settings-modal');
-                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
-                        renderSettingsTab();
-                    }
+                        o.date = normalizeDate(o.date);
+                        o.mealType = o.mealType || '午餐';
+                        o.price = Number(o.price) || 0;
+                        o.paid = o.paid === true || o.paid === 'TRUE';
+                        o.cutoffTime = normalizeTime(o.cutoffTime);
+                        return o;
+                    }).filter(o => o.date);
                 }
+
+                // ★★ 儲存快取與更新資料相關 UI ★★
+                updateLocalCache();
+                updateDatalists();
+                updateGrandTotal();
+
+                // 若正在瀏覽表格，立刻觸發畫面刷新
+                if (!document.getElementById('excel-modal').classList.contains('hidden')) {
+                    renderOrders();
+                }
+
+                // 動態渲染系統維護畫面 (若開啟的話)
+                const settingsModal = document.getElementById('settings-modal');
+                if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                    renderSettingsTab();
+                }
+            }
 
                 // ★ 核心優化：無論資料有無異動，每 5 秒都必須執行一次狀態檢查
                 // 這樣鎖單時間與倒數計時才會隨時間即時更新
