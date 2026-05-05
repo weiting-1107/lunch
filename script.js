@@ -1179,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteOrder = function (id) {
         if (!confirm('確定要刪除這筆訂單嗎？')) return;
         const orders = getOrders();
-        const keepOrders = orders.filter(o => o.id !== id);
+        const keepOrders = orders.filter(o => String(o.id) !== String(id));
         // ★ 核心優化：改用 deleteOrder 原子操作
         saveOrders(keepOrders, "deleteOrder", { id: id });
         renderOrders();
@@ -1188,7 +1188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.togglePaid = function (id, isPaid) {
         const orders = getOrders();
-        const idx = orders.findIndex(o => o.id === id);
+        const idx = orders.findIndex(o => String(o.id) === String(id));
         if (idx !== -1) {
             const updatedOrder = { ...orders[idx], paid: isPaid };
             orders[idx] = updatedOrder;
@@ -2558,7 +2558,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateOrderPrice = function (id, newPrice) {
         const price = parseFloat(newPrice) || 0;
         const orders = getOrders();
-        const idx = orders.findIndex(o => o.id === id);
+        const idx = orders.findIndex(o => String(o.id) === String(id));
         if (idx !== -1) {
             const updatedOrder = { ...orders[idx], price: price };
             orders[idx] = updatedOrder;
