@@ -403,7 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         return o;
                     }).filter(o => o.date);
 
-                    memoryUsers = data.users || [];
+                    memoryUsers = (data.users || []).map(u => {
+                        if (!u.name && u.userName) u.name = u.userName;
+                        if (u.name && !u.userName) u.userName = u.name;
+                        return u;
+                    });
                     memoryRestaurants = data.restaurants || [];
                     memoryVotes = (data.votes || []).map(v => {
                         v.date = normalizeDate(v.date);
@@ -1835,7 +1839,9 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;"><input type="text" id="new-user-name" class="restaurant-input" placeholder="新增人員姓名"><button id="add-user-btn" class="primary-btn">新增</button></div>`;
             html += `<table class="excel-table"><thead><tr><th>人員名稱</th><th>操作</th></tr></thead><tbody>`;
             memoryUsers.forEach(u => {
-                html += `<tr><td data-label="人員名稱">${u.name}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
+                // 增加備份方案，防止 undefined
+                const displayName = u.name || u.userName || '未知';
+                html += `<tr><td data-label="人員名稱">${displayName}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
             });
             if (memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
             html += `</tbody></table>`;
@@ -2683,7 +2689,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const cached = JSON.parse(cachedStr);
             if (cached) {
                 if (Array.isArray(cached.orders)) memoryOrders = cached.orders;
-                if (Array.isArray(cached.users)) memoryUsers = cached.users;
+                if (Array.isArray(cached.users)) {
+                    memoryUsers = cached.users.map(u => {
+                        if (!u.name && u.userName) u.name = u.userName;
+                        if (u.name && !u.userName) u.userName = u.name;
+                        return u;
+                    });
+                }
                 if (Array.isArray(cached.restaurants)) memoryRestaurants = cached.restaurants;
                 if (Array.isArray(cached.votes)) {
                     memoryVotes = cached.votes.map(v => { v.date = normalizeDate(v.date); return v; });
