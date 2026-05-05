@@ -2481,9 +2481,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 2. 檢查資料庫使用者
-            const user = memoryUsers.find(u => u.name === name);
-            if (user && user.password === pass) {
+            // 2. 檢查資料庫使用者 (強制轉字串比對，防止數字密碼失效)
+            const user = memoryUsers.find(u => String(u.name) === String(name));
+            if (user && String(user.password) === String(pass)) {
                 loginSuccess(name, user.role || 'user');
             } else {
                 showToast("姓名或密碼錯誤", "error");
