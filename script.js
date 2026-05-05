@@ -1254,8 +1254,8 @@ document.addEventListener('DOMContentLoaded', () => {
             finalPrice = 0;
         }
 
-        if (!name || (!inputs.rest)) {
-            showToast("請確實填寫姓名、餐點，並確定餐廳單已填寫！", "error");
+        if (!name || !item || !inputs.rest) {
+            showToast("請確實填寫姓名、餐點名稱，並確定已選擇餐廳！", "error");
             return;
         }
 
