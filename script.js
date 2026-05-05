@@ -441,8 +441,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                     // 動態渲染系統維護畫面 (若開啟的話)
+                    // ★ 修復：如果管理員正在輸入中，跳過自動刷新，避免輸入內容被清空 (v219)
                     const settingsModal = document.getElementById('settings-modal');
-                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                    const isUserTypingInSettings = settingsModal &&
+                        !settingsModal.classList.contains('hidden') &&
+                        settingsModal.contains(document.activeElement) &&
+                        ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+                    
+                    if (settingsModal && !settingsModal.classList.contains('hidden') && !isUserTypingInSettings) {
                         renderSettingsTab();
                     }
                 }
@@ -829,12 +835,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ★ 核心邏輯：計算建議/勝選餐廳 (v197)
-    function getRecommendedRestaurant(date, mealType) {
+    // adminOnly=true 時，跳過投票結果，只回傳管理員設定的預設餐廳
+    function getRecommendedRestaurant(date, mealType, adminOnly = false) {
         const orders = getOrders();
         const sessionOrders = orders.filter(o => o.date === date && o.mealType === mealType);
 
         // 1. 優先權最高：已有人下單
-        if (sessionOrders.length > 0) {
+        if (!adminOnly && sessionOrders.length > 0) {
             return { name: sessionOrders[0].restaurant, source: 'order' };
         }
 
@@ -844,21 +851,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return { name: cloudRest, source: 'cloud' };
         }
 
-        // 3. 優先權：投票結果
-        const todaysVotes = memoryVotes.filter(v => v.date === date && v.mealType === mealType);
-        if (todaysVotes.length > 0) {
-            const counts = {};
-            let maxCount = 0;
-            todaysVotes.forEach(v => {
-                counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
-                if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
-            });
-            const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
-            const seedStr = date + mealType;
-            let hash = 0;
-            for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
-            const winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
-            return { name: winner, source: 'vote' };
+        // 3. 投票結果 (adminOnly 時跳過)
+        if (!adminOnly) {
+            const todaysVotes = memoryVotes.filter(v => v.date === date && v.mealType === mealType);
+            if (todaysVotes.length > 0) {
+                const counts = {};
+                let maxCount = 0;
+                todaysVotes.forEach(v => {
+                    counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
+                    if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
+                });
+                const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
+                const seedStr = date + mealType;
+                let hash = 0;
+                for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+                const winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
+                return { name: winner, source: 'vote' };
+            }
         }
 
         // 4. Fallback：每週排餐 (作為預設建議)
@@ -937,7 +946,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (settingsLocked) {
             restaurantInputs.forEach(input => {
-                if (winner) input.value = winner;
+                // 投票截止後無人投票 → 只顯示管理員預設 (weekly/cloud)，不顯示投票結果
+                // 有人點餐 或 完全鎖定 → 顯示第一位點餐的餐廳
+                let displayWinner = '';
+                if (anyOrder || isTimeUp) {
+                    // 有人點餐或時間到了，取完整建議餐廳
+                    displayWinner = winner;
+                } else if (isVoteTimeUp) {
+                    // 只是投票時間到、還沒人點餐 → 只允許顯示管理員預設 (非投票結果)
+                    const adminRec = getRecommendedRestaurant(selectedDate, selectedMealType, true /*adminOnly*/);
+                    displayWinner = adminRec.name;
+                }
+                if (displayWinner) input.value = displayWinner;
                 input.disabled = true;
                 input.title = anyOrder ? "今日此餐期已有人點餐，不可更改餐廳" : "鎖單時間已過，餐廳已定案";
                 input.style.background = "var(--input-bg)";
