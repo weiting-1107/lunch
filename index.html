@@ -175,8 +175,47 @@
                     ⚠️ 本日訂單已過截止時間，狀態已鎖定不開放新增或修改。
                 </div>
 
+                <!-- ★ 管理員專屬控制面板 (v220) -->
+                <div id="admin-dashboard" class="order-form-card admin-only" style="display:none;">
+                    <h3 style="margin-top:0; color:var(--primary);">⚙️ 今日訂餐管理</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div class="form-group" style="margin:0;">
+                            <label>📅 訂餐日期</label>
+                            <input type="date" id="admin-order-date" class="date-input restaurant-input" style="width:100%;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>🕐 餐期類型</label>
+                            <select id="admin-meal-type" class="restaurant-input" style="width:100%;">
+                                <option value="早餐">早餐</option>
+                                <option value="午餐" selected>午餐</option>
+                                <option value="下午茶">下午茶</option>
+                                <option value="晚餐">晚餐</option>
+                                <option value="宵夜">宵夜</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>🏢 今日餐廳</label>
+                            <select id="admin-restaurant-name" class="restaurant-input" style="width:100%;">
+                                <option value="">請選擇餐廳...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>⛔ 鎖單時間</label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <input type="time" id="admin-cutoff-time" value="10:30" class="time-input restaurant-input" style="flex:1;">
+                                <button id="admin-confirm-cutoff-btn" class="primary-btn" style="padding:0.4rem 0.8rem; font-size:0.85rem;">確定</button>
+                            </div>
+                        </div>
+                    </div>
+                    <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
+                    <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每週預定排餐表</h4>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">若當天投票截止後無人投票，系統會自動套用此設定。</p>
+                    <div id="admin-weekly-schedule" style="overflow-x:auto;"></div>
+                    <button id="admin-save-weekly-btn" class="primary-btn" style="width:100%; margin-top:1rem;">💾 儲存每週排餐設定</button>
+                </div>
+
                 <!-- 點餐表單 (手機版順序：最後) -->
-                <div class="order-form-card" id="order-form-container">
+                <div class="order-form-card user-only" id="order-form-container">
                     <div class="form-header"
                         style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                         <h3 style="margin:0;"><span class="step-badge">2</span>📝 填寫訂單</h3>
@@ -374,7 +413,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=219"></script>
+    <script src="script.js?v=220"></script>
 </body>
 
 </html>

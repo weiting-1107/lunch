@@ -2338,22 +2338,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sessionOrders.length > 0 || isTimePast) {
             vSec.classList.add('hidden');
 
-            // ★ 統一使用建議餐廳邏輯 (v197)
-            const recommendation = getRecommendedRestaurant(selectedDateStr, mType);
-            const winner = recommendation.name;
+            // ★ 投票截止或已有訂單時，才將建議餐廳帶入（且僅在欄位為空時）
+            // 如果有訂單 → 用訂單的餐廳；如果投票截止 → 用管理員預設（adminOnly）
+            let winnerName = '';
+            if (sessionOrders.length > 0) {
+                const recommendation = getRecommendedRestaurant(selectedDateStr, mType);
+                winnerName = recommendation.name;
+            } else if (isTimePast) {
+                // 只取管理員預設，不採用投票結果（因為投票已截止但無人投票）
+                const adminRec = getRecommendedRestaurant(selectedDateStr, mType, true);
+                winnerName = adminRec.name;
+            }
 
-            if (winner) {
+            if (winnerName) {
                 const ri1 = document.getElementById('restaurant-name');
                 const ri2 = document.getElementById('restaurant-name-mob');
-                // 自動帶入建議餐廳（若目前為空）
-                if (ri1 && !ri1.value) ri1.value = winner;
-                if (ri2 && !ri2.value) ri2.value = winner;
+                if (ri1 && !ri1.value) ri1.value = winnerName;
+                if (ri2 && !ri2.value) ri2.value = winnerName;
                 if (typeof updateRestaurantMenuDisplay === 'function') {
                     updateRestaurantMenuDisplay();
                 }
             }
             return;
         }
+
+        // 投票仍進行中：確保餐廳欄位清空，不預先鎖定
+        const ri1c = document.getElementById('restaurant-name');
+        const ri2c = document.getElementById('restaurant-name-mob');
+        if (ri1c && !ri1c.disabled) ri1c.value = '';
+        if (ri2c && !ri2c.disabled) ri2c.value = '';
 
         // 可以顯示投票區
         vSec.classList.remove('hidden');
@@ -2581,36 +2594,98 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) return;
         const isAdmin = currentUser.role === 'admin';
 
-        // 切換 Admin 專屬元素
+        // 切換 Admin 專屬元素 (sidebar 的鎖單時間等)
         document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = isAdmin ? '' : 'none';
         });
 
-        // 點餐者自動帶入姓名且鎖定
-        if (personNameInput) {
-            if (!isAdmin) {
+        // 管理員：顯示控制面板，隱藏點餐表單和投票區
+        // 一般使用者：隱藏管理員面板，顯示點餐表單
+        const adminDash = document.getElementById('admin-dashboard');
+        const orderForm = document.getElementById('order-form-container');
+        const votingSec = document.getElementById('voting-section');
+
+        if (isAdmin) {
+            if (adminDash) adminDash.style.display = '';
+            if (orderForm) orderForm.style.display = 'none';
+            // 管理員不需要看到投票區
+            if (votingSec) votingSec.classList.add('hidden');
+            // 渲染管理員面板的每週排餐表
+            renderAdminWeeklySchedule();
+            // 同步管理員面板的控制欄位與側邊欄值
+            syncAdminDashboard();
+        } else {
+            if (adminDash) adminDash.style.display = 'none';
+            if (orderForm) orderForm.style.display = '';
+            // 一般使用者：帶入姓名並鎖定
+            if (personNameInput) {
                 personNameInput.value = currentUser.name;
                 personNameInput.disabled = true;
-                const votePersonSel = document.getElementById('vote-person');
-                if (votePersonSel) {
-                    // 檢查是否存在該選項，若無則新增 (v213)
-                    if (![...votePersonSel.options].some(o => o.value === currentUser.name)) {
-                        const opt = document.createElement('option');
-                        opt.value = currentUser.name;
-                        opt.textContent = currentUser.name;
-                        votePersonSel.appendChild(opt);
-                    }
-                    votePersonSel.value = currentUser.name;
-                    votePersonSel.disabled = true;
+            }
+            const votePersonSel = document.getElementById('vote-person');
+            if (votePersonSel) {
+                if (![...votePersonSel.options].some(o => o.value === currentUser.name)) {
+                    const opt = document.createElement('option');
+                    opt.value = currentUser.name;
+                    opt.textContent = currentUser.name;
+                    votePersonSel.appendChild(opt);
                 }
-            } else {
-                personNameInput.disabled = false;
-                const votePersonSel = document.getElementById('vote-person');
-                if (votePersonSel) votePersonSel.disabled = false;
+                votePersonSel.value = currentUser.name;
+                votePersonSel.disabled = true;
             }
         }
 
         renderOrders(); // 刷新表格 (角色過濾)
+    }
+
+    // 同步管理員面板的控制值與主要側邊欄
+    function syncAdminDashboard() {
+        const adminDate = document.getElementById('admin-order-date');
+        const adminMeal = document.getElementById('admin-meal-type');
+        const adminRest = document.getElementById('admin-restaurant-name');
+        const adminCutoff = document.getElementById('admin-cutoff-time');
+
+        const sideDate = document.getElementById('order-date');
+        const sideMeal = document.getElementById('meal-type');
+        const sideRest = document.getElementById('restaurant-name');
+        const sideCutoff = document.getElementById('cutoff-time');
+
+        if (adminDate && sideDate) adminDate.value = sideDate.value;
+        if (adminMeal && sideMeal) adminMeal.value = sideMeal.value;
+        if (adminCutoff && sideCutoff) adminCutoff.value = sideCutoff.value;
+
+        // 填充管理員的餐廳下拉選單
+        if (adminRest) {
+            const oldVal = adminRest.value || (sideRest ? sideRest.value : '');
+            adminRest.innerHTML = '<option value="">請選擇餐廳...</option>';
+            memoryRestaurants.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.name;
+                opt.textContent = r.name;
+                adminRest.appendChild(opt);
+            });
+            adminRest.value = oldVal;
+        }
+    }
+
+    // 渲染管理員面板的每週排餐表
+    function renderAdminWeeklySchedule() {
+        const container = document.getElementById('admin-weekly-schedule');
+        if (!container) return;
+        const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+        let html = `<table class="excel-table" style="font-size:0.9rem; min-width:100%;"><thead><tr>
+            <th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
+        </tr></thead><tbody><tr>`;
+        for (let i = 1; i <= 7; i++) {
+            const key = `weekly_${i}`;
+            const val = memoryConfig[key] || '';
+            html += `<td><select class="admin-weekly-select" data-day="${i}" style="width:100%; padding:4px; border-radius:4px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-main);">
+                <option value="">(無)</option>
+                ${memoryRestaurants.filter(r => r && r.name).map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
+            </select></td>`;
+        }
+        html += `</tr></tbody></table>`;
+        container.innerHTML = html;
     }
 
     window.updateOrderPrice = function (id, newPrice) {
@@ -2671,6 +2746,58 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('lunch_user');
             location.reload();
         }
+    });
+
+    // ★ 管理員控制面板的事件綁定 (v220)
+    // 日期、餐期、鎖單時間變更 → 同步到主側邊欄輸入框並觸發狀態更新
+    safeListen(document.getElementById('admin-order-date'), 'change', (e) => {
+        const val = e.target.value;
+        const d = document.getElementById('order-date');
+        const dm = document.getElementById('order-date-mob');
+        if (d) { d.value = val; d.dispatchEvent(new Event('change')); }
+        if (dm) dm.value = val;
+    });
+
+    safeListen(document.getElementById('admin-meal-type'), 'change', (e) => {
+        const val = e.target.value;
+        const m = document.getElementById('meal-type');
+        const mm = document.getElementById('meal-type-mob');
+        if (m) { m.value = val; m.dispatchEvent(new Event('change')); }
+        if (mm) mm.value = val;
+        syncAdminDashboard();
+    });
+
+    safeListen(document.getElementById('admin-restaurant-name'), 'change', (e) => {
+        const val = e.target.value;
+        const r = document.getElementById('restaurant-name');
+        const rm = document.getElementById('restaurant-name-mob');
+        if (r) r.value = val;
+        if (rm) rm.value = val;
+        handleFormState();
+    });
+
+    safeListen(document.getElementById('admin-confirm-cutoff-btn'), 'click', () => {
+        const adminCutoff = document.getElementById('admin-cutoff-time');
+        if (!adminCutoff) return;
+        const val = adminCutoff.value;
+        const c = document.getElementById('cutoff-time');
+        const cm = document.getElementById('cutoff-time-mob');
+        if (c) c.value = val;
+        if (cm) cm.value = val;
+        // 觸發正式的鎖單確認邏輯
+        document.getElementById('confirm-cutoff-btn')?.click();
+    });
+
+    safeListen(document.getElementById('admin-save-weekly-btn'), 'click', () => {
+        document.querySelectorAll('.admin-weekly-select').forEach(sel => {
+            const day = sel.getAttribute('data-day');
+            memoryConfig[`weekly_${day}`] = sel.value;
+            // 同步到設定面板的下拉選單
+            const sideSelect = document.querySelector(`.weekly-schedule-select[data-day="${day}"]`);
+            if (sideSelect) sideSelect.value = sel.value;
+        });
+        // 重用已有的儲存邏輯
+        if (typeof handleSaveWeekly === 'function') handleSaveWeekly();
     });
 
     // --- 輔助工具：高品質圖片處理 (v186) ---
