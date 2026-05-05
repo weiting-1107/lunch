@@ -436,19 +436,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderOrders();
                 }
 
-                // 動態渲染系統維護畫面 (若開啟的話)
-                const settingsModal = document.getElementById('settings-modal');
-                if (settingsModal && !settingsModal.classList.contains('hidden')) {
-                    renderSettingsTab();
+                    // 動態渲染系統維護畫面 (若開啟的話)
+                    const settingsModal = document.getElementById('settings-modal');
+                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                        renderSettingsTab();
+                    }
                 }
-            }
 
                 // ★ 核心優化：無論資料有無異動，每 5 秒都必須執行一次狀態檢查
-                // 這樣鎖單時間與倒數計時才會隨時間即時更新
                 handleFormState();
                 renderVotingSection();
-            }
-        } catch (err) {
+            } catch (err) {
             console.error("雲端同步失敗", err);
         }
     }
