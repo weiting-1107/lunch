@@ -653,30 +653,44 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDatalists() {
         const orders = getOrders();
 
-        // 更新人員下拉選單 (從 Users DB)
+        // 更新人員下拉選單 (從 Users DB + 當前登入者)
         if (personNameInput) {
             const oldName = personNameInput.value;
-            personNameInput.innerHTML = '<option value="" disabled selected>請選擇您的姓名</option>';
-
             const votePersonSel = document.getElementById('vote-person');
-            if (votePersonSel) {
-                votePersonSel.innerHTML = '<option value="" disabled selected>請選擇姓名</option>';
-            }
+            const currentVoteVal = votePersonSel ? votePersonSel.value : "";
+            
+            const baseHtml = '<option value="" disabled selected>請選擇姓名</option>';
+            personNameInput.innerHTML = baseHtml;
+            if (votePersonSel) votePersonSel.innerHTML = baseHtml;
 
-            memoryUsers.forEach(u => {
-                personNameInput.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-                if (votePersonSel) {
-                    votePersonSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-                }
+            // 取得所有不重複的人員名單 (DB + 當前登入者)
+            const allNames = [...new Set([
+                ...memoryUsers.map(u => u.name),
+                ...(currentUser ? [currentUser.name] : [])
+            ])].filter(Boolean);
+
+            allNames.forEach(name => {
+                const opt = `<option value="${name}">${name}</option>`;
+                personNameInput.innerHTML += opt;
+                if (votePersonSel) votePersonSel.innerHTML += opt;
             });
 
-            // 復原原本的選取值
-            personNameInput.value = oldName || "";
-
-            if (votePersonSel) {
-                // 如果沒有舊選擇，自動帶入上次用過的名字
-                const lastPerson = localStorage.getItem('lunch_last_person');
-                votePersonSel.value = votePersonSel.value || lastPerson || "";
+            // 針對非管理員：強制帶入姓名並鎖定
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (currentUser && !isAdmin) {
+                personNameInput.value = currentUser.name;
+                personNameInput.disabled = true;
+                if (votePersonSel) {
+                    votePersonSel.value = currentUser.name;
+                    votePersonSel.disabled = true;
+                }
+            } else {
+                personNameInput.value = oldName || "";
+                personNameInput.disabled = false;
+                if (votePersonSel) {
+                    votePersonSel.value = currentVoteVal || localStorage.getItem('lunch_last_person') || "";
+                    votePersonSel.disabled = false;
+                }
             }
         }
 
@@ -2541,9 +2555,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isAdmin) {
                 personNameInput.value = currentUser.name;
                 personNameInput.disabled = true;
-                // 同步手機版與投票人的姓名 (如果也是 User 角色)
                 const votePersonSel = document.getElementById('vote-person');
                 if (votePersonSel) {
+                    // 檢查是否存在該選項，若無則新增 (v213)
+                    if (![...votePersonSel.options].some(o => o.value === currentUser.name)) {
+                        const opt = document.createElement('option');
+                        opt.value = currentUser.name;
+                        opt.textContent = currentUser.name;
+                        votePersonSel.appendChild(opt);
+                    }
                     votePersonSel.value = currentUser.name;
                     votePersonSel.disabled = true;
                 }
