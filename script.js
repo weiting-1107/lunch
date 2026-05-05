@@ -400,6 +400,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             console.log("跳過本次同步，避免覆蓋剛儲存的資料");
                         } else {
                             memoryOrders = data.orders.map(o => {
+                                // 將雲端的 userName 映射回前端使用的 name
+                                if (!o.name && o.userName) o.name = o.userName;
+                                if (o.name && !o.userName) o.userName = o.name;
+                                
                                 o.date = normalizeDate(o.date);
                                 o.mealType = o.mealType || '午餐';
                                 o.price = Number(o.price) || 0;
@@ -420,6 +424,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     } else if (Array.isArray(data)) {
                         memoryOrders = data.map(o => {
+                            if (!o.name && o.userName) o.name = o.userName;
+                            if (o.name && !o.userName) o.userName = o.name;
+
                             o.date = normalizeDate(o.date);
                             o.mealType = o.mealType || '午餐';
                             o.price = Number(o.price) || 0;
@@ -1239,7 +1246,8 @@ document.addEventListener('DOMContentLoaded', () => {
             id: Date.now().toString(),
             date: inputs.date,
             mealType: inputs.meal,
-            name: name,
+            userName: name, // 統一使用 userName
+            name: name,     // 保留 name 供前端顯示
             item: item,
             price: finalPrice,
             restaurant: inputs.rest,
