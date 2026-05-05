@@ -909,11 +909,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const isTimeUp = isSessionLocked(selectedDate, selectedMealType);
+        const currentOrderCutoff = getActiveCutoffTime();
+
+        // 計算投票截止時間 (鎖單前 15 分鐘)
+        const [h, m] = currentOrderCutoff.split(':').map(Number);
+        let totalMins = h * 60 + m - 15;
+        if (totalMins < 0) totalMins = 0;
+        const vH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+        const vM = String(totalMins % 60).padStart(2, '0');
+        const voteCutoff = `${vH}:${vM}`;
+
+        const now = new Date();
+        const curTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const todayStr = getTodayString();
+        
+        // 判斷是否已過投票時間
+        const isVoteTimeUp = (selectedDate < todayStr) || (selectedDate === todayStr && curTimeStr >= voteCutoff);
 
         // 只有時間到了才是真正的「全域鎖定」
         const locked = isTimeUp;
-        const settingsLocked = isTimeUp || anyOrder;
-        const currentOrderCutoff = getActiveCutoffTime();
+        // 如果有人點餐、或鎖單時間到、或「投票時間已過」，就鎖定餐廳輸入
+        const settingsLocked = isTimeUp || anyOrder || isVoteTimeUp;
 
         // ★ 統一計算建議餐廳 (v197)
         const recommendation = getRecommendedRestaurant(selectedDate, selectedMealType);
