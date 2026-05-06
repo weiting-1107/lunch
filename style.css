@@ -180,6 +180,12 @@ body {
         width: 100%;
         max-width: 100%;
         gap: 0;
+        transition: grid-template-columns 0.3s ease;
+    }
+
+    body.admin-mode .app-layout {
+        grid-template-columns: 260px 1fr;
+        grid-template-areas: "sidebar main";
     }
 
     .sidebar {

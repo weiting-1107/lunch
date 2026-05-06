@@ -152,29 +152,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateMiniMenuButton() {
         const displayRestMenu = document.getElementById('display-rest-menu');
-        if (!displayRestMenu) return;
+        const adminRestMenu = document.getElementById('admin-display-rest-menu');
 
         const currentRestName = document.getElementById('restaurant-name')?.value || document.getElementById('restaurant-name-mob')?.value || '';
         const restaurant = memoryRestaurants.find(r => r.name === currentRestName);
 
         if (restaurant && (restaurant.menuUrl || restaurant.menuImage)) {
-            displayRestMenu.classList.remove('hidden');
-            displayRestMenu.style.display = 'inline-block';
+            if (displayRestMenu) {
+                displayRestMenu.classList.remove('hidden');
+                displayRestMenu.style.display = 'inline-block';
+            }
+            if (adminRestMenu) {
+                adminRestMenu.classList.remove('hidden');
+                adminRestMenu.style.display = 'inline-block';
+            }
 
             if (restaurant.menuImage) {
                 // 優先顯示照片 (v176)
-                displayRestMenu.href = "#";
-                displayRestMenu.onclick = (e) => {
-                    e.preventDefault();
-                    showMenuLightbox(restaurant.menuImage, restaurant.name);
-                };
+                if (displayRestMenu) {
+                    displayRestMenu.href = "#";
+                    displayRestMenu.onclick = (e) => {
+                        e.preventDefault();
+                        showMenuLightbox(restaurant.menuImage, restaurant.name);
+                    };
+                }
+                if (adminRestMenu) {
+                    adminRestMenu.href = "#";
+                    adminRestMenu.onclick = (e) => {
+                        e.preventDefault();
+                        showMenuLightbox(restaurant.menuImage, restaurant.name);
+                    };
+                }
             } else {
-                displayRestMenu.href = restaurant.menuUrl;
-                displayRestMenu.onclick = null;
+                if (displayRestMenu) {
+                    displayRestMenu.href = restaurant.menuUrl;
+                    displayRestMenu.onclick = null;
+                }
+                if (adminRestMenu) {
+                    adminRestMenu.href = restaurant.menuUrl;
+                    adminRestMenu.onclick = null;
+                }
             }
         } else {
-            displayRestMenu.classList.add('hidden');
-            displayRestMenu.style.display = 'none';
+            if (displayRestMenu) {
+                displayRestMenu.classList.add('hidden');
+                displayRestMenu.style.display = 'none';
+            }
+            if (adminRestMenu) {
+                adminRestMenu.classList.add('hidden');
+                adminRestMenu.style.display = 'none';
+            }
         }
     }
 
@@ -2594,22 +2621,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) return;
         const isAdmin = currentUser.role === 'admin';
 
+        // 觸發 2-column admin 版面佈局
+        document.body.classList.toggle('admin-mode', isAdmin);
+
         // 切換 Admin 專屬元素 (sidebar 的鎖單時間等)
         document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = isAdmin ? '' : 'none';
         });
 
-        // 管理員：顯示控制面板，隱藏點餐表單和投票區
+        // 管理員：顯示控制面板，隱藏點餐表單和投票區、隱藏左下角設定
         // 一般使用者：隱藏管理員面板，顯示點餐表單
         const adminDash = document.getElementById('admin-dashboard');
         const orderForm = document.getElementById('order-form-container');
         const votingSec = document.getElementById('voting-section');
+        const sidebarSettings = document.getElementById('sidebar-settings-group');
 
         if (isAdmin) {
             if (adminDash) adminDash.style.display = '';
             if (orderForm) orderForm.style.display = 'none';
             // 管理員不需要看到投票區
             if (votingSec) votingSec.classList.add('hidden');
+            // 隱藏左下角的原設定區塊
+            if (sidebarSettings) sidebarSettings.style.display = 'none';
+            
             // 渲染管理員面板的每週排餐表
             renderAdminWeeklySchedule();
             // 同步管理員面板的控制欄位與側邊欄值
@@ -2617,6 +2651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             if (adminDash) adminDash.style.display = 'none';
             if (orderForm) orderForm.style.display = '';
+            if (sidebarSettings) sidebarSettings.style.display = '';
             // 一般使用者：帶入姓名並鎖定
             if (personNameInput) {
                 personNameInput.value = currentUser.name;

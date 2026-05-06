@@ -75,7 +75,7 @@
                 <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
                     登出系統</button>
             </nav>
-            <div class="sidebar-settings-group desktop-only">
+            <div id="sidebar-settings-group" class="sidebar-settings-group desktop-only">
                 <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
                 <div class="sidebar-setting-item">
                     <label><span class="step-badge">1</span>📅 訂餐日期</label>
@@ -198,6 +198,7 @@
                             <select id="admin-restaurant-name" class="restaurant-input" style="width:100%;">
                                 <option value="">請選擇餐廳...</option>
                             </select>
+                            <a id="admin-display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden" style="text-decoration:none; font-size:0.85rem; padding:0.4rem 0.75rem; background:var(--primary); color:white; border-radius:0.5rem; display:inline-block; margin-top:0.5rem; width:fit-content; border:1px solid var(--primary);">📄 查看菜單</a>
                         </div>
                         <div class="form-group" style="margin:0;">
                             <label>⛔ 鎖單時間</label>
@@ -413,7 +414,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=220"></script>
+    <script src="script.js?v=221"></script>
 </body>
 
 </html>
