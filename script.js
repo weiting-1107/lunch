@@ -2014,26 +2014,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const todayStr = getTodayString();
 
 
-            // === 每週固定排餐 UI (v197) ===
-            html += `<div class="form-group" style="margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-main); border-radius:0.75rem; border:2px solid var(--primary);">
-                <label style="color:var(--primary); font-weight:bold; font-size:1.1rem; margin-bottom:0.75rem; display:block;">📅 每週預定排餐表 (無人投票時的自動備案)</label>
-                <div style="overflow-x:auto;">
-                    <table class="excel-table" style="font-size:0.9rem;">
-                        <thead><tr><th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th></tr></thead>
-                        <tbody><tr>`;
-
-            for (let i = 1; i <= 7; i++) {
-                const key = `weekly_${i}`;
-                const val = memoryConfig[key] || '';
-                html += `<td><select class="weekly-schedule-select" data-day="${i}" style="width:100%; padding:4px; border-radius:4px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-main);">
-                    <option value="">(無)</option>
-                    ${memoryRestaurants.filter(r => r && r.name).map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
-                </select></td>`;
-            }
-            html += `</tr></tbody></table></div>
-                <button id="save-weekly-btn" class="primary-btn" onclick="handleSaveWeekly()" style="margin-top:1rem; width:100%;">💾 儲存每週排餐設定</button>
-                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.75rem;">💡 說明：若當天投票截止後無人投票，系統會自動抓取此表設定的餐廳。</p>
-            </div>`;
+            // (每週預定排餐表已移至首頁，此處不再渲染)
 
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>預設每天投票截止時間</label>`;
             html += `<input type="time" id="config-vote-time" class="restaurant-input time-input" value="${currentCutoff}"></div>`;
@@ -2091,11 +2072,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
 
-            html += `<div class="form-group" style="margin-bottom:1rem;">
-                <label>🔒 修改系統設定密碼</label>
-                <input type="password" id="sys-password-change" class="restaurant-input" placeholder="輸入新密碼（留空則不更改）" value="">
-                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">目前密碼已設定。留空代表不修改密碼。</p>
-            </div>`;
+            // (系統設定密碼已刪除)
             html += `<button id="save-config-btn" class="primary-btn" style="width:100%;">儲存設定</button>`;
 
         }
@@ -2218,14 +2195,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (activeSettingsTab === 'tab-config') {
             document.getElementById('save-config-btn').onclick = () => {
                 const t = document.getElementById('config-vote-time').value;
-                const newPass = document.getElementById('sys-password-change').value;
 
                 memoryConfig.voteCutoffTime = t;
-                if (newPass.trim() !== '') {
-                    memoryConfig.adminPwd = newPass.trim();
-                    showToast('密碼已同步更新至資料庫', 'success');
-                }
-
                 const newConfig = [];
                 Object.keys(memoryConfig).forEach(k => {
                     let val = memoryConfig[k];
@@ -2693,7 +2664,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminRest) {
             const oldVal = adminRest.value || (sideRest ? sideRest.value : '');
             adminRest.innerHTML = '<option value="">請選擇餐廳...</option>';
-            memoryRestaurants.forEach(r => {
+            
+            // 取得選定日期對應的星期 (0-6，0為週日)
+            const dStr = (adminDate && adminDate.value) ? adminDate.value : getTodayString();
+            const dateObj = new Date(dStr + 'T12:00:00');
+            const dayOfWeek = dateObj.getDay(); 
+            
+            // 過濾今天有營業的餐廳
+            const openRestaurants = memoryRestaurants.filter(r => {
+                if (!r.openDays) return true; // 若未設定視為皆有營業
+                const days = r.openDays.split(',').map(d => parseInt(d.trim()));
+                return days.includes(dayOfWeek);
+            });
+
+            openRestaurants.forEach(r => {
                 const opt = document.createElement('option');
                 opt.value = r.name;
                 opt.textContent = r.name;
