@@ -273,14 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     safeListenAll('.nav-settings-btn', 'click', () => {
         if (!settingsModal) return;
-        // 每次打開設定都重啟驗證流程
-        isSettingsAuthenticated = false;
-        document.getElementById('settings-auth-wrapper').style.display = 'flex';
-        document.getElementById('settings-main-content').style.display = 'none';
-        document.getElementById('settings-password-input').value = '';
-        document.getElementById('auth-error-msg').style.display = 'none';
+        // 直接顯示設定內容 (v223 移除冗餘密碼驗證)
+        isSettingsAuthenticated = true;
+        document.getElementById('settings-auth-wrapper').style.display = 'none';
+        document.getElementById('settings-main-content').style.display = 'block';
         settingsModal.classList.remove('hidden');
-        setTimeout(() => document.getElementById('settings-password-input').focus(), 100);
+        renderSettingsTab(); // 進入後渲染內容
     });
 
     // 密碼解鎖邏輯

@@ -183,6 +183,11 @@ body {
         transition: grid-template-columns 0.3s ease;
     }
 
+    body.admin-mode {
+        padding: 0;
+        justify-content: flex-start;
+    }
+
     body.admin-mode .app-layout {
         grid-template-columns: 260px 1fr;
         grid-template-areas: "sidebar main";
