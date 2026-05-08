@@ -93,9 +93,7 @@
                 </div>
                 <div class="sidebar-setting-item">
                     <label>🏢 今日餐廳</label>
-                    <select id="restaurant-name" class="restaurant-input">
-                        <option value="">請選擇餐廳...</option>
-                    </select>
+                    <input type="text" id="restaurant-name" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed;">
                 </div>
                 <div class="sidebar-setting-item admin-only">
                     <label>⚙️ 鎖單時間設定</label>
@@ -154,9 +152,7 @@
                     </div>
                     <div class="mobile-setting-item">
                         <label>🏢 今日餐廳</label>
-                        <select id="restaurant-name-mob" class="restaurant-input">
-                            <option value="">請選擇餐廳...</option>
-                        </select>
+                        <input type="text" id="restaurant-name-mob" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed;">
                     </div>
                     <div class="mobile-setting-item admin-only">
                         <label>⛔ 鎖單時間</label>
@@ -417,7 +413,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=238"></script>
+    <script src="script.js?v=239"></script>
 </body>
 
 </html>

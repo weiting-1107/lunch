@@ -972,25 +972,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const recommendation = getRecommendedRestaurant(selectedDate, selectedMealType);
         const winner = recommendation.name;
 
+        // v239：一般使用者的餐廳輸入框永遠唯讀，依據投票狀態顯示
+        let displayWinner = '待定...';
+        if (anyOrder || isTimeUp) {
+            displayWinner = winner;
+        } else if (isVoteTimeUp) {
+            const adminRec = getRecommendedRestaurant(selectedDate, selectedMealType, true /*adminOnly*/);
+            displayWinner = adminRec.name || '待定...';
+        }
+        
+        restaurantInputs.forEach(input => {
+            input.value = displayWinner;
+            input.disabled = true;
+            input.title = displayWinner === '待定...' ? "投票進行中" : "今日餐廳已定案";
+            input.style.background = "var(--input-bg)";
+            input.style.color = displayWinner === '待定...' ? "var(--text-muted)" : "var(--text-main)";
+        });
+
         if (settingsLocked) {
-            restaurantInputs.forEach(input => {
-                // 投票截止後無人投票 → 只顯示管理員預設 (weekly/cloud)，不顯示投票結果
-                // 有人點餐 或 完全鎖定 → 顯示第一位點餐的餐廳
-                let displayWinner = '';
-                if (anyOrder || isTimeUp) {
-                    // 有人點餐或時間到了，取完整建議餐廳
-                    displayWinner = winner;
-                } else if (isVoteTimeUp) {
-                    // 只是投票時間到、還沒人點餐 → 只允許顯示管理員預設 (非投票結果)
-                    const adminRec = getRecommendedRestaurant(selectedDate, selectedMealType, true /*adminOnly*/);
-                    displayWinner = adminRec.name;
-                }
-                if (displayWinner) input.value = displayWinner;
-                input.disabled = true;
-                input.title = anyOrder ? "今日此餐期已有人點餐，不可更改餐廳" : "鎖單時間已過，餐廳已定案";
-                input.style.background = "var(--input-bg)";
-                input.style.color = "var(--text-muted)";
-            });
 
             // ★ 關鍵修正：如果只是時間到 (isTimeUp) 但「還沒有人點餐」，允許修改時間來解除鎖定
             const canEditTime = !anyOrder;
@@ -1018,18 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
             });
         } else {
-            restaurantInputs.forEach(input => {
-                // 如果是新切換餐期，且沒有建議餐廳，才清空
-                if (isSessionChanged && !winner) {
-                    input.value = '';
-                } else if (isSessionChanged && winner) {
-                    input.value = winner;
-                }
-                input.disabled = false;
-                input.title = "請選擇餐廳";
-                input.style.background = "transparent";
-                input.style.color = "var(--text-main)";
-            });
+            // (餐廳輸入框的更新邏輯已經移到 if (settingsLocked) 區塊之前統一處理)
 
             cutoffInputs.forEach(input => {
                 if (isSessionChanged) input.value = mealDefault;
@@ -1038,13 +1026,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.style.background = "transparent";
                 input.style.color = "var(--text-main)";
             });
-
-            // ★ 修正：沒鎖定時，若有雲端指定或排餐備案，也自動顯示但不鎖定
-            if (isSessionChanged && winner) {
-                restaurantInputs.forEach(input => {
-                    input.value = winner;
-                });
-            }
 
             // 恢復「確定」按鈕
             const confirmCutoffBtns = document.querySelectorAll('#confirm-cutoff-btn, #confirm-cutoff-mob-btn');
@@ -2422,7 +2403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = voteCounts[r.name] || 0;
             const row = document.createElement('label');
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--card-bg); border-radius:0.25rem; border:1px solid var(--border); cursor:pointer;";
-            const menuLink = r.menuUrl ? `<a href="${r.menuUrl}" target="_blank" style="text-decoration:none; font-size:1.1rem; margin-left:8px;" title="查看菜單">📄</a>` : '';
+            const menuLink = r.menuUrl ? `<a href="${r.menuUrl}" target="_blank" class="action-btn-mini" style="text-decoration:none; font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); display:inline-block; margin-left:0.5rem;">📄 菜單</a>` : '';
             row.innerHTML = `
                 <div style="display:flex; gap:0.5rem; align-items:center;">
                     <input type="radio" name="vote-restaurant-radio" value="${r.name}">
