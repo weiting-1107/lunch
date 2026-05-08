@@ -1156,10 +1156,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMenuBtn(userMenuMob, userRestObj);
 
         if (displayRestPhone) {
-            if (restaurant && restaurant.phone) {
-                displayRestPhone.href = `tel:${restaurant.phone}`;
+            const currentRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
+            const restObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === currentRestName);
+            if (restObj && restObj.phone) {
+                displayRestPhone.href = `tel:${restObj.phone}`;
                 displayRestPhone.style.display = 'flex';
-                displayRestPhone.innerHTML = `📞 ${restaurant.phone}`;
+                displayRestPhone.innerHTML = `📞 ${restObj.phone}`;
             } else {
                 displayRestPhone.style.display = 'none';
             }
