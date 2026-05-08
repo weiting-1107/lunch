@@ -1162,50 +1162,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-            } else {
-                displayRestMenu.style.display = 'none';
-            }
-        }
-        
-        // v245：更新管理員面板的菜單按鈕
-        const adminRestMenu = document.getElementById('admin-display-rest-menu');
-        const adminRestSelect = document.getElementById('admin-restaurant-name');
-        if (adminRestMenu && adminRestSelect) {
-            const adminRestName = adminRestSelect.value.trim();
-            const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
-            if (adminRestObj && adminRestObj.menuUrl) {
-                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
-                adminRestMenu.style.display = 'inline-block';
-                adminRestMenu.classList.remove('hidden');
-            } else {
-                adminRestMenu.style.display = 'none';
-                adminRestMenu.classList.add('hidden');
-            }
-        }
-    }
-
-        // v240：更新一般使用者側邊欄與手機版的菜單連結
-        const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
-        const userMenuMob = document.getElementById('display-rest-menu-mob');
-        const userRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
-        const userRestObj = memoryRestaurants.find(r => r.name.trim() === userRestName);
-
-        const updateMenuBtn = (btn, restObj) => {
-            if (btn) {
-                if (restObj && restObj.menuUrl) {
-                    btn.onclick = () => openMenuViewer(restObj.name);
-                    btn.style.display = 'inline-block';
-                    btn.classList.remove('hidden');
-                } else {
-                    btn.style.display = 'none';
-                    btn.classList.add('hidden');
-                }
-            }
-        };
-
-        updateMenuBtn(userMenuSidebar, userRestObj);
-        updateMenuBtn(userMenuMob, userRestObj);
-
         if (displayRestPhone) {
             if (restaurant && restaurant.phone) {
                 displayRestPhone.href = `tel:${restaurant.phone}`;
@@ -1215,6 +1171,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayRestPhone.style.display = 'none';
             }
         }
+        
+        // v248: 同步刷新所有菜單按鈕
+        updateRestaurantMenuDisplay();
     }
 
 
