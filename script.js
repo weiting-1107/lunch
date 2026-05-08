@@ -1148,6 +1148,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // v237：同時更新管理員面板的菜單連結
+        const adminRestMenu = document.getElementById('admin-display-rest-menu');
+        const adminRestSelect = document.getElementById('admin-restaurant-name');
+        if (adminRestMenu && adminRestSelect) {
+            const adminRestName = adminRestSelect.value.trim();
+            const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
+            if (adminRestObj && adminRestObj.menuUrl) {
+                adminRestMenu.href = adminRestObj.menuUrl;
+                adminRestMenu.style.display = 'inline-block';
+                adminRestMenu.classList.remove('hidden');
+            } else {
+                adminRestMenu.style.display = 'none';
+                adminRestMenu.classList.add('hidden');
+            }
+        }
+
         if (displayRestPhone) {
             if (restaurant && restaurant.phone) {
                 displayRestPhone.href = `tel:${restaurant.phone}`;
@@ -2852,6 +2868,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const rm = document.getElementById('restaurant-name-mob');
         if (r) r.value = val;
         if (rm) rm.value = val;
+        updateRestaurantMenuDisplay();
         handleFormState();
     });
 
@@ -2928,6 +2945,13 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     }
 
+    // ★ v236 核心修正：最優先檢查身分，防止渲染閃爍
+    try {
+        checkAuth();
+    } catch (e) {
+        console.error("Auth initialization failed:", e);
+    }
+
     // ★ Boot：檢查是否為本地檔案開啟
     if (window.location.protocol === 'file:') {
         console.error("🛑 偵測到使用 file:// 協議開啟。雲端同步可能會因 CORS 政策失敗。請使用 Live Server 或託管網站。");
@@ -2968,11 +2992,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Cache boot failed:", e);
     }
 
-    try {
-        checkAuth();
-    } catch (e) {
-        console.error("Auth initialization failed:", e);
-    }
+
 
     fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
     setInterval(fetchFromCloud, 5000); // ★ 優化：從 10 秒縮短至 5 秒自動同步
