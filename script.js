@@ -1039,6 +1039,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.style.cursor = 'pointer';
             });
         }
+        
+        // v241：確保每次狀態變更後，都重新刷新菜單按鈕的連結與顯示狀態
+        updateRestaurantMenuDisplay();
 
         // 鎖單視覺與按鈕控制
         if (locked) {
@@ -2727,6 +2730,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             adminRest.value = oldVal;
         }
+
+        // v241：同步後立即刷新菜單按鈕狀態
+        updateRestaurantMenuDisplay();
     }
 
     // 渲染管理員面板的每週排餐表
