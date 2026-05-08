@@ -176,64 +176,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (refresh) {
             handleFormState();
             renderVotingSection();
-            updateMiniMenuButton();
+            // v247: 統一呼叫整合後的更新函數
+            if (typeof updateRestaurantMenuDisplay === 'function') updateRestaurantMenuDisplay();
         }
     }
 
-    function updateMiniMenuButton() {
-        const displayRestMenu = document.getElementById('display-rest-menu');
-        const adminRestMenu = document.getElementById('admin-display-rest-menu');
+    // v247: 已移除舊版的 updateMiniMenuButton 邏輯，統一由 updateRestaurantMenuDisplay 處理
 
-        const currentRestName = document.getElementById('restaurant-name')?.value || document.getElementById('restaurant-name-mob')?.value || '';
-        const restaurant = memoryRestaurants.find(r => r.name === currentRestName);
-
-        if (restaurant && (restaurant.menuUrl || restaurant.menuImage)) {
-            if (displayRestMenu) {
-                displayRestMenu.classList.remove('hidden');
-                displayRestMenu.style.display = 'inline-block';
-            }
-            if (adminRestMenu) {
-                adminRestMenu.classList.remove('hidden');
-                adminRestMenu.style.display = 'inline-block';
-            }
-
-            if (restaurant.menuImage) {
-                // 優先顯示照片 (v176)
-                if (displayRestMenu) {
-                    displayRestMenu.href = "#";
-                    displayRestMenu.onclick = (e) => {
-                        e.preventDefault();
-                        showMenuLightbox(restaurant.menuImage, restaurant.name);
-                    };
-                }
-                if (adminRestMenu) {
-                    adminRestMenu.href = "#";
-                    adminRestMenu.onclick = (e) => {
-                        e.preventDefault();
-                        showMenuLightbox(restaurant.menuImage, restaurant.name);
-                    };
-                }
-            } else {
-                if (displayRestMenu) {
-                    displayRestMenu.href = restaurant.menuUrl;
-                    displayRestMenu.onclick = null;
-                }
-                if (adminRestMenu) {
-                    adminRestMenu.href = restaurant.menuUrl;
-                    adminRestMenu.onclick = null;
-                }
-            }
-        } else {
-            if (displayRestMenu) {
-                displayRestMenu.classList.add('hidden');
-                displayRestMenu.style.display = 'none';
-            }
-            if (adminRestMenu) {
-                adminRestMenu.classList.add('hidden');
-                adminRestMenu.style.display = 'none';
-            }
-        }
-    }
 
     // 看板元素備忘 (如果有被刪除則不報錯)
     function updateDashboardSafely(stats) {
@@ -1070,8 +1019,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // v241：確保每次狀態變更後，都重新刷新菜單按鈕的連結與顯示狀態
-        updateRestaurantMenuDisplay();
+        // v247：確保每次狀態變更後，都重新刷新菜單按鈕的連結與顯示狀態
+        if (typeof updateRestaurantMenuDisplay === 'function') updateRestaurantMenuDisplay();
 
         // 鎖單視覺與按鈕控制
         if (locked) {
@@ -1162,6 +1111,50 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+            } else {
+                displayRestMenu.style.display = 'none';
+            }
+        }
+        
+        // v245：更新管理員面板的菜單按鈕
+        const adminRestMenu = document.getElementById('admin-display-rest-menu');
+        const adminRestSelect = document.getElementById('admin-restaurant-name');
+        if (adminRestMenu && adminRestSelect) {
+            const adminRestName = adminRestSelect.value.trim();
+            const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
+            if (adminRestObj && adminRestObj.menuUrl) {
+                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
+                adminRestMenu.style.display = 'inline-block';
+                adminRestMenu.classList.remove('hidden');
+            } else {
+                adminRestMenu.style.display = 'none';
+                adminRestMenu.classList.add('hidden');
+            }
+        }
+    }
+
+        // v240：更新一般使用者側邊欄與手機版的菜單連結
+        const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
+        const userMenuMob = document.getElementById('display-rest-menu-mob');
+        const userRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
+        const userRestObj = memoryRestaurants.find(r => r.name.trim() === userRestName);
+
+        const updateMenuBtn = (btn, restObj) => {
+            if (btn) {
+                if (restObj && restObj.menuUrl) {
+                    btn.onclick = () => openMenuViewer(restObj.name);
+                    btn.style.display = 'inline-block';
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.style.display = 'none';
+                    btn.classList.add('hidden');
+                }
+            }
+        };
+
+        updateMenuBtn(userMenuSidebar, userRestObj);
+        updateMenuBtn(userMenuMob, userRestObj);
+
         if (displayRestPhone) {
             if (restaurant && restaurant.phone) {
                 displayRestPhone.href = `tel:${restaurant.phone}`;
@@ -1171,9 +1164,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayRestPhone.style.display = 'none';
             }
         }
-        
-        // v248: 同步刷新所有菜單按鈕
-        updateRestaurantMenuDisplay();
     }
 
 
