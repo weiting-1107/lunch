@@ -3030,7 +3030,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     fetchFromCloud(); 
-    setInterval(fetchFromCloud, 5000); 
+    setInterval(fetchFromCloud, 15000); 
 
     if (!localStorage.getItem(CLOUD_CACHE_KEY)) {
         updateDatalists();
