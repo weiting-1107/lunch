@@ -95,8 +95,8 @@
                     <label>🏢 今日餐廳</label>
                     <div style="display:flex; gap:0.5rem; align-items:center;">
                         <input type="text" id="restaurant-name" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; flex:1;">
-                        <a id="display-rest-menu-sidebar" href="#" target="_blank" class="action-btn-mini hidden" 
-                           style="text-decoration:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary);">📄 菜單</a>
+                        <button id="display-rest-menu-sidebar" class="action-btn-mini" 
+                           style="border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary); cursor:pointer;">📄 菜單</button>
                     </div>
                 </div>
                 <div class="sidebar-setting-item admin-only">
@@ -158,8 +158,8 @@
                         <label>🏢 今日餐廳</label>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
                             <input type="text" id="restaurant-name-mob" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; flex:1;">
-                            <a id="display-rest-menu-mob" href="#" target="_blank" class="action-btn-mini hidden" 
-                               style="text-decoration:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary);">📄 菜單</a>
+                            <button id="display-rest-menu-mob" class="action-btn-mini" 
+                               style="border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary); cursor:pointer;">📄 菜單</button>
                         </div>
                     </div>
                     <div class="mobile-setting-item admin-only">
@@ -203,8 +203,8 @@
                                 <select id="admin-restaurant-name" class="restaurant-input" style="flex:1;">
                                     <option value="">請選擇餐廳...</option>
                                 </select>
-                                <a id="admin-display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden" 
-                                   style="text-decoration:none; white-space:nowrap; font-size:0.85rem; padding:0.5rem 0.8rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary); box-shadow:var(--shadow-sm);">📄 菜單</a>
+                                <button id="admin-display-rest-menu" class="action-btn-mini" 
+                                   style="border:none; white-space:nowrap; font-size:0.85rem; padding:0.5rem 0.8rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary); box-shadow:var(--shadow-sm); cursor:pointer;">📄 菜單</button>
                             </div>
                         </div>
                         <div class="form-group" style="margin:0;">
@@ -419,9 +419,23 @@
         </div>
     </div>
 
+    <!-- 菜單圖片預覽彈窗 (v242 新增) -->
+    <div id="menu-viewer-modal" class="modal-overlay hidden" style="z-index: 3000;">
+        <div class="modal-content" style="max-width: 90vw; max-height: 90vh; padding: 1rem; position: relative; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 id="menu-viewer-title" style="margin:0;">🍱 餐廳菜單</h3>
+                <button onclick="closeMenuViewer()" class="theme-toggle" style="width:32px; height:32px;">✕</button>
+            </div>
+            <div style="flex:1; overflow:auto; text-align:center; background:#f0f0f0; border-radius:0.5rem; display:flex; align-items:center; justify-content:center;">
+                <img id="menu-viewer-img" src="" alt="菜單載入中..." style="max-width:100%; height:auto; display:block; margin:0 auto;">
+                <p id="menu-viewer-empty" class="hidden" style="padding:3rem; color:var(--text-muted);">此餐廳目前無菜單圖片</p>
+            </div>
+        </div>
+    </div>
+
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=241"></script>
+    <script src="script.js?v=242"></script>
 </body>
 
 </html>

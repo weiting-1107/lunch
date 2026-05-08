@@ -123,6 +123,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportCsvBtn = document.getElementById('export-csv-btn');
     const clearHistoryBtn = document.getElementById('clear-history-btn');
 
+    // === 菜單圖片檢視器 (v242) ===
+    window.openMenuViewer = function(restName) {
+        const modal = document.getElementById('menu-viewer-modal');
+        const img = document.getElementById('menu-viewer-img');
+        const title = document.getElementById('menu-viewer-title');
+        const empty = document.getElementById('menu-viewer-empty');
+        
+        if (!modal || !img) return;
+        
+        const restaurant = memoryRestaurants.find(r => r.name.trim() === restName.trim());
+        if (restaurant && restaurant.menuUrl) {
+            title.textContent = `🍱 ${restaurant.name} - 菜單`;
+            img.src = restaurant.menuUrl; // 這裡直接帶入資料庫抓到的字串
+            img.classList.remove('hidden');
+            empty.classList.add('hidden');
+        } else {
+            title.textContent = `🍱 查無菜單`;
+            img.src = "";
+            img.classList.add('hidden');
+            empty.classList.add('hidden');
+        }
+        
+        modal.classList.remove('hidden');
+    };
+
+    window.closeMenuViewer = function() {
+        const modal = document.getElementById('menu-viewer-modal');
+        if (modal) modal.classList.add('hidden');
+    };
+
     // 其他 UI 變數
     const quickOrderLabels = document.getElementById('quick-order-labels');
     const activeRestCard = document.getElementById('active-restaurant-card');
@@ -1139,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const adminRestName = adminRestSelect.value.trim();
             const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
             if (adminRestObj && adminRestObj.menuUrl) {
-                adminRestMenu.href = adminRestObj.menuUrl;
+                adminRestMenu.onclick = () => openMenuViewer(adminRestObj.name);
                 adminRestMenu.style.display = 'inline-block';
                 adminRestMenu.classList.remove('hidden');
             } else {
@@ -1157,7 +1187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateMenuBtn = (btn, restObj) => {
             if (btn) {
                 if (restObj && restObj.menuUrl) {
-                    btn.href = restObj.menuUrl;
+                    btn.onclick = () => openMenuViewer(restObj.name);
                     btn.style.display = 'inline-block';
                     btn.classList.remove('hidden');
                 } else {
@@ -2428,7 +2458,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = voteCounts[r.name] || 0;
             const row = document.createElement('label');
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--card-bg); border-radius:0.25rem; border:1px solid var(--border); cursor:pointer;";
-            const menuLink = r.menuUrl ? `<a href="${r.menuUrl}" target="_blank" class="action-btn-mini" style="text-decoration:none; font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); display:inline-block; margin-left:0.5rem;">📄 菜單</a>` : '';
+            const menuLink = r.menuUrl ? `<button class="action-btn-mini" onclick="openMenuViewer('${r.name}')" style="border:none; font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); display:inline-block; margin-left:0.5rem; cursor:pointer;">📄 菜單</button>` : '';
             row.innerHTML = `
                 <div style="display:flex; gap:0.5rem; align-items:center;">
                     <input type="radio" name="vote-restaurant-radio" value="${r.name}">
