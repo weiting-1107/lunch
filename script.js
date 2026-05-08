@@ -1162,14 +1162,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // v237：同時更新管理員面板的菜單連結
+            } else {
+                displayRestMenu.style.display = 'none';
+            }
+        }
+        
+        // v245：更新管理員面板的菜單按鈕
         const adminRestMenu = document.getElementById('admin-display-rest-menu');
         const adminRestSelect = document.getElementById('admin-restaurant-name');
         if (adminRestMenu && adminRestSelect) {
             const adminRestName = adminRestSelect.value.trim();
             const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
             if (adminRestObj && adminRestObj.menuUrl) {
-                adminRestMenu.onclick = () => openMenuViewer(adminRestObj.name);
+                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
                 adminRestMenu.style.display = 'inline-block';
                 adminRestMenu.classList.remove('hidden');
             } else {
@@ -1177,6 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 adminRestMenu.classList.add('hidden');
             }
         }
+    }
 
         // v240：更新一般使用者側邊欄與手機版的菜單連結
         const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
@@ -1261,11 +1267,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateRestaurantMenuDisplay() {
-        // v244：恢復穩定版刷新邏輯
-        const wrapper = document.getElementById('restaurant-menu-link-wrapper');
-        if (!wrapper) return;
-        const currentRest = getCommonInputs().rest;
-        wrapper.innerHTML = getMenuLinkHtml(currentRest);
+        // v245：點擊同步刷新所有菜單按鈕（管理員 + 一般使用者）
+        
+        // 1. 管理員面板
+        const adminRestMenu = document.getElementById('admin-display-rest-menu');
+        const adminRestSelect = document.getElementById('admin-restaurant-name');
+        if (adminRestMenu && adminRestSelect) {
+            const rName = adminRestSelect.value.trim();
+            const rObj = memoryRestaurants.find(r => r.name.trim() === rName);
+            if (rObj && rObj.menuUrl) {
+                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(rObj.name); };
+                adminRestMenu.style.display = 'inline-block';
+                adminRestMenu.classList.remove('hidden');
+            } else {
+                adminRestMenu.style.display = 'none';
+                adminRestMenu.classList.add('hidden');
+            }
+        }
+
+        // 2. 一般使用者側邊欄與手機版 (比照管理員邏輯)
+        const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
+        const userMenuMob = document.getElementById('display-rest-menu-mob');
+        const userRestInput = document.getElementById('restaurant-name');
+        const userRestMobInput = document.getElementById('restaurant-name-mob');
+        
+        const updateUBtn = (btn, input) => {
+            if (!btn || !input) return;
+            const rName = input.value.trim();
+            const rObj = memoryRestaurants.find(r => r.name.trim() === rName);
+            if (rObj && rObj.menuUrl) {
+                btn.onclick = (e) => { e.preventDefault(); openMenuViewer(rObj.name); };
+                btn.style.display = 'inline-block';
+                btn.classList.remove('hidden');
+            } else {
+                btn.style.display = 'none';
+                btn.classList.add('hidden');
+            }
+        };
+
+        updateUBtn(userMenuSidebar, userRestInput);
+        updateUBtn(userMenuMob, userRestMobInput);
     }
 
     safeListenAll('#restaurant-name, #restaurant-name-mob', 'input', (e) => {
