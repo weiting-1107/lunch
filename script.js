@@ -1145,6 +1145,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // v240：更新一般使用者側邊欄與手機版的菜單連結
+        const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
+        const userMenuMob = document.getElementById('display-rest-menu-mob');
+        const userRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
+        const userRestObj = memoryRestaurants.find(r => r.name.trim() === userRestName);
+
+        const updateMenuBtn = (btn, restObj) => {
+            if (btn) {
+                if (restObj && restObj.menuUrl) {
+                    btn.href = restObj.menuUrl;
+                    btn.style.display = 'inline-block';
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.style.display = 'none';
+                    btn.classList.add('hidden');
+                }
+            }
+        };
+
+        updateMenuBtn(userMenuSidebar, userRestObj);
+        updateMenuBtn(userMenuMob, userRestObj);
+
         if (displayRestPhone) {
             if (restaurant && restaurant.phone) {
                 displayRestPhone.href = `tel:${restaurant.phone}`;

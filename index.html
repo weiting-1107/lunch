@@ -93,7 +93,11 @@
                 </div>
                 <div class="sidebar-setting-item">
                     <label>🏢 今日餐廳</label>
-                    <input type="text" id="restaurant-name" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed;">
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <input type="text" id="restaurant-name" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; flex:1;">
+                        <a id="display-rest-menu-sidebar" href="#" target="_blank" class="action-btn-mini hidden" 
+                           style="text-decoration:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary);">📄 菜單</a>
+                    </div>
                 </div>
                 <div class="sidebar-setting-item admin-only">
                     <label>⚙️ 鎖單時間設定</label>
@@ -152,7 +156,11 @@
                     </div>
                     <div class="mobile-setting-item">
                         <label>🏢 今日餐廳</label>
-                        <input type="text" id="restaurant-name-mob" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed;">
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="text" id="restaurant-name-mob" class="restaurant-input" value="待定..." readonly style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; flex:1;">
+                            <a id="display-rest-menu-mob" href="#" target="_blank" class="action-btn-mini hidden" 
+                               style="text-decoration:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary);">📄 菜單</a>
+                        </div>
                     </div>
                     <div class="mobile-setting-item admin-only">
                         <label>⛔ 鎖單時間</label>
@@ -413,7 +421,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=239"></script>
+    <script src="script.js?v=240"></script>
 </body>
 
 </html>
