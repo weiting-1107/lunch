@@ -2886,13 +2886,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    try {
-        checkAuth();
-    } catch (e) {
-        console.error("Auth initialization failed:", e);
-    }
-
-    // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端
+    // ★ Boot：先從快取立刻繪出畫面，同時非同步抓雲端 (v227 移至 Auth 之前以防止渲染閃爍)
     try {
         const cachedStr = localStorage.getItem(CLOUD_CACHE_KEY);
         if (cachedStr) {
@@ -2917,11 +2911,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateDatalists();
                 handleFormState();
                 updateGrandTotal();
-                renderVotingSection(); // ★ 用快取立即顯示投票區（0ms！）
+                renderVotingSection();
             }
         }
     } catch (e) {
         console.error("Cache boot failed:", e);
+    }
+
+    try {
+        checkAuth();
+    } catch (e) {
+        console.error("Auth initialization failed:", e);
     }
 
     fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
