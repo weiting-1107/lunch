@@ -481,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // ★ 核心優化：無論資料有無異動，每 5 秒都必須執行一次狀態檢查
                 handleFormState();
                 renderVotingSection();
+                toggleRoleUI(); // ★ v226：確保管理員面板隨雲端同步更新下拉選單
             } catch (err) {
             console.error("雲端同步失敗", err);
         }
@@ -2696,9 +2697,18 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 1; i <= 7; i++) {
             const key = `weekly_${i}`;
             const val = memoryConfig[key] || '';
+            const dayIdx = (i === 7) ? 0 : i; // 1=一, 2=二... 7=日(轉為0)
+            
+            // 依照該星期幾過濾有營業的餐廳
+            const openInDay = memoryRestaurants.filter(r => {
+                if (!r.openDays) return true;
+                const days = r.openDays.split(',').map(d => parseInt(d.trim()));
+                return days.includes(dayIdx);
+            });
+
             html += `<td><select class="admin-weekly-select" data-day="${i}" style="width:100%; padding:4px; border-radius:4px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-main);">
                 <option value="">(無)</option>
-                ${memoryRestaurants.filter(r => r && r.name).map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
+                ${openInDay.map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
             </select></td>`;
         }
         html += `</tr></tbody></table>`;
