@@ -2293,6 +2293,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const vSec = document.getElementById('voting-section');
         if (!vSec) return;
 
+        // v234：如果目前是管理員模式，強制隱藏投票區且不再往下執行渲染
+        const isAdmin = currentUser && currentUser.role === 'admin';
+        if (isAdmin) {
+            vSec.classList.add('hidden');
+            return;
+        }
+
         // 讀取日期與餐期
         const d1 = document.getElementById('order-date');
         const d2 = document.getElementById('order-date-mob');
