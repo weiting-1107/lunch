@@ -2674,7 +2674,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (adminDate && sideDate) adminDate.value = sideDate.value;
         if (adminMeal && sideMeal) adminMeal.value = sideMeal.value;
-        // admin-cutoff-time 已移除，改由側邊欄或手機頂部統一控制
+        if (adminCutoff && sideCutoff) adminCutoff.value = sideCutoff.value;
 
         // 填充管理員的餐廳下拉選單
         if (adminRest) {

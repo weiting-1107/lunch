@@ -200,6 +200,13 @@
                             </select>
                             <a id="admin-display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden" style="text-decoration:none; font-size:0.85rem; padding:0.4rem 0.75rem; background:var(--primary); color:white; border-radius:0.5rem; display:inline-block; margin-top:0.5rem; width:fit-content; border:1px solid var(--primary);">📄 查看菜單</a>
                         </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>⛔ 鎖單時間</label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <input type="time" id="admin-cutoff-time" value="10:30" class="time-input restaurant-input" style="flex:1;">
+                                <button id="admin-confirm-cutoff-btn" class="primary-btn" style="padding:0.4rem 0.8rem; font-size:0.85rem;">確定</button>
+                            </div>
+                        </div>
                     </div>
                     <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
                     <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每週預定排餐表</h4>
@@ -407,7 +414,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=232"></script>
+    <script src="script.js?v=233"></script>
 </body>
 
 </html>
