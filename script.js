@@ -148,6 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
             empty.textContent = "⚠️ 此餐廳目前無菜單圖片或連結";
             empty.classList.remove('hidden');
         }
+
+        // v260：強制確保關閉按鈕顯示為 ✕，防止被主題切換圖示覆蓋
+        const closeBtn = modal.querySelector('.modal-close-btn');
+        if (closeBtn) closeBtn.innerHTML = '✕';
         
         modal.classList.remove('hidden');
     };
