@@ -182,13 +182,18 @@ body.admin-mode {
 }
 
 body.admin-mode .app-layout {
-    display: grid !important;
-    grid-template-columns: 260px 1fr !important;
-    grid-template-areas: "sidebar main" !important;
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
-    height: 100vh !important;
+}
+
+@media (min-width: 1024px) {
+    body.admin-mode .app-layout {
+        display: grid !important;
+        grid-template-columns: 260px 1fr !important;
+        grid-template-areas: "sidebar main" !important;
+        height: 100vh !important;
+    }
 }
 
 body.admin-mode .main-container {
