@@ -1221,25 +1221,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateRestaurantMenuDisplay() {
-        // v245：點擊同步刷新所有菜單按鈕（管理員 + 一般使用者）
+        // v258：統一「永遠顯示」邏輯（管理員 + 一般使用者）
         
         // 1. 管理員面板
         const adminRestMenu = document.getElementById('admin-display-rest-menu');
         const adminRestSelect = document.getElementById('admin-restaurant-name');
         if (adminRestMenu && adminRestSelect) {
             const rName = adminRestSelect.value.trim();
-            const rObj = memoryRestaurants.find(r => r.name.trim() === rName);
-            if (rObj && rObj.menuUrl) {
-                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(rObj.name); };
-                adminRestMenu.style.display = 'inline-block';
+            if (rName) {
+                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(rName); };
+                adminRestMenu.style.setProperty('display', 'inline-block', 'important');
                 adminRestMenu.classList.remove('hidden');
             } else {
                 adminRestMenu.style.display = 'none';
-                adminRestMenu.classList.add('hidden');
             }
         }
 
-        // 2. 一般使用者側邊欄與手機版 (比照管理員邏輯)
+        // 2. 一般使用者側邊欄與手機版
         const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
         const userMenuMob = document.getElementById('display-rest-menu-mob');
         const userRestInput = document.getElementById('restaurant-name');
@@ -1248,18 +1246,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateUBtn = (btn, input) => {
             if (!btn || !input) return;
             const rName = (input.value || '').trim();
-            if (!rName || rName === '待定...') {
-                btn.style.display = 'none';
-                return;
-            }
-            const rObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === rName);
-            if (rObj && rObj.menuUrl) {
-                btn.onclick = (e) => { e.preventDefault(); openMenuViewer(rObj.name); };
-                btn.style.display = 'inline-block';
+            if (rName && rName !== '待定...') {
+                btn.onclick = (e) => { e.preventDefault(); openMenuViewer(rName); };
+                btn.style.setProperty('display', 'inline-block', 'important');
                 btn.classList.remove('hidden');
             } else {
                 btn.style.display = 'none';
-                btn.classList.add('hidden');
             }
         };
 
