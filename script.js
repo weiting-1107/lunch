@@ -133,18 +133,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modal || !img) return;
         
         const restaurant = memoryRestaurants.find(r => r && r.name && r.name.trim() === restName.trim());
-        // v253：同時支援 menuImage (字串) 與 menuUrl (網址)
+        // v254：同時支援 menuImage (字串) 與 menuUrl (網址)
         const imgData = restaurant ? (restaurant.menuImage || restaurant.menuUrl) : null;
 
-        if (restaurant && imgData) {
-            title.textContent = `🍱 ${restaurant.name} - 菜單`;
+        if (imgData) {
+            title.textContent = `🍱 ${restaurant ? restaurant.name : restName} - 菜單`;
             img.src = imgData; 
             img.classList.remove('hidden');
             empty.classList.add('hidden');
         } else {
-            title.textContent = `🍱 查無菜單`;
+            title.textContent = `🍱 ${restaurant ? restaurant.name : restName}`;
             img.src = "";
             img.classList.add('hidden');
+            empty.textContent = "⚠️ 此餐廳目前無菜單圖片或連結";
             empty.classList.remove('hidden');
         }
         
@@ -1112,8 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (displayRestName) displayRestName.textContent = restName;
 
         if (displayRestMenu) {
-            const menuData = restaurant ? (restaurant.menuImage || restaurant.menuUrl) : null;
-            if (restaurant && menuData) {
+            if (restaurant) {
                 displayRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(restaurant.name); };
                 displayRestMenu.style.display = 'flex';
             } else {
@@ -1127,14 +1127,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminRestMenu && adminRestSelect) {
             const adminRestName = adminRestSelect.value.trim();
             const adminRestObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === adminRestName);
-            const adminMenuData = adminRestObj ? (adminRestObj.menuImage || adminRestObj.menuUrl) : null;
-            if (adminRestObj && adminMenuData) {
+            if (adminRestObj) {
                 adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
                 adminRestMenu.style.display = 'inline-block';
-                adminRestMenu.classList.remove('hidden');
             } else {
                 adminRestMenu.style.display = 'none';
-                adminRestMenu.classList.add('hidden');
             }
         }
 
@@ -1146,14 +1143,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const updateMenuBtn = (btn, restObj) => {
             if (btn) {
-                const uMenuData = restObj ? (restObj.menuImage || restObj.menuUrl) : null;
-                if (restObj && uMenuData) {
+                if (restObj) {
                     btn.onclick = () => openMenuViewer(restObj.name);
                     btn.style.display = 'inline-block';
-                    btn.classList.remove('hidden');
                 } else {
                     btn.style.display = 'none';
-                    btn.classList.add('hidden');
                 }
             }
         };
