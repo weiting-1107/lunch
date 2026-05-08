@@ -1113,9 +1113,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (displayRestName) displayRestName.textContent = restName;
 
         if (displayRestMenu) {
-            if (restaurant) {
-                displayRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(restaurant.name); };
-                displayRestMenu.style.display = 'flex';
+            if (restName) {
+                displayRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(restName); };
+                displayRestMenu.style.setProperty('display', 'flex', 'important');
+                displayRestMenu.classList.remove('hidden');
             } else {
                 displayRestMenu.style.display = 'none';
             }
@@ -1127,9 +1128,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminRestMenu && adminRestSelect) {
             const adminRestName = adminRestSelect.value.trim();
             const adminRestObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === adminRestName);
-            if (adminRestObj) {
-                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
-                adminRestMenu.style.display = 'inline-block';
+            if (adminRestName) {
+                adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestName); };
+                adminRestMenu.style.setProperty('display', 'inline-block', 'important');
+                adminRestMenu.classList.remove('hidden');
             } else {
                 adminRestMenu.style.display = 'none';
             }
@@ -1141,19 +1143,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const userRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
         const userRestObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === userRestName);
 
-        const updateMenuBtn = (btn, restObj) => {
+        const updateMenuBtn = (btn, rName) => {
             if (btn) {
-                if (restObj) {
-                    btn.onclick = () => openMenuViewer(restObj.name);
-                    btn.style.display = 'inline-block';
+                if (rName && rName !== '待定...') {
+                    btn.onclick = () => openMenuViewer(rName);
+                    btn.style.setProperty('display', 'inline-block', 'important');
+                    btn.classList.remove('hidden');
                 } else {
                     btn.style.display = 'none';
                 }
             }
         };
 
-        updateMenuBtn(userMenuSidebar, userRestObj);
-        updateMenuBtn(userMenuMob, userRestObj);
+        updateMenuBtn(userMenuSidebar, userRestName);
+        updateMenuBtn(userMenuMob, userRestName);
 
         if (displayRestPhone) {
             const currentRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
