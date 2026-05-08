@@ -132,17 +132,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!modal || !img) return;
         
-        const restaurant = memoryRestaurants.find(r => r.name.trim() === restName.trim());
-        if (restaurant && restaurant.menuUrl) {
+        const restaurant = memoryRestaurants.find(r => r && r.name && r.name.trim() === restName.trim());
+        // v253：同時支援 menuImage (字串) 與 menuUrl (網址)
+        const imgData = restaurant ? (restaurant.menuImage || restaurant.menuUrl) : null;
+
+        if (restaurant && imgData) {
             title.textContent = `🍱 ${restaurant.name} - 菜單`;
-            img.src = restaurant.menuUrl; // 這裡直接帶入資料庫抓到的字串
+            img.src = imgData; 
             img.classList.remove('hidden');
             empty.classList.add('hidden');
         } else {
             title.textContent = `🍱 查無菜單`;
             img.src = "";
             img.classList.add('hidden');
-            empty.classList.add('hidden');
+            empty.classList.remove('hidden');
         }
         
         modal.classList.remove('hidden');
@@ -1109,8 +1112,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (displayRestName) displayRestName.textContent = restName;
 
         if (displayRestMenu) {
-            if (restaurant && restaurant.menuUrl) {
-                displayRestMenu.href = restaurant.menuUrl;
+            const menuData = restaurant ? (restaurant.menuImage || restaurant.menuUrl) : null;
+            if (restaurant && menuData) {
+                displayRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(restaurant.name); };
                 displayRestMenu.style.display = 'flex';
             } else {
                 displayRestMenu.style.display = 'none';
@@ -1123,7 +1127,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminRestMenu && adminRestSelect) {
             const adminRestName = adminRestSelect.value.trim();
             const adminRestObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === adminRestName);
-            if (adminRestObj && adminRestObj.menuUrl) {
+            const adminMenuData = adminRestObj ? (adminRestObj.menuImage || adminRestObj.menuUrl) : null;
+            if (adminRestObj && adminMenuData) {
                 adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
                 adminRestMenu.style.display = 'inline-block';
                 adminRestMenu.classList.remove('hidden');
@@ -1141,7 +1146,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const updateMenuBtn = (btn, restObj) => {
             if (btn) {
-                if (restObj && restObj.menuUrl) {
+                const uMenuData = restObj ? (restObj.menuImage || restObj.menuUrl) : null;
+                if (restObj && uMenuData) {
                     btn.onclick = () => openMenuViewer(restObj.name);
                     btn.style.display = 'inline-block';
                     btn.classList.remove('hidden');
