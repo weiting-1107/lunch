@@ -436,7 +436,8 @@
             style="max-width: 90vw; max-height: 90vh; padding: 1rem; position: relative; display: flex; flex-direction: column;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h3 id="menu-viewer-title" style="margin:0;">🍱 餐廳菜單</h3>
-                <button onclick="closeMenuViewer()" class="theme-toggle" style="width:32px; height:32px;">✕</button>
+                <button onclick="closeMenuViewer()" class="modal-close-btn" 
+                    style="width:32px; height:32px; border:none; background:var(--input-bg); color:var(--text); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.2rem; transition:0.2s;">✕</button>
             </div>
             <div
                 style="flex:1; overflow:auto; text-align:center; background:#f0f0f0; border-radius:0.5rem; display:flex; align-items:center; justify-content:center;">
@@ -449,7 +450,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=258"></script>
+    <script src="script.js?v=259"></script>
 </body>
 
 </html>
