@@ -2455,14 +2455,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = voteCounts[r.name] || 0;
             const row = document.createElement('label');
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:var(--card-bg); border-radius:0.25rem; border:1px solid var(--border); cursor:pointer;";
-            const menuLink = r.menuUrl ? `<button class="action-btn-mini" onclick="openMenuViewer('${r.name}')" style="border:none; font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); display:inline-block; margin-left:0.5rem; cursor:pointer;">📄 菜單</button>` : '';
+            // v261：投票選項中的按鈕也改為永遠顯示，並呼叫 openMenuViewer
+            const menuBtn = `<button class="action-btn-mini" onclick="event.preventDefault(); openMenuViewer('${r.name}')" style="border:none; font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); display:inline-block; margin-left:0.5rem; cursor:pointer; flex-shrink:0;">📄 菜單</button>`;
             row.innerHTML = `
-                <div style="display:flex; gap:0.5rem; align-items:center;">
+                <div style="display:flex; gap:0.5rem; align-items:center; flex:1; min-width:0;">
                     <input type="radio" name="vote-restaurant-radio" value="${r.name}">
-                    <span style="font-weight:500;">${r.name}</span>
-                    ${menuLink}
+                    <span style="font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.name}</span>
+                    ${menuBtn}
                 </div>
-                <span class="stat-badge" style="background:var(--primary); color:white;">${count} 票</span>
+                <span class="stat-badge" style="background:var(--primary); color:white; flex-shrink:0; margin-left:0.5rem;">${count} 票</span>
             `;
             container.appendChild(row);
         });
