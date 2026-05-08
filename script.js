@@ -1104,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const restaurant = memoryRestaurants.find(r => r.name.trim() === restName);
+        const restaurant = memoryRestaurants.find(r => r && r.name && r.name.trim() === restName);
         activeRestCard.classList.remove('hidden');
         if (displayRestName) displayRestName.textContent = restName;
 
@@ -1117,17 +1117,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-            } else {
-                displayRestMenu.style.display = 'none';
-            }
-        }
-        
         // v245：更新管理員面板的菜單按鈕
         const adminRestMenu = document.getElementById('admin-display-rest-menu');
         const adminRestSelect = document.getElementById('admin-restaurant-name');
         if (adminRestMenu && adminRestSelect) {
             const adminRestName = adminRestSelect.value.trim();
-            const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
+            const adminRestObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === adminRestName);
             if (adminRestObj && adminRestObj.menuUrl) {
                 adminRestMenu.onclick = (e) => { e.preventDefault(); openMenuViewer(adminRestObj.name); };
                 adminRestMenu.style.display = 'inline-block';
@@ -1137,13 +1132,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 adminRestMenu.classList.add('hidden');
             }
         }
-    }
 
         // v240：更新一般使用者側邊欄與手機版的菜單連結
         const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
         const userMenuMob = document.getElementById('display-rest-menu-mob');
         const userRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
-        const userRestObj = memoryRestaurants.find(r => r.name.trim() === userRestName);
+        const userRestObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === userRestName);
 
         const updateMenuBtn = (btn, restObj) => {
             if (btn) {
@@ -1248,8 +1242,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const updateUBtn = (btn, input) => {
             if (!btn || !input) return;
-            const rName = input.value.trim();
-            const rObj = memoryRestaurants.find(r => r.name.trim() === rName);
+            const rName = (input.value || '').trim();
+            if (!rName || rName === '待定...') {
+                btn.style.display = 'none';
+                return;
+            }
+            const rObj = memoryRestaurants.find(r => r && r.name && r.name.trim() === rName);
             if (rObj && rObj.menuUrl) {
                 btn.onclick = (e) => { e.preventDefault(); openMenuViewer(rObj.name); };
                 btn.style.display = 'inline-block';
@@ -3023,6 +3021,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleFormState();
                 updateGrandTotal();
                 renderVotingSection();
+            }
         }
     } catch (e) {
         console.error("Cache boot failed:", e);
