@@ -1162,8 +1162,51 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // v237：同時更新管理員面板的菜單連結
+        const adminRestMenu = document.getElementById('admin-display-rest-menu');
+        const adminRestSelect = document.getElementById('admin-restaurant-name');
+        if (adminRestMenu && adminRestSelect) {
+            const adminRestName = adminRestSelect.value.trim();
+            const adminRestObj = memoryRestaurants.find(r => r.name.trim() === adminRestName);
+            if (adminRestObj && adminRestObj.menuUrl) {
+                adminRestMenu.onclick = () => openMenuViewer(adminRestObj.name);
+                adminRestMenu.style.display = 'inline-block';
+                adminRestMenu.classList.remove('hidden');
             } else {
-                displayRestMenu.style.display = 'none';
+                adminRestMenu.style.display = 'none';
+                adminRestMenu.classList.add('hidden');
+            }
+        }
+
+        // v240：更新一般使用者側邊欄與手機版的菜單連結
+        const userMenuSidebar = document.getElementById('display-rest-menu-sidebar');
+        const userMenuMob = document.getElementById('display-rest-menu-mob');
+        const userRestName = (restaurantNameInput ? restaurantNameInput.value : '').trim();
+        const userRestObj = memoryRestaurants.find(r => r.name.trim() === userRestName);
+
+        const updateMenuBtn = (btn, restObj) => {
+            if (btn) {
+                if (restObj && restObj.menuUrl) {
+                    btn.onclick = () => openMenuViewer(restObj.name);
+                    btn.style.display = 'inline-block';
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.style.display = 'none';
+                    btn.classList.add('hidden');
+                }
+            }
+        };
+
+        updateMenuBtn(userMenuSidebar, userRestObj);
+        updateMenuBtn(userMenuMob, userRestObj);
+
+        if (displayRestPhone) {
+            if (restaurant && restaurant.phone) {
+                displayRestPhone.href = `tel:${restaurant.phone}`;
+                displayRestPhone.style.display = 'flex';
+                displayRestPhone.innerHTML = `📞 ${restaurant.phone}`;
+            } else {
+                displayRestPhone.style.display = 'none';
             }
         }
     }
@@ -1218,42 +1261,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateRestaurantMenuDisplay() {
-        // v243：終極整合刷新邏輯
-        console.log("[Debug] 執行 updateRestaurantMenuDisplay");
-
-        const updateBtn = (btnId, restName) => {
-            const btn = document.getElementById(btnId);
-            if (!btn) return;
-            
-            const rName = (restName || '').trim();
-            if (!rName || rName === '待定...') {
-                btn.style.setProperty('display', 'none', 'important');
-                return;
-            }
-
-            const restObj = memoryRestaurants.find(r => r.name.trim() === rName);
-            // 只要有餐廳，就強行顯示按鈕（方便 Debug）
-            if (restObj) {
-                btn.onclick = (e) => { e.preventDefault(); openMenuViewer(restObj.name); };
-                btn.style.setProperty('display', 'inline-block', 'important');
-                btn.classList.remove('hidden');
-                console.log(`[Debug] 按鈕 ${btnId} 已顯示, 餐廳: ${rName}`);
-            } else {
-                btn.style.setProperty('display', 'none', 'important');
-            }
-        };
-
-        // 1. 更新管理員面板按鈕
-        const adminSelect = document.getElementById('admin-restaurant-name');
-        updateBtn('admin-display-rest-menu', adminSelect ? adminSelect.value : '');
-
-        // 2. 更新一般使用者側邊欄按鈕
-        const userRestInput = document.getElementById('restaurant-name');
-        updateBtn('display-rest-menu-sidebar', userRestInput ? userRestInput.value : '');
-
-        // 3. 更新一般使用者手機版按鈕
-        const userRestMobInput = document.getElementById('restaurant-name-mob');
-        updateBtn('display-rest-menu-mob', userRestMobInput ? userRestMobInput.value : '');
+        // v244：恢復穩定版刷新邏輯
+        const wrapper = document.getElementById('restaurant-menu-link-wrapper');
+        if (!wrapper) return;
+        const currentRest = getCommonInputs().rest;
+        wrapper.innerHTML = getMenuLinkHtml(currentRest);
     }
 
     safeListenAll('#restaurant-name, #restaurant-name-mob', 'input', (e) => {
