@@ -2796,12 +2796,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') handleAuthSubmit();
     });
 
-    safeListen(document.getElementById('logout-btn'), 'click', () => {
+    const handleLogout = () => {
         if (confirm("確定要登出系統嗎？")) {
             localStorage.removeItem('lunch_user');
             location.reload();
         }
-    });
+    };
+    safeListen(document.getElementById('logout-btn'), 'click', handleLogout);
+    safeListen(document.getElementById('logout-btn-mob'), 'click', handleLogout);
 
     // ★ 管理員控制面板的事件綁定 (v220)
     // 日期、餐期、鎖單時間變更 → 同步到主側邊欄輸入框並觸發狀態更新
