@@ -195,10 +195,13 @@
                         </div>
                         <div class="form-group" style="margin:0;">
                             <label>🏢 今日餐廳</label>
-                            <select id="admin-restaurant-name" class="restaurant-input" style="width:100%;">
-                                <option value="">請選擇餐廳...</option>
-                            </select>
-                            <a id="admin-display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden" style="text-decoration:none; font-size:0.85rem; padding:0.4rem 0.75rem; background:var(--primary); color:white; border-radius:0.5rem; display:inline-block; margin-top:0.5rem; width:fit-content; border:1px solid var(--primary);">📄 查看菜單</a>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <select id="admin-restaurant-name" class="restaurant-input" style="flex:1;">
+                                    <option value="">請選擇餐廳...</option>
+                                </select>
+                                <a id="admin-display-rest-menu" href="#" target="_blank" class="action-btn-mini hidden" 
+                                   style="text-decoration:none; white-space:nowrap; font-size:0.85rem; padding:0.5rem 0.8rem; background:var(--primary); color:white; border-radius:0.5rem; display:none; border:1px solid var(--primary); box-shadow:var(--shadow-sm);">📄 菜單</a>
+                            </div>
                         </div>
                         <div class="form-group" style="margin:0;">
                             <label>⛔ 鎖單時間</label>
@@ -414,7 +417,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=237"></script>
+    <script src="script.js?v=238"></script>
 </body>
 
 </html>
