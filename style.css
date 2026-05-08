@@ -184,19 +184,23 @@ body {
     }
 
     body.admin-mode {
-        padding: 0;
-        justify-content: flex-start;
+        padding: 0 !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
     }
 
     body.admin-mode .app-layout {
-        grid-template-columns: 260px 1fr;
-        grid-template-areas: "sidebar main";
-        max-width: 100%;
-        margin: 0;
+        display: grid !important;
+        grid-template-columns: 260px 1fr !important;
+        grid-template-areas: "sidebar main" !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
     }
     
     body.admin-mode .main-container {
-        padding: 2rem 2rem;
+        padding: 1.5rem 2rem !important;
+        width: 100% !important;
     }
 
     .sidebar {
