@@ -1081,8 +1081,14 @@ document.addEventListener('DOMContentLoaded', () => {
             renderVotingSection();
         }
 
-        updateRestaurantMenuDisplay();
-        updateActiveRestaurantCard();
+        // v248: 安全呼叫更新函數
+        if (typeof updateRestaurantMenuDisplay === 'function') {
+            updateRestaurantMenuDisplay();
+        }
+        
+        if (typeof updateActiveRestaurantCard === 'function') {
+            updateActiveRestaurantCard();
+        }
 
         // 紀錄最後瀏覽狀態
         lastViewedDate = selectedDate;
@@ -3017,22 +3023,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleFormState();
                 updateGrandTotal();
                 renderVotingSection();
-            }
         }
     } catch (e) {
         console.error("Cache boot failed:", e);
     }
 
-
-
-    fetchFromCloud(); // 背景抓雲端最新資料（幾秒後更新）
-    setInterval(fetchFromCloud, 5000); // ★ 優化：從 10 秒縮短至 5 秒自動同步
+    fetchFromCloud(); 
+    setInterval(fetchFromCloud, 5000); 
 
     if (!localStorage.getItem(CLOUD_CACHE_KEY)) {
-        // 無快取時才做初始 render（有快取的話上面已做過）
         updateDatalists();
         handleFormState();
         updateGrandTotal();
     }
-
 });
