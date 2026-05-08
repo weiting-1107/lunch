@@ -2620,10 +2620,25 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAdminWeeklySchedule();
             // 同步管理員面板的控制欄位與側邊欄值
             syncAdminDashboard();
+
+            // 手機版特有調整：隱藏冗餘的使用者設定列 (v231)
+            const mobSettingsRow = document.querySelector('.mobile-settings-row');
+            if (mobSettingsRow) mobSettingsRow.style.display = 'none';
+
+            // 更新導航標籤 (個人 -> 總帳)
+            const personBtnSpan = document.querySelector('.nav-person-btn span');
+            if (personBtnSpan) personBtnSpan.textContent = '總帳';
         } else {
+            // 一般使用者模式
             if (adminDash) adminDash.style.display = 'none';
             if (orderForm) orderForm.style.display = '';
             if (sidebarSettings) sidebarSettings.style.display = '';
+
+            const mobSettingsRow = document.querySelector('.mobile-settings-row');
+            if (mobSettingsRow) mobSettingsRow.style.display = '';
+
+            const personBtnSpan = document.querySelector('.nav-person-btn span');
+            if (personBtnSpan) personBtnSpan.textContent = '個人';
             // 一般使用者：帶入姓名並鎖定
             if (personNameInput) {
                 personNameInput.value = currentUser.name;
