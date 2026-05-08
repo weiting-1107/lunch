@@ -896,10 +896,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 4. Fallback：每週排餐 (作為預設建議)
+        // 4. Fallback：每週排餐 (作為預設建議) (v228 支援多餐期設定)
         const dow = new Date(date + 'T12:00:00').getDay();
-        const weeklyKey = `weekly_${dow === 0 ? 7 : dow}`;
-        const weeklyRest = memoryConfig[weeklyKey] || '';
+        const dowNum = (dow === 0 ? 7 : dow);
+        const weeklyKey = `weekly_${mealType}_${dowNum}`;
+        const oldWeeklyKey = `weekly_${dowNum}`; // 向後相容舊版
+        const weeklyRest = memoryConfig[weeklyKey] || (mealType === '午餐' ? memoryConfig[oldWeeklyKey] : '') || '';
         if (weeklyRest) return { name: weeklyRest, source: 'weekly' };
 
         return { name: '', source: 'none' };
@@ -2690,16 +2692,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderAdminWeeklySchedule() {
         const container = document.getElementById('admin-weekly-schedule');
         if (!container) return;
-        const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-        let html = `<table class="excel-table" style="font-size:0.9rem; min-width:100%;"><thead><tr>
+        
+        // v228：支援按餐期設定每週排餐
+        if (!window._currentWeeklyMealType) window._currentWeeklyMealType = '午餐';
+        const mealType = window._currentWeeklyMealType;
+
+        const meals = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+        let mealOptions = meals.map(m => `<option value="${m}" ${m === mealType ? 'selected' : ''}>${m}</option>`).join('');
+
+        let html = `<div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+            <span style="font-weight:bold; color:var(--primary);">🗓️ 設定餐期預排：</span>
+            <select id="admin-weekly-meal-selector" class="restaurant-input" style="width:auto; min-width:120px; border:2px solid var(--primary);">
+                ${mealOptions}
+            </select>
+        </div>`;
+
+        html += `<table class="excel-table" style="font-size:0.9rem; min-width:100%;"><thead><tr>
             <th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
         </tr></thead><tbody><tr>`;
+        
         for (let i = 1; i <= 7; i++) {
-            const key = `weekly_${i}`;
-            const val = memoryConfig[key] || '';
-            const dayIdx = (i === 7) ? 0 : i; // 1=一, 2=二... 7=日(轉為0)
+            const key = `weekly_${mealType}_${i}`;
+            const oldKey = `weekly_${i}`;
+            // 優先抓取餐期專用 key，若無且為午餐則抓取舊版 key
+            const val = memoryConfig[key] || (mealType === '午餐' ? memoryConfig[oldKey] : '') || '';
+            const dayIdx = (i === 7) ? 0 : i; 
             
-            // 依照該星期幾過濾有營業的餐廳
             const openInDay = memoryRestaurants.filter(r => {
                 if (!r.openDays) return true;
                 const days = r.openDays.split(',').map(d => parseInt(d.trim()));
@@ -2713,6 +2731,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         html += `</tr></tbody></table>`;
         container.innerHTML = html;
+
+        // 綁定切換事件
+        const selector = document.getElementById('admin-weekly-meal-selector');
+        if (selector) {
+            selector.onchange = (e) => {
+                window._currentWeeklyMealType = e.target.value;
+                renderAdminWeeklySchedule();
+            };
+        }
     }
 
     window.updateOrderPrice = function (id, newPrice) {
@@ -2732,12 +2759,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 儲存每週排餐功能 (v197)
+    // 儲存每週排餐功能 (v197, v228 支援餐期)
     window.handleSaveWeekly = function () {
-        const selects = document.querySelectorAll('.weekly-schedule-select');
+        const mealType = window._currentWeeklyMealType || '午餐';
+        const selects = document.querySelectorAll('.admin-weekly-select');
         selects.forEach(sel => {
             const day = sel.getAttribute('data-day');
-            memoryConfig[`weekly_${day}`] = sel.value;
+            memoryConfig[`weekly_${mealType}_${day}`] = sel.value;
         });
 
         const newConfig = Object.entries(memoryConfig).map(([key, value]) => {
@@ -2816,12 +2844,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     safeListen(document.getElementById('admin-save-weekly-btn'), 'click', () => {
+        const mealType = window._currentWeeklyMealType || '午餐';
         document.querySelectorAll('.admin-weekly-select').forEach(sel => {
             const day = sel.getAttribute('data-day');
-            memoryConfig[`weekly_${day}`] = sel.value;
-            // 同步到設定面板的下拉選單
-            const sideSelect = document.querySelector(`.weekly-schedule-select[data-day="${day}"]`);
-            if (sideSelect) sideSelect.value = sel.value;
+            memoryConfig[`weekly_${mealType}_${day}`] = sel.value;
         });
         // 重用已有的儲存邏輯
         if (typeof handleSaveWeekly === 'function') handleSaveWeekly();
