@@ -95,9 +95,9 @@
                     <label>🏢 今日餐廳</label>
                     <div style="display:flex; gap:0.5rem; align-items:center;">
                         <input type="text" id="restaurant-name" class="restaurant-input" value="待定..." readonly
-                            style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; flex:1;">
+                            style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; width:calc(100% - 75px); min-width:0;">
                         <button id="display-rest-menu-sidebar" class="action-btn-mini"
-                            style="border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); cursor:pointer;">📄
+                            style="border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; background:var(--primary); color:white; border-radius:0.5rem; border:1px solid var(--primary); cursor:pointer; flex-shrink:0;">📄
                             菜單</button>
                     </div>
                 </div>
@@ -160,9 +160,9 @@
                         <label>🏢 今日餐廳</label>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
                             <input type="text" id="restaurant-name-mob" class="restaurant-input" value="待定..." readonly
-                                style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; flex:1;">
+                                style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; width:calc(100% - 75px); min-width:0;">
                             <button id="display-rest-menu-mob" class="action-btn-mini"
-                                style="background:var(--primary); border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; color:white; border-radius:0.5rem; border:1px solid var(--primary); cursor:pointer;">📄
+                                style="background:var(--primary); border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; color:white; border-radius:0.5rem; border:1px solid var(--primary); cursor:pointer; flex-shrink:0;">📄
                                 菜單</button>
                         </div>
                     </div>
@@ -205,11 +205,11 @@
                         <div class="form-group" style="margin:0;">
                             <label>🏢 今日餐廳</label>
                             <div style="display:flex; gap:0.5rem; align-items:center;">
-                                <select id="admin-restaurant-name" class="restaurant-input" style="flex:1;">
+                                <select id="admin-restaurant-name" class="restaurant-input" style="width:calc(100% - 110px); min-width:0;">
                                     <option value="">請選擇餐廳...</option>
                                 </select>
                                 <button id="admin-display-rest-menu" class="action-btn-mini"
-                                    style="border:none; white-space:nowrap; font-size:0.85rem; padding:0.5rem 0.8rem; background:#ff9800; color:white; border-radius:0.5rem; box-shadow:0 2px 4px rgba(0,0,0,0.2); cursor:pointer; font-weight:bold;">📄
+                                    style="border:none; white-space:nowrap; font-size:0.85rem; padding:0.5rem 0.8rem; background:#ff9800; color:white; border-radius:0.5rem; box-shadow:0 2px 4px rgba(0,0,0,0.2); cursor:pointer; font-weight:bold; flex-shrink:0;">📄
                                     查看菜單</button>
                             </div>
                         </div>
@@ -448,7 +448,7 @@
 
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=254"></script>
+    <script src="script.js?v=255"></script>
 </body>
 
 </html>
