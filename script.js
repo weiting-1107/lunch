@@ -3,7 +3,7 @@ const theme = localStorage.getItem('lunch_theme') || 'light';
 if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 // --- 雲端配置與全域狀態 ---
-const API_URL = "https://script.google.com/macros/s/AKfycbxEqz1nTpzVNOq7HANpUF5dvF5AF7YRlVN-1WkAux_IEDHoTENiWjYrscyZNMeAYDGL/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxqNw6_cUDrFCI7UsFj2xeWpQl5tVmBv9Ez6HIuSBEjwckTQQlSZ7FHC0BZg33oJ-dr/exec";
 const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
 const SETTINGS_KEY = 'lunch_settings';
 
@@ -2381,8 +2381,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const sentTo = res.sentTo || [];
                                 const skipped = res.skipped || [];
                                 const matchCount = res.matchCount || 0;
+                                const backendVer = res.backendVersion || '舊版(未知)';
 
-                                let msg = `【系統版本 v280】\n`;
+                                let msg = `【系統版本 前端:v281 / 後端:${backendVer}】\n`;
                                 msg += `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
                                 if (sentTo.length > 0) {
                                     msg += `\n📧 已發送給：${sentTo.join(', ')}`;
