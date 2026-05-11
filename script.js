@@ -2383,7 +2383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const matchCount = res.matchCount || 0;
                                 const backendVer = res.backendVersion || '舊版(未知)';
 
-                                let msg = `【系統版本 前端:v286 / 後端:${backendVer}】\n`;
+                                let msg = `【系統版本 前端:v287 / 後端:${backendVer}】\n`;
                                 console.log("--- 照妖鏡：後端原始名單資料 ---");
                                 console.log(res.rawUsersDebug);
                                 msg += `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
