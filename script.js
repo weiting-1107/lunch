@@ -2382,7 +2382,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const skipped = res.skipped || [];
                                 const matchCount = res.matchCount || 0;
 
-                                let msg = `【系統版本 v277】\n`;
+                                let msg = `【系統版本 v278】\n`;
                                 msg += `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
                                 if (sentTo.length > 0) {
                                     msg += `\n📧 已發送給：${sentTo.join(', ')}`;
