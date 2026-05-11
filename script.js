@@ -93,6 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const authNameInput = document.getElementById('auth-name');
     const authPassInput = document.getElementById('auth-pass');
+    const authEmailInput = document.getElementById('auth-email'); // v270
+    const authEmailGroup = document.getElementById('auth-email-group'); // v270
     const authSubmitBtn = document.getElementById('auth-submit-btn');
     const authSwitchLink = document.getElementById('auth-switch-link');
     const loginTitle = document.getElementById('login-title');
@@ -2014,14 +2016,28 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = '';
 
         if (activeSettingsTab === 'tab-users') {
-            html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;"><input type="text" id="new-user-name" class="restaurant-input" placeholder="新增人員姓名"><button id="add-user-btn" class="primary-btn">新增</button></div>`;
-            html += `<table class="excel-table"><thead><tr><th>人員名稱</th><th>操作</th></tr></thead><tbody>`;
+            html += `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <input type="text" id="new-user-name" class="restaurant-input" placeholder="姓名" style="flex:1;">
+                <input type="email" id="new-user-email" class="restaurant-input" placeholder="Email (選填)" style="flex:2;">
+                <button id="add-user-btn" class="primary-btn">新增</button>
+            </div>`;
+            html += `<table class="excel-table"><thead><tr><th>人員名稱</th><th>Email (可編輯)</th><th>操作</th></tr></thead><tbody>`;
             memoryUsers.forEach(u => {
-                // 增加備份方案，防止 undefined
                 const displayName = u.name || u.userName || '未知';
-                html += `<tr><td data-label="人員名稱">${displayName}</td><td data-label="操作" style="text-align:center;"><button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button></td></tr>`;
+                const userEmail = u.email || '';
+                html += `<tr>
+                    <td data-label="人員名稱">${displayName}</td>
+                    <td data-label="Email">
+                        <input type="email" value="${userEmail}" class="inline-edit-input" 
+                            onchange="window.updateUserEmail('${u.id}', this.value)"
+                            style="width:100%; min-width:150px; padding:4px; border:1px solid var(--border); border-radius:4px; background:var(--bg-main); color:var(--text-main);">
+                    </td>
+                    <td data-label="操作" style="text-align:center;">
+                        <button class="secondary-btn" style="color:var(--danger);" onclick="deleteUser('${u.id}')">刪除</button>
+                    </td>
+                </tr>`;
             });
-            if (memoryUsers.length === 0) html += `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
+            if (memoryUsers.length === 0) html += `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">尚無人員資料</td></tr>`;
             html += `</tbody></table>`;
         } else if (activeSettingsTab === 'tab-restaurants') {
             const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
@@ -2173,6 +2189,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
 
+            // v270：Email 通知設定
+            html += `<div class="form-group" style="margin-top:1.5rem; padding:1.5rem; background:var(--input-bg); border:2px solid var(--primary); border-radius:0.75rem;">
+                <h4 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:0.5rem;">📧 週五自動 Email 通知總額</h4>
+                <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="email-notif-enabled" ${memoryConfig.emailNotifEnabled === 'true' ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                    </label>
+                    <span>啟用自動發送 (每週五)</span>
+                </div>
+                <div class="form-group">
+                    <label>發送時間 (週五)</label>
+                    <input type="time" id="email-notif-time" class="restaurant-input time-input" value="${memoryConfig.emailNotifTime || '15:30'}">
+                </div>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin:0.5rem 0 0 0;">系統將在週五此時間，自動結算本週(週一至週五)之總額，並發送 Email 給所有已填寫 Email 的人員。</p>
+            </div>`;
+
             // (系統設定密碼已刪除)
             html += `<button id="save-config-btn" class="primary-btn" style="width:100%;">儲存設定</button>`;
 
@@ -2184,20 +2217,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeSettingsTab === 'tab-users') {
             const addUserBtn = document.getElementById('add-user-btn');
             const newUserNameInput = document.getElementById('new-user-name');
+            const newUserEmailInput = document.getElementById('new-user-email'); // v270
             if (addUserBtn) {
                 addUserBtn.onclick = () => {
                     const n = newUserNameInput.value.trim();
+                    const e = newUserEmailInput ? newUserEmailInput.value.trim() : '';
                     if (n) {
-                        const newUsers = [...memoryUsers, { id: 'U' + Date.now(), name: n }];
+                        const newUsers = [...memoryUsers, { id: 'U' + Date.now(), name: n, email: e }];
                         saveUsers(newUsers);
                         showToast(`已新增人員：${n}`);
                         newUserNameInput.value = '';
+                        if (newUserEmailInput) newUserEmailInput.value = '';
                         renderSettingsTab();
                     } else {
                         showToast('請輸入人員姓名', 'error');
                     }
                 };
             }
+            // v270: 輔助函式更新 Email
+            window.updateUserEmail = function(id, newEmail) {
+                const u = memoryUsers.find(u => u.id === id);
+                if (u) {
+                    u.email = newEmail.trim();
+                    saveUsers(memoryUsers);
+                    showToast(`已更新 ${u.name} 的 Email`);
+                }
+            };
         } else if (activeSettingsTab === 'tab-restaurants') {
             if (window._editingRestaurantId) {
                 const saveBtn = document.getElementById('save-edit-rest-btn');
@@ -2296,12 +2341,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (activeSettingsTab === 'tab-config') {
             document.getElementById('save-config-btn').onclick = () => {
                 const t = document.getElementById('config-vote-time').value;
+                const emailEnabled = document.getElementById('email-notif-enabled').checked;
+                const emailTime = document.getElementById('email-notif-time').value;
 
                 memoryConfig.voteCutoffTime = t;
+                memoryConfig.emailNotifEnabled = String(emailEnabled); // v270
+                memoryConfig.emailNotifTime = emailTime; // v270
+
                 const newConfig = [];
                 Object.keys(memoryConfig).forEach(k => {
                     let val = memoryConfig[k];
-                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_')) val = "'" + normalizeTime(val);
+                    // 時間字串加單引號防止 Excel 自動轉換
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k === 'emailNotifTime') val = "'" + normalizeTime(val);
                     newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
@@ -2638,14 +2689,21 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-switch-link').innerText = (authMode === 'login') ? '點我註冊' : '已有帳號？點我登入';
         document.getElementById('auth-switch-note').firstChild.textContent = (authMode === 'login') ? '還沒有帳號嗎？ ' : '';
         registerNote.style.display = (authMode === 'login') ? 'none' : 'block';
+        if (authEmailGroup) authEmailGroup.style.display = (authMode === 'login') ? 'none' : 'block';
     }
 
     function handleAuthSubmit() {
         const name = authNameInput.value.trim();
         const pass = authPassInput.value.trim();
+        const email = authEmailInput ? authEmailInput.value.trim() : '';
 
         if (!name || !pass) {
             showToast("請完整輸入姓名與密碼", "error");
+            return;
+        }
+
+        if (authMode === 'register' && !email) {
+            showToast("註冊時請輸入 Email 以接收通知", "error");
             return;
         }
 
@@ -2675,6 +2733,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newUser = {
                 id: 'U' + Date.now(),
                 name: name,
+                email: email, // v270
                 password: pass,
                 role: 'user'
             };
