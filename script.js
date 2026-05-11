@@ -964,8 +964,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (anyOrder || isTimeUp) {
             displayWinner = winner;
         } else if (isVoteTimeUp) {
-            const adminRec = getRecommendedRestaurant(selectedDate, selectedMealType, true /*adminOnly*/);
-            displayWinner = adminRec.name || '待定...';
+            // v262: 投票截止後，依據正常優先權 (包含投票結果) 決定勝出餐廳
+            const rec = getRecommendedRestaurant(selectedDate, selectedMealType);
+            displayWinner = rec.name || '待定...';
         }
         
         restaurantInputs.forEach(input => {
@@ -2400,9 +2401,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const recommendation = getRecommendedRestaurant(selectedDateStr, mType);
                 winnerName = recommendation.name;
             } else if (isTimePast) {
-                // 只取管理員預設，不採用投票結果（因為投票已截止但無人投票）
-                const adminRec = getRecommendedRestaurant(selectedDateStr, mType, true);
-                winnerName = adminRec.name;
+                // v262: 投票截止時，優先取投票結果，沒人投才取管理員預設
+                const rec = getRecommendedRestaurant(selectedDateStr, mType);
+                winnerName = rec.name;
             }
 
             if (winnerName) {
