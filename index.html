@@ -448,9 +448,46 @@
         </div>
     </div>
 
+    <!-- 管理員編輯訂單彈窗 (v263 新增) -->
+    <div id="edit-order-modal" class="modal-overlay hidden" style="z-index: 2500;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0;">✏️ 編輯訂單</h3>
+                <button onclick="closeEditOrderModal()" class="modal-close-btn"
+                    style="width:32px; height:32px; border:none; background:var(--input-bg); color:var(--text); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">✕</button>
+            </div>
+            <input type="hidden" id="edit-order-id">
+            <div class="form-group">
+                <label>👤 訂購人</label>
+                <input type="text" id="edit-order-user" readonly style="background:var(--bg-main); opacity:0.7;">
+            </div>
+            <div class="form-group">
+                <label>🍱 餐點名稱</label>
+                <input type="text" id="edit-order-item" class="restaurant-input">
+            </div>
+            <div class="form-group">
+                <label>💰 金額</label>
+                <input type="number" id="edit-order-price" class="restaurant-input">
+            </div>
+            <div class="form-group">
+                <label>📝 備註</label>
+                <textarea id="edit-order-note" class="restaurant-input"
+                    style="width:100%; height:80px; padding:0.5rem; resize:none;" placeholder="例如：去冰、加辣、已退款..."></textarea>
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                <input type="checkbox" id="edit-order-paid" style="width:20px; height:20px;">
+                <label for="edit-order-paid" style="margin:0;">✅ 已付款</label>
+            </div>
+            <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                <button onclick="closeEditOrderModal()" class="nav-btn" style="flex:1;">取消</button>
+                <button onclick="saveEditedOrder()" class="primary-btn" style="flex:2;">💾 儲存修改</button>
+            </div>
+        </div>
+    </div>
+
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=262"></script>
+    <script src="script.js?v=264"></script>
 </body>
 
 </html>

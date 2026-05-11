@@ -1325,6 +1325,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // v263：管理員編輯訂單功能
+    const editOrderModal = document.getElementById('edit-order-modal');
+    window.openEditOrderModal = function(id) {
+        const orders = getOrders();
+        const order = orders.find(o => String(o.id) === String(id));
+        if (!order) return;
+
+        document.getElementById('edit-order-id').value = order.id;
+        document.getElementById('edit-order-user').value = order.name;
+        document.getElementById('edit-order-item').value = order.item;
+        document.getElementById('edit-order-price').value = order.price;
+        document.getElementById('edit-order-note').value = order.note || '';
+        document.getElementById('edit-order-paid').checked = !!order.paid;
+
+        editOrderModal.classList.remove('hidden');
+    };
+
+    window.closeEditOrderModal = function() {
+        editOrderModal.classList.add('hidden');
+    };
+
+    window.saveEditedOrder = function() {
+        const id = document.getElementById('edit-order-id').value;
+        const item = document.getElementById('edit-order-item').value.trim();
+        const price = parseFloat(document.getElementById('edit-order-price').value) || 0;
+        const note = document.getElementById('edit-order-note').value.trim();
+        const paid = document.getElementById('edit-order-paid').checked;
+
+        if (!item) { showToast('餐點名稱不可為空', 'error'); return; }
+
+        const orders = getOrders();
+        const idx = orders.findIndex(o => String(o.id) === String(id));
+        if (idx !== -1) {
+            const updatedOrder = { ...orders[idx], item, price, note, paid };
+            orders[idx] = updatedOrder;
+            saveOrders(orders, "updateOrder", updatedOrder);
+            showToast('訂單已更新！');
+            closeEditOrderModal();
+            renderOrders();
+            updateGrandTotal();
+        }
+    };
+
     function getCommonInputs() {
         return {
             date: document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value || getTodayString(),
@@ -1555,7 +1598,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDetailsTable(weekDates, allOrders, grandTotal, container) {
         const table = document.createElement('table');
         table.className = 'excel-table';
-        table.innerHTML = `<thead><tr><th>日期 / 餐廳</th><th>姓名</th><th>餐點</th><th class="amount-col">金額</th><th style="width:50px;">付清</th><th class="action-col">操作</th></tr></thead>`;
+        table.innerHTML = `<thead><tr><th>日期 / 餐廳</th><th>姓名</th><th>餐點</th><th class="amount-col">金額</th><th>備註</th><th style="width:50px;">付清</th><th class="action-col">操作</th></tr></thead>`;
         const tbody = document.createElement('tbody');
 
         weekDates.forEach(({ dateString, dayLabel }) => {
@@ -1564,7 +1607,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dayOrders.length === 0) {
                 const tr = document.createElement('tr');
                 if (dayLabel === '(六)' || dayLabel === '(日)') tr.classList.add('weekend-row');
-                tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="5" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">本週無流水帳明細</td>`;
+                tr.innerHTML = `<td>${dateString} <span style="font-size:0.8em; color:var(--text-muted);">${dayLabel}</span></td><td colspan="6" style="text-align:center; color:var(--text-muted); background:var(--input-bg);">本週無流水帳明細</td>`;
                 tbody.appendChild(tr);
             } else {
                 // ★ 核心優化：將餐期按照時間線排序
@@ -1577,6 +1620,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sessionOrders.length === 0) return;
 
                     const isLocked = isSessionLocked(dateString, mType);
+                    const isAdmin = currentUser && currentUser.role === 'admin';
                     let sessionTotal = 0;
                     const sessionRest = sessionOrders.find(o => o.restaurant)?.restaurant || '未指定餐廳';
 
@@ -1608,7 +1652,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             tr.appendChild(tdDate);
                         }
 
-                        const isAdmin = currentUser && currentUser.role === 'admin';
                         const priceDisplay = isAdmin
                             ? `<input type="number" value="${order.price}" class="inline-edit-price" 
                                 onchange="window.updateOrderPrice('${order.id}', this.value)" 
@@ -1620,6 +1663,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td data-label="姓名">${order.name}</td>
                             <td data-label="餐點">${order.item}</td>
                             <td data-label="金額" class="amount-value">${priceDisplay}</td>
+                            <td data-label="備註" style="font-size:0.85rem; color:var(--text-muted); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${order.note || ''}">${order.note || ''}</td>
                         `;
 
                         // Paid Checkbox
@@ -1639,31 +1683,38 @@ document.addEventListener('DOMContentLoaded', () => {
                         tdAction.setAttribute('data-label', '操作');
                         tdAction.className = 'action-value';
                         tdAction.style.whiteSpace = 'nowrap';
-                        if (!isLocked) {
+                        
+                        // v264：修正括號錯誤。管理員永遠可以編輯/刪除；使用者僅在未鎖定時可執行
+                        if (isAdmin || !isLocked) {
+                            // 1. 編輯按鈕
                             const editBtn = document.createElement('button');
                             editBtn.className = 'edit-record-btn';
-                            editBtn.title = '修改此紀錄';
+                            editBtn.title = isAdmin ? '管理員編輯模式' : '修改此紀錄';
                             editBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
                             editBtn.addEventListener('click', () => {
-                                personNameInput.value = order.name;
-                                itemNameInput.value = order.item;
-                                itemPriceInput.value = order.price;
-                                orderDateInput.value = order.date;
-                                mealTypeInput.value = order.mealType || '午餐';
+                                if (isAdmin) {
+                                    window.openEditOrderModal(order.id);
+                                } else {
+                                    personNameInput.value = order.name;
+                                    itemNameInput.value = order.item;
+                                    itemPriceInput.value = order.price;
+                                    orderDateInput.value = order.date;
+                                    mealTypeInput.value = order.mealType || '午餐';
+                                    closeExcelModal();
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
 
-                                excelModal.classList.add('hidden');
-
-                                const orders = getOrders();
-                                const newOrders = orders.filter(o => o.id !== order.id);
-                                // ★ 核心優化：編輯時先刪除舊單（原子操作）
-                                saveOrders(newOrders, "deleteOrder", { id: order.id });
-                                handleFormState();
-                                renderOrders();
-                                updateGrandTotal();
-                                personNameInput.focus();
+                                    const orders = getOrders();
+                                    const newOrders = orders.filter(o => o.id !== order.id);
+                                    saveOrders(newOrders, "deleteOrder", { id: order.id });
+                                    handleFormState();
+                                    renderOrders();
+                                    updateGrandTotal();
+                                    personNameInput.focus();
+                                }
                             });
                             tdAction.appendChild(editBtn);
 
+                            // 2. 刪除按鈕
                             const delBtn = document.createElement('button');
                             delBtn.className = 'delete-record-btn';
                             delBtn.title = '刪除此紀錄';
@@ -1674,7 +1725,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             tdAction.innerHTML = '<span style="font-size:0.8rem;color:var(--border);">鎖定</span>';
                         }
                         tr.appendChild(tdAction);
-
                         tbody.appendChild(tr);
                     });
 
