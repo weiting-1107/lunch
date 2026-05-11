@@ -2378,7 +2378,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     .then(res => res.json())
                     .then(res => {
                         if (res.status === 'success') {
-                            showToast('✅ 測試發信完成！請檢查信箱。');
+                            let msg = `✅ 測試完成！\n抓到符合本週未付訂單：${res.matchCount} 筆\n`;
+                            if (res.sentTo && res.sentTo.length > 0) {
+                                msg += `已發送給：${res.sentTo.join(', ')}`;
+                            } else {
+                                msg += `⚠️ 沒有任何人收到信 (可能是沒填 Email 或沒欠款)`;
+                            }
+                            alert(msg);
+                            showToast('測試發信完成');
                         } else {
                             showToast('❌ 發信失敗：' + (res.message || '未知錯誤'), 'error');
                         }
