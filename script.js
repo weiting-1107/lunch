@@ -2380,9 +2380,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (res.status === 'success') {
                             let msg = `✅ 測試完成！\n抓到符合本週未付訂單：${res.matchCount} 筆\n`;
                             if (res.sentTo && res.sentTo.length > 0) {
-                                msg += `已發送給：${res.sentTo.join(', ')}`;
-                            } else {
-                                msg += `⚠️ 沒有任何人收到信 (可能是沒填 Email 或沒欠款)`;
+                                msg += `\n📧 已發送給：${res.sentTo.join(', ')}`;
+                            }
+                            if (res.skipped && res.skipped.length > 0) {
+                                msg += `\n⚠️ 失敗(找不到 Email)：${res.skipped.join(', ')}`;
+                                msg += `\n(提示：請檢查人員維護中，這些名字是否有填 Email)`;
+                            }
+                            if (!res.sentTo.length && !res.skipped.length) {
+                                msg += `\nℹ️ 本週無任何欠款，無需發信。`;
                             }
                             alert(msg);
                             showToast('測試發信完成');
