@@ -1368,6 +1368,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // v266：更改密碼功能
+    const changePassModal = document.getElementById('change-password-modal');
+    const changePassBtn = document.getElementById('change-pass-btn');
+
+    if (changePassBtn) {
+        changePassBtn.addEventListener('click', () => {
+            if (!currentUser) { showToast('請先登入', 'error'); return; }
+            document.getElementById('old-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-new-password').value = '';
+            changePassModal.classList.remove('hidden');
+        });
+    }
+
+    window.closeChangePasswordModal = function() {
+        changePassModal.classList.add('hidden');
+    };
+
+    window.submitChangePassword = function() {
+        const oldPass = document.getElementById('old-password').value;
+        const newPass = document.getElementById('new-password').value;
+        const confirmPass = document.getElementById('confirm-new-password').value;
+
+        if (!oldPass || !newPass || !confirmPass) { showToast('請填寫所有欄位', 'error'); return; }
+        if (oldPass !== currentUser.password) { showToast('舊密碼錯誤', 'error'); return; }
+        if (newPass !== confirmPass) { showToast('新密碼與確認不符', 'error'); return; }
+        if (newPass.length < 4) { showToast('新密碼至少需要 4 個字元', 'error'); return; }
+
+        const updatedUser = { ...currentUser, password: newPass };
+        
+        // 呼叫雲端更新
+        fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'updateUser', data: updatedUser })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                showToast('密碼已成功變更！');
+                // 更新本地快取
+                currentUser.password = newPass;
+                const cached = JSON.parse(localStorage.getItem(CLOUD_CACHE_KEY) || '{}');
+                if (cached.users) {
+                    const uIdx = cached.users.findIndex(u => u.id === currentUser.id);
+                    if (uIdx !== -1) {
+                        cached.users[uIdx].password = newPass;
+                        localStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify(cached));
+                    }
+                }
+                closeChangePasswordModal();
+            } else {
+                showToast('更新失敗：' + res.message, 'error');
+            }
+        })
+        .catch(err => showToast('網路錯誤：' + err, 'error'));
+    };
+
     function getCommonInputs() {
         return {
             date: document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value || getTodayString(),

@@ -72,7 +72,8 @@
                 <button class="nav-btn nav-details-btn">📝 查看明細</button>
                 <button class="nav-btn nav-person-btn">💸 收錢總帳</button>
                 <button class="nav-btn nav-settings-btn admin-only">⚙️ 系統設定</button>
-                <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
+                <button id="change-pass-btn" class="nav-btn" style="margin-top: auto; opacity:0.8;">🔑 更改密碼</button>
+                <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8;">🚪
                     登出系統</button>
             </nav>
             <div id="sidebar-settings-group" class="sidebar-settings-group desktop-only">
@@ -485,9 +486,36 @@
         </div>
     </div>
 
+    <!-- 更改密碼彈窗 (v266 新增) -->
+    <div id="change-password-modal" class="modal-overlay hidden" style="z-index: 2600;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0;">🔑 更改您的密碼</h3>
+                <button onclick="closeChangePasswordModal()" class="modal-close-btn"
+                    style="width:32px; height:32px; border:none; background:var(--input-bg); color:var(--text); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">✕</button>
+            </div>
+            <div class="form-group">
+                <label>🔓 目前的密碼</label>
+                <input type="password" id="old-password" class="restaurant-input" placeholder="請輸入舊密碼">
+            </div>
+            <div class="form-group">
+                <label>🆕 新的密碼</label>
+                <input type="password" id="new-password" class="restaurant-input" placeholder="請輸入新密碼">
+            </div>
+            <div class="form-group">
+                <label>確認新密碼</label>
+                <input type="password" id="confirm-new-password" class="restaurant-input" placeholder="請再次輸入新密碼">
+            </div>
+            <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                <button onclick="closeChangePasswordModal()" class="nav-btn" style="flex:1;">取消</button>
+                <button onclick="submitChangePassword()" class="primary-btn" style="flex:2;">💾 更新密碼</button>
+            </div>
+        </div>
+    </div>
+
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
-    <script src="script.js?v=265"></script>
+    <script src="script.js?v=266"></script>
 </body>
 
 </html>
