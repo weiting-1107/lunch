@@ -2203,6 +2203,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <label>發送時間 (週五)</label>
                     <input type="time" id="email-notif-time" class="restaurant-input time-input" value="${memoryConfig.emailNotifTime || '15:30'}">
                 </div>
+                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <button id="test-email-btn" class="nav-btn" style="flex:1; justify-content:center; background:var(--bg-main); border:1px solid var(--border);">🚀 立即試發通知信 (測試用)</button>
+                </div>
                 <p style="font-size:0.8rem; color:var(--text-muted); margin:0.5rem 0 0 0;">系統將在週五此時間，自動結算本週(週一至週五)之總額，並發送 Email 給所有已填寫 Email 的人員。</p>
             </div>`;
 
@@ -2360,6 +2363,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderSettingsTab();
                 renderVotingSection();
             };
+
+            // v271：手動測試發信按鈕
+            const testEmailBtn = document.getElementById('test-email-btn');
+            if (testEmailBtn) {
+                testEmailBtn.onclick = () => {
+                    if (!confirm('確定要立即發送本週結算 Email 給所有同仁嗎？\n(這將會根據目前「未付清」的金額進行統計)')) return;
+                    
+                    showToast('正在執行發信程序，請稍候...', 'info');
+                    fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'sendWeeklyEmailNotifications' })
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.status === 'success') {
+                            showToast('✅ 測試發信完成！請檢查信箱。');
+                        } else {
+                            showToast('❌ 發信失敗：' + (res.message || '未知錯誤'), 'error');
+                        }
+                    })
+                    .catch(err => showToast('網路錯誤：' + err, 'error'));
+                };
+            }
 
             document.getElementById('add-cutoff-btn').onclick = () => {
                 const dateVal = document.getElementById('new-cutoff-date').value;
