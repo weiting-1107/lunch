@@ -2382,7 +2382,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const skipped = res.skipped || [];
                                 const matchCount = res.matchCount || 0;
 
-                                let msg = `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
+                                let msg = `【系統版本 v277】\n`;
+                                msg += `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
                                 if (sentTo.length > 0) {
                                     msg += `\n📧 已發送給：${sentTo.join(', ')}`;
                                 }
@@ -2393,6 +2394,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (sentTo.length === 0 && skipped.length === 0) {
                                     msg += `\nℹ️ 本週無任何欠款，或找不到任何符合的人員。`;
                                 }
+
+                                // v277: 顯示系統目前抓到的所有人名
+                                msg += `\n\n--- 系統目前在後台看到的人員名單 ---\n`;
+                                msg += (res.allNamesInSystem && res.allNamesInSystem.length > 0)
+                                    ? res.allNamesInSystem.join(', ')
+                                    : '(空，請檢查試算表 users 分頁)';
+
                                 alert(msg);
                                 showToast('測試發信完成');
                             } else {
