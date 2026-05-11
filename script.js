@@ -3,7 +3,7 @@ const theme = localStorage.getItem('lunch_theme') || 'light';
 if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 // --- 雲端配置與全域狀態 ---
-const API_URL = "https://script.google.com/macros/s/AKfycbxqNw6_cUDrFCI7UsFj2xeWpQl5tVmBv9Ez6HIuSBEjwckTQQlSZ7FHC0BZg33oJ-dr/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwGFNQGIAUus5rzIHyy7wxNShxdQXsjyu5rHppNjrsTI-CAEzY4zSZFy1WojUSMjjKQ/exec";
 const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
 const SETTINGS_KEY = 'lunch_settings';
 
