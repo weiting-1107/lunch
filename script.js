@@ -2750,18 +2750,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 role: 'user'
             };
 
-            // 立即設定當前使用者狀態，防止被同步覆蓋
-            currentUser = { name: name, role: 'user', password: pass };
+            // 立即設定當前使用者狀態，包含 ID (v268)
+            currentUser = { ...newUser };
             memoryUsers.push(newUser);
             saveUsers(memoryUsers);
-            loginSuccess(name, 'user', pass);
+            loginSuccess(name, 'user', pass, newUser.id);
         }
     }
 
-    function loginSuccess(name, role, password = '') {
-        // 如果有傳入密碼或是從資料庫找到密碼，就存入 currentUser
-        const finalPassword = password || memoryUsers.find(u => u.name === name)?.password || '';
-        currentUser = { name: name, role: role, password: finalPassword };
+    function loginSuccess(name, role, password = '', id = '') {
+        // v268：確保從資料庫完整對應 ID
+        const userData = memoryUsers.find(u => String(u.name) === String(name)) || {};
+        const finalId = id || userData.id || '';
+        const finalPassword = password || userData.password || '';
+        
+        currentUser = { 
+            id: finalId, 
+            name: name, 
+            role: role, 
+            password: finalPassword 
+        };
         localStorage.setItem('lunch_user', JSON.stringify(currentUser));
         loginOverlay.style.display = 'none';
         showToast(`歡迎回來，${name}！`, "success");
