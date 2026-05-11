@@ -1375,6 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (changePassBtn) {
         changePassBtn.addEventListener('click', () => {
             if (!currentUser) { showToast('請先登入', 'error'); return; }
+            document.getElementById('change-pass-user').value = '';
             document.getElementById('old-password').value = '';
             document.getElementById('new-password').value = '';
             document.getElementById('confirm-new-password').value = '';
@@ -1387,12 +1388,25 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.submitChangePassword = function() {
+        const inputUser = document.getElementById('change-pass-user').value.trim();
         const oldPass = document.getElementById('old-password').value;
         const newPass = document.getElementById('new-password').value;
         const confirmPass = document.getElementById('confirm-new-password').value;
 
-        if (!oldPass || !newPass || !confirmPass) { showToast('請填寫所有欄位', 'error'); return; }
-        if (oldPass !== currentUser.password) { showToast('舊密碼錯誤', 'error'); return; }
+        if (!inputUser || !oldPass || !newPass || !confirmPass) { showToast('請填寫所有欄位', 'error'); return; }
+        
+        // 驗證帳號
+        if (inputUser !== currentUser.name) {
+            showToast('帳號名稱不正確', 'error');
+            return;
+        }
+        
+        // 驗證舊密碼
+        if (oldPass !== currentUser.password) {
+            showToast('舊密碼錯誤', 'error');
+            return;
+        }
+
         if (newPass !== confirmPass) { showToast('新密碼與確認不符', 'error'); return; }
         if (newPass.length < 4) { showToast('新密碼至少需要 4 個字元', 'error'); return; }
 
