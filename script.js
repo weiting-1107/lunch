@@ -3,7 +3,7 @@ const theme = localStorage.getItem('lunch_theme') || 'light';
 if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 // --- 雲端配置與全域狀態 ---
-const API_URL = "https://script.google.com/macros/s/AKfycbyIEYV4Zw1dzGOnuUSukUACow0GDQokNdp3B7-xYi-KS13eDA0aOVGyZtyixHS9h5rf/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwNzKbLJMpJZn_laBxP9cLEZbzCzQi6QqLoBtmq3v9e3J2rs9G4oslE-rGC6m0YDWlf/exec";
 const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
 const SETTINGS_KEY = 'lunch_settings';
 
@@ -126,21 +126,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearHistoryBtn = document.getElementById('clear-history-btn');
 
     // === 菜單圖片檢視器 (v242) ===
-    window.openMenuViewer = function(restName) {
+    window.openMenuViewer = function (restName) {
         const modal = document.getElementById('menu-viewer-modal');
         const img = document.getElementById('menu-viewer-img');
         const title = document.getElementById('menu-viewer-title');
         const empty = document.getElementById('menu-viewer-empty');
-        
+
         if (!modal || !img) return;
-        
+
         const restaurant = memoryRestaurants.find(r => r && r.name && r.name.trim() === restName.trim());
         // v254：同時支援 menuImage (字串) 與 menuUrl (網址)
         const imgData = restaurant ? (restaurant.menuImage || restaurant.menuUrl) : null;
 
         if (imgData) {
             title.textContent = `🍱 ${restaurant ? restaurant.name : restName} - 菜單`;
-            img.src = imgData; 
+            img.src = imgData;
             img.classList.remove('hidden');
             empty.classList.add('hidden');
         } else {
@@ -154,11 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // v260：強制確保關閉按鈕顯示為 ✕，防止被主題切換圖示覆蓋
         const closeBtn = modal.querySelector('.modal-close-btn');
         if (closeBtn) closeBtn.innerHTML = '✕';
-        
+
         modal.classList.remove('hidden');
     };
 
-    window.closeMenuViewer = function() {
+    window.closeMenuViewer = function () {
         const modal = document.getElementById('menu-viewer-modal');
         if (modal) modal.classList.add('hidden');
     };
@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     memoryOrders = data.orders.map(o => {
                         if (!o.name && o.userName) o.name = o.userName;
                         if (o.name && !o.userName) o.userName = o.name;
-                        
+
                         o.date = normalizeDate(o.date);
                         o.mealType = o.mealType || '午餐';
                         o.price = Number(o.price) || 0;
@@ -454,24 +454,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderOrders();
                 }
 
-                    // 動態渲染系統維護畫面 (若開啟的話)
-                    // ★ 修復：如果管理員正在輸入中，跳過自動刷新，避免輸入內容被清空 (v219)
-                    const settingsModal = document.getElementById('settings-modal');
-                    const isUserTypingInSettings = settingsModal &&
-                        !settingsModal.classList.contains('hidden') &&
-                        settingsModal.contains(document.activeElement) &&
-                        ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
-                    
-                    if (settingsModal && !settingsModal.classList.contains('hidden') && !isUserTypingInSettings) {
-                        renderSettingsTab();
-                    }
-                }
+                // 動態渲染系統維護畫面 (若開啟的話)
+                // ★ 修復：如果管理員正在輸入中，跳過自動刷新，避免輸入內容被清空 (v219)
+                const settingsModal = document.getElementById('settings-modal');
+                const isUserTypingInSettings = settingsModal &&
+                    !settingsModal.classList.contains('hidden') &&
+                    settingsModal.contains(document.activeElement) &&
+                    ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
 
-                // ★ 核心優化：無論資料有無異動，每 5 秒都必須執行一次狀態檢查
-                handleFormState();
-                renderVotingSection();
-                toggleRoleUI(); // ★ v226：確保管理員面板隨雲端同步更新下拉選單
-            } catch (err) {
+                if (settingsModal && !settingsModal.classList.contains('hidden') && !isUserTypingInSettings) {
+                    renderSettingsTab();
+                }
+            }
+
+            // ★ 核心優化：無論資料有無異動，每 5 秒都必須執行一次狀態檢查
+            handleFormState();
+            renderVotingSection();
+            toggleRoleUI(); // ★ v226：確保管理員面板隨雲端同步更新下拉選單
+        } catch (err) {
             console.error("雲端同步失敗", err);
         }
     }
@@ -679,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const oldName = personNameInput.value;
             const votePersonSel = document.getElementById('vote-person');
             const currentVoteVal = votePersonSel ? votePersonSel.value : "";
-            
+
             const baseHtml = '<option value="" disabled selected>請選擇姓名</option>';
             personNameInput.innerHTML = baseHtml;
             if (votePersonSel) votePersonSel.innerHTML = baseHtml;
@@ -948,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const curTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const todayStr = getTodayString();
-        
+
         // 判斷是否已過投票時間
         const isVoteTimeUp = (selectedDate < todayStr) || (selectedDate === todayStr && curTimeStr >= voteCutoff);
 
@@ -970,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rec = getRecommendedRestaurant(selectedDate, selectedMealType);
             displayWinner = rec.name || '待定...';
         }
-        
+
         restaurantInputs.forEach(input => {
             input.value = displayWinner;
             input.disabled = true;
@@ -1029,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.style.cursor = 'pointer';
             });
         }
-        
+
         // v247：確保每次狀態變更後，都重新刷新菜單按鈕的連結與顯示狀態
         if (typeof updateRestaurantMenuDisplay === 'function') updateRestaurantMenuDisplay();
 
@@ -1096,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof updateRestaurantMenuDisplay === 'function') {
             updateRestaurantMenuDisplay();
         }
-        
+
         if (typeof updateActiveRestaurantCard === 'function') {
             updateActiveRestaurantCard();
         }
@@ -1229,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateRestaurantMenuDisplay() {
         // v258：統一「永遠顯示」邏輯（管理員 + 一般使用者）
-        
+
         // 1. 管理員面板
         const adminRestMenu = document.getElementById('admin-display-rest-menu');
         const adminRestSelect = document.getElementById('admin-restaurant-name');
@@ -1249,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const userMenuMob = document.getElementById('display-rest-menu-mob');
         const userRestInput = document.getElementById('restaurant-name');
         const userRestMobInput = document.getElementById('restaurant-name-mob');
-        
+
         const updateUBtn = (btn, input) => {
             if (!btn || !input) return;
             const rName = (input.value || '').trim();
@@ -1329,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // v263：管理員編輯訂單功能
     const editOrderModal = document.getElementById('edit-order-modal');
-    window.openEditOrderModal = function(id) {
+    window.openEditOrderModal = function (id) {
         const orders = getOrders();
         const order = orders.find(o => String(o.id) === String(id));
         if (!order) return;
@@ -1344,11 +1344,11 @@ document.addEventListener('DOMContentLoaded', () => {
         editOrderModal.classList.remove('hidden');
     };
 
-    window.closeEditOrderModal = function() {
+    window.closeEditOrderModal = function () {
         editOrderModal.classList.add('hidden');
     };
 
-    window.saveEditedOrder = function() {
+    window.saveEditedOrder = function () {
         const id = document.getElementById('edit-order-id').value;
         const item = document.getElementById('edit-order-item').value.trim();
         const price = parseFloat(document.getElementById('edit-order-price').value) || 0;
@@ -1685,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         tdAction.setAttribute('data-label', '操作');
                         tdAction.className = 'action-value';
                         tdAction.style.whiteSpace = 'nowrap';
-                        
+
                         // v264：修正括號錯誤。管理員永遠可以編輯/刪除；使用者僅在未鎖定時可執行
                         if (isAdmin || !isLocked) {
                             // 1. 編輯按鈕
@@ -2238,7 +2238,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             }
             // v270: 輔助函式更新 Email
-            window.updateUserEmail = function(id, newEmail) {
+            window.updateUserEmail = function (id, newEmail) {
                 const u = memoryUsers.find(u => u.id === id);
                 if (u) {
                     u.email = newEmail.trim();
@@ -2369,33 +2369,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (testEmailBtn) {
                 testEmailBtn.onclick = () => {
                     if (!confirm('確定要立即發送本週結算 Email 給所有同仁嗎？\n(這將會根據目前「未付清」的金額進行統計)')) return;
-                    
+
                     showToast('正在執行發信程序，請稍候...', 'info');
                     fetch(API_URL, {
                         method: 'POST',
                         body: JSON.stringify({ action: 'sendWeeklyEmailNotifications' })
                     })
-                    .then(res => res.json())
-                    .then(res => {
-                        if (res.status === 'success') {
-                            let msg = `✅ 測試完成！\n抓到符合本週未付訂單：${res.matchCount} 筆\n`;
-                            if (res.sentTo && res.sentTo.length > 0) {
-                                msg += `\n📧 已發送給：${res.sentTo.join(', ')}`;
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.status === 'success') {
+                                const sentTo = res.sentTo || [];
+                                const skipped = res.skipped || [];
+                                const matchCount = res.matchCount || 0;
+
+                                let msg = `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
+                                if (sentTo.length > 0) {
+                                    msg += `\n📧 已發送給：${sentTo.join(', ')}`;
+                                }
+                                if (skipped.length > 0) {
+                                    msg += `\n⚠️ 失敗(找不到 Email)：${skipped.join(', ')}`;
+                                    msg += `\n(提示：請檢查人員維護中，這些名字是否有填 Email)`;
+                                }
+                                if (sentTo.length === 0 && skipped.length === 0) {
+                                    msg += `\nℹ️ 本週無任何欠款，或找不到任何符合的人員。`;
+                                }
+                                alert(msg);
+                                showToast('測試發信完成');
+                            } else {
+                                showToast('❌ 發信失敗：' + (res.message || '未知錯誤'), 'error');
                             }
-                            if (res.skipped && res.skipped.length > 0) {
-                                msg += `\n⚠️ 失敗(找不到 Email)：${res.skipped.join(', ')}`;
-                                msg += `\n(提示：請檢查人員維護中，這些名字是否有填 Email)`;
-                            }
-                            if (!res.sentTo.length && !res.skipped.length) {
-                                msg += `\nℹ️ 本週無任何欠款，無需發信。`;
-                            }
-                            alert(msg);
-                            showToast('測試發信完成');
-                        } else {
-                            showToast('❌ 發信失敗：' + (res.message || '未知錯誤'), 'error');
-                        }
-                    })
-                    .catch(err => showToast('網路錯誤：' + err, 'error'));
+                        })
+                        .catch(err => showToast('網路錯誤：' + err, 'error'));
                 };
             }
 
@@ -2789,12 +2793,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const userData = memoryUsers.find(u => String(u.name) === String(name)) || {};
         const finalId = id || userData.id || '';
         const finalPassword = password || userData.password || '';
-        
-        currentUser = { 
-            id: finalId, 
-            name: name, 
-            role: role, 
-            password: finalPassword 
+
+        currentUser = {
+            id: finalId,
+            name: name,
+            role: role,
+            password: finalPassword
         };
         localStorage.setItem('lunch_user', JSON.stringify(currentUser));
         loginOverlay.style.display = 'none';
@@ -2828,7 +2832,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (votingSec) votingSec.classList.add('hidden');
             // 隱藏左下角的原設定區塊
             if (sidebarSettings) sidebarSettings.style.display = 'none';
-            
+
             // 渲染管理員面板的每週排餐表
             renderAdminWeeklySchedule();
             // 同步管理員面板的控制欄位與側邊欄值
@@ -2893,12 +2897,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminRest) {
             const oldVal = adminRest.value || (sideRest ? sideRest.value : '');
             adminRest.innerHTML = '<option value="">請選擇餐廳...</option>';
-            
+
             // 取得選定日期對應的星期 (0-6，0為週日)
             const dStr = (adminDate && adminDate.value) ? adminDate.value : getTodayString();
             const dateObj = new Date(dStr + 'T12:00:00');
-            const dayOfWeek = dateObj.getDay(); 
-            
+            const dayOfWeek = dateObj.getDay();
+
             // 過濾今天有營業的餐廳
             const openRestaurants = memoryRestaurants.filter(r => {
                 if (!r.openDays) return true; // 若未設定視為皆有營業
@@ -2923,7 +2927,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderAdminWeeklySchedule() {
         const container = document.getElementById('admin-weekly-schedule');
         if (!container) return;
-        
+
         // v228：支援按餐期設定每週排餐
         if (!window._currentWeeklyMealType) window._currentWeeklyMealType = '午餐';
         const mealType = window._currentWeeklyMealType;
@@ -2941,14 +2945,14 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `<table class="excel-table" style="font-size:0.9rem; min-width:100%;"><thead><tr>
             <th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
         </tr></thead><tbody><tr>`;
-        
+
         for (let i = 1; i <= 7; i++) {
             const key = `weekly_${mealType}_${i}`;
             const oldKey = `weekly_${i}`;
             // 優先抓取餐期專用 key，若無且為午餐則抓取舊版 key
             const val = memoryConfig[key] || (mealType === '午餐' ? memoryConfig[oldKey] : '') || '';
-            const dayIdx = (i === 7) ? 0 : i; 
-            
+            const dayIdx = (i === 7) ? 0 : i;
+
             const openInDay = memoryRestaurants.filter(r => {
                 if (!r.openDays) return true;
                 const days = r.openDays.split(',').map(d => parseInt(d.trim()));
@@ -2980,11 +2984,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (idx !== -1) {
             const updatedOrder = { ...orders[idx], price: price };
             orders[idx] = updatedOrder;
-            
+
             showToast("⏳ 正在儲存金額...", "info");
             // 標記最後儲存時間，防止 fetchFromCloud 立刻蓋掉它
-            lastSaveTimestamp = Date.now(); 
-            
+            lastSaveTimestamp = Date.now();
+
             saveOrders(orders, "updateOrder", updatedOrder);
             updateGrandTotal();
         }
@@ -3185,8 +3189,8 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Cache boot failed:", e);
     }
 
-    fetchFromCloud(); 
-    setInterval(fetchFromCloud, 15000); 
+    fetchFromCloud();
+    setInterval(fetchFromCloud, 15000);
 
     if (!localStorage.getItem(CLOUD_CACHE_KEY)) {
         updateDatalists();
