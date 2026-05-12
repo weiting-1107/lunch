@@ -3,7 +3,7 @@ const theme = localStorage.getItem('lunch_theme') || 'light';
 if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 // --- 雲端配置與全域狀態 ---
-const API_URL = "https://script.google.com/macros/s/AKfycbyahkcGbSOtRjZMvIjhUcFODysF8jX4_P5NQ0B7JCf3GRnrWHRCeNYyfQurBDcFIVUQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzyKbVGAOf_xXxfXgC7k8m9gO55omEJYG0uzebYkrunVdWDwr_dQW0E1QfMCPpRLTOc/exec";
 const CLOUD_CACHE_KEY = 'lunch_cloud_cache';
 const SETTINGS_KEY = 'lunch_settings';
 
@@ -2189,24 +2189,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
 
-            // v270：Email 通知設定
+            // v290：週結算系統內通知
             html += `<div class="form-group" style="margin-top:1.5rem; padding:1.5rem; background:var(--input-bg); border:2px solid var(--primary); border-radius:0.75rem;">
-                <h4 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:0.5rem;">📧 週五自動 Email 通知總額</h4>
-                <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="email-notif-enabled" ${memoryConfig.emailNotifEnabled === 'true' ? 'checked' : ''}>
-                        <span class="slider round"></span>
-                    </label>
-                    <span>啟用自動發送 (每週五)</span>
+                <h4 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:0.5rem;">🔔 週結算通知</h4>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 1rem 0;">點擊下方按鈕，可即時查看本週（週一至今）所有尚未付清的訂單明細。</p>
+                <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+                    <button id="test-email-btn" class="primary-btn" style="flex:1; justify-content:center;">🔍 查看本週未付清名單</button>
                 </div>
-                <div class="form-group">
-                    <label>發送時間 (週五)</label>
-                    <input type="time" id="email-notif-time" class="restaurant-input time-input" value="${memoryConfig.emailNotifTime || '15:30'}">
-                </div>
-                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-                    <button id="test-email-btn" class="nav-btn" style="flex:1; justify-content:center; background:var(--bg-main); border:1px solid var(--border);">🚀 立即試發通知信 (測試用)</button>
-                </div>
-                <p style="font-size:0.8rem; color:var(--text-muted); margin:0.5rem 0 0 0;">系統將在週五此時間，自動結算本週(週一至週五)之總額，並發送 Email 給所有已填寫 Email 的人員。</p>
             </div>`;
 
             // (系統設定密碼已刪除)
@@ -2364,50 +2353,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderVotingSection();
             };
 
-            // v271：手動測試發信按鈕
+            // v290：查看本週未付清名單（系統內彈跳視窗）
             const testEmailBtn = document.getElementById('test-email-btn');
             if (testEmailBtn) {
                 testEmailBtn.onclick = () => {
-                    if (!confirm('確定要立即發送本週結算 Email 給所有同仁嗎？\n(這將會根據目前「未付清」的金額進行統計)')) return;
-
-                    showToast('正在執行發信程序，請稍候...', 'info');
+                    showToast('正在查詢本週未付清名單...', 'info');
                     fetch(API_URL, {
                         method: 'POST',
-                        body: JSON.stringify({ action: 'sendWeeklyEmailNotifications' })
+                        body: JSON.stringify({ action: 'getWeeklyUnpaidSummary' })
                     })
                         .then(res => res.json())
                         .then(res => {
                             if (res.status === 'success') {
-                                const sentTo = res.sentTo || [];
-                                const skipped = res.skipped || [];
-                                const matchCount = res.matchCount || 0;
-                                const backendVer = res.backendVersion || '舊版(未知)';
+                                const summary = res.summary || [];
+                                const range = res.range || '本週';
 
-                                let msg = `【系統版本 前端:v287 / 後端:${backendVer}】\n`;
-                                console.log("--- 照妖鏡：後端原始名單資料 ---");
-                                console.log(res.rawUsersDebug);
-                                msg += `✅ 測試完成！\n抓到符合本週未付訂單：${matchCount} 筆\n`;
-                                if (sentTo.length > 0) {
-                                    msg += `\n📧 已發送給：${sentTo.join(', ')}`;
-                                }
-                                if (skipped.length > 0) {
-                                    msg += `\n⚠️ 失敗(找不到 Email)：${skipped.join(', ')}`;
-                                    msg += `\n(提示：請檢查人員維護中，這些名字是否有填 Email)`;
-                                }
-                                if (sentTo.length === 0 && skipped.length === 0) {
-                                    msg += `\nℹ️ 本週無任何欠款，或找不到任何符合的人員。`;
+                                // 建立彈跳視窗
+                                const existing = document.getElementById('unpaid-modal');
+                                if (existing) existing.remove();
+
+                                let rowsHtml = '';
+                                if (summary.length === 0) {
+                                    rowsHtml = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">🎉 本週所有人皆已付清！</div>`;
+                                } else {
+                                    summary.forEach(item => {
+                                        const detailLines = item.details.map(d => `<div style="font-size:0.8rem; color:var(--text-muted); padding-left:0.5rem;">• ${d}</div>`).join('');
+                                        rowsHtml += `
+                                            <div style="padding:1rem; border:1px solid var(--border); border-radius:0.5rem; margin-bottom:0.75rem; background:var(--bg-main);">
+                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                                                    <span style="font-weight:600; font-size:1rem;">👤 ${item.name}</span>
+                                                    <span style="font-weight:700; color:var(--danger); font-size:1.1rem;">$${item.amount}</span>
+                                                </div>
+                                                ${detailLines}
+                                            </div>`;
+                                    });
                                 }
 
-                                // v277: 顯示系統目前抓到的所有人名
-                                msg += `\n\n--- 系統目前在後台看到的人員名單 ---\n`;
-                                msg += (res.allNamesInSystem && res.allNamesInSystem.length > 0)
-                                    ? res.allNamesInSystem.join(', ')
-                                    : '(空，請檢查試算表 users 分頁)';
+                                const modal = document.createElement('div');
+                                modal.id = 'unpaid-modal';
+                                modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
+                                modal.innerHTML = `
+                                    <div style="background:var(--bg-card); border-radius:1rem; max-width:480px; width:100%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                                        <div style="padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                                            <div>
+                                                <h3 style="margin:0; font-size:1.1rem;">🔔 本週未付清名單</h3>
+                                                <p style="margin:0.2rem 0 0; font-size:0.8rem; color:var(--text-muted);">${range}</p>
+                                            </div>
+                                            <button id="close-unpaid-modal" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:var(--text-muted); line-height:1;">×</button>
+                                        </div>
+                                        <div style="padding:1.25rem 1.5rem; overflow-y:auto; flex:1;">
+                                            ${rowsHtml}
+                                        </div>
+                                        <div style="padding:1rem 1.5rem; border-top:1px solid var(--border); text-align:center;">
+                                            <button id="confirm-unpaid-modal" class="primary-btn" style="width:100%;">確定</button>
+                                        </div>
+                                    </div>`;
 
-                                alert(msg);
-                                showToast('測試發信完成');
+                                document.body.appendChild(modal);
+                                document.getElementById('close-unpaid-modal').onclick = () => modal.remove();
+                                document.getElementById('confirm-unpaid-modal').onclick = () => modal.remove();
+                                modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+                                showToast(`查詢完成，共 ${summary.length} 人尚未付清`);
                             } else {
-                                showToast('❌ 發信失敗：' + (res.message || '未知錯誤'), 'error');
+                                showToast('❌ 查詢失敗：' + (res.message || '未知錯誤'), 'error');
                             }
                         })
                         .catch(err => showToast('網路錯誤：' + err, 'error'));
