@@ -2391,20 +2391,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                 const modal = document.createElement('div');
                                 modal.id = 'unpaid-modal';
-                                modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
+                                modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
                                 modal.innerHTML = `
-                                    <div style="background:var(--bg-card); border-radius:1rem; max-width:480px; width:100%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                                        <div style="padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="background:#ffffff; border-radius:1rem; max-width:480px; width:100%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+                                        <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
                                             <div>
-                                                <h3 style="margin:0; font-size:1.1rem;">🔔 本週未付清名單</h3>
-                                                <p style="margin:0.2rem 0 0; font-size:0.8rem; color:var(--text-muted);">${range}</p>
+                                                <h3 style="margin:0; font-size:1.1rem; color:#333;">🔔 本週未付清名單</h3>
+                                                <p style="margin:0.2rem 0 0; font-size:0.8rem; color:#888;">${range}</p>
                                             </div>
-                                            <button id="close-unpaid-modal" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:var(--text-muted); line-height:1;">×</button>
+                                            <button id="close-unpaid-modal" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#aaa; line-height:1;">×</button>
                                         </div>
                                         <div style="padding:1.25rem 1.5rem; overflow-y:auto; flex:1;">
                                             ${rowsHtml}
                                         </div>
-                                        <div style="padding:1rem 1.5rem; border-top:1px solid var(--border); text-align:center;">
+                                        <div style="padding:1rem 1.5rem; border-top:1px solid #eee; text-align:center;">
                                             <button id="confirm-unpaid-modal" class="primary-btn" style="width:100%;">確定</button>
                                         </div>
                                     </div>`;
@@ -2824,6 +2824,62 @@ document.addEventListener('DOMContentLoaded', () => {
         loginOverlay.style.display = 'none';
         showToast(`歡迎回來，${name}！`, "success");
         toggleRoleUI();
+
+        // v290: 一般使用者登入後，自動檢查本週是否有未付清
+        if (role === 'user') {
+            setTimeout(() => {
+                fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getWeeklyUnpaidSummary' })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    const summary = res.summary || [];
+                    // 只找該使用者自己的未付清
+                    const myRecord = summary.find(item => item.name === name);
+                    if (!myRecord) return; // 沒有欠款就不顯示
+
+                    const range = res.range || '本週';
+                    const detailLines = myRecord.details.map(d =>
+                        `<div style="font-size:0.85rem; color:#666; padding:0.3rem 0; border-bottom:1px solid #f0f0f0;">${d}</div>`
+                    ).join('');
+
+                    const existing = document.getElementById('unpaid-notify-modal');
+                    if (existing) existing.remove();
+
+                    const modal = document.createElement('div');
+                    modal.id = 'unpaid-notify-modal';
+                    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
+                    modal.innerHTML = `
+                        <div style="background:#ffffff; border-radius:1rem; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.2); overflow:hidden;">
+                            <div style="background:#ff4d4f; padding:1.25rem 1.5rem; color:#fff;">
+                                <h3 style="margin:0; font-size:1.1rem;">💰 您有本週未付清餐費</h3>
+                                <p style="margin:0.3rem 0 0; font-size:0.8rem; opacity:0.9;">${range}</p>
+                            </div>
+                            <div style="padding:1.25rem 1.5rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding:0.75rem; background:#fff5f5; border-radius:0.5rem; border:1px solid #ffccc7;">
+                                    <span style="font-size:0.95rem; color:#333;">本週尚欠總額</span>
+                                    <span style="font-size:1.4rem; font-weight:700; color:#ff4d4f;">$${myRecord.amount}</span>
+                                </div>
+                                <div style="margin-bottom:1rem;">
+                                    <p style="margin:0 0 0.5rem; font-size:0.85rem; color:#888; font-weight:600;">訂餐明細：</p>
+                                    ${detailLines}
+                                </div>
+                                <p style="margin:0; font-size:0.8rem; color:#888; text-align:center;">請記得找負責人結清喔！</p>
+                            </div>
+                            <div style="padding:0.75rem 1.5rem 1.25rem; text-align:center;">
+                                <button id="close-notify-modal" style="background:#ff4d4f; color:#fff; border:none; border-radius:0.5rem; padding:0.6rem 2rem; font-size:0.95rem; cursor:pointer; font-weight:600; width:100%;">我知道了</button>
+                            </div>
+                        </div>`;
+
+                    document.body.appendChild(modal);
+                    document.getElementById('close-notify-modal').onclick = () => modal.remove();
+                    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+                })
+                .catch(() => {}); // 靜默失敗，不影響正常使用
+            }, 800); // 稍微延遲，讓登入動畫先完成
+        }
     }
 
     function toggleRoleUI() {
