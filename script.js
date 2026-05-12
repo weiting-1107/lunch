@@ -2189,14 +2189,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
 
-            // v290：週結算系統內通知
+            // v292：週結算系統內通知（可設定自動通知時間）
             html += `<div class="form-group" style="margin-top:1.5rem; padding:1.5rem; background:var(--input-bg); border:2px solid var(--primary); border-radius:0.75rem;">
-                <h4 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:0.5rem;">🔔 週結算通知</h4>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 1rem 0;">點擊下方按鈕，可即時查看本週（週一至今）所有尚未付清的訂單明細。</p>
-                <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-                    <button id="test-email-btn" class="primary-btn" style="flex:1; justify-content:center;">🔍 查看本週未付清名單</button>
+                <h4 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:0.5rem;">🔔 週結算通知設定</h4>
+                <div class="form-group">
+                    <label style="font-size:0.9rem;">每日自動通知時間</label>
+                    <input type="time" id="notify-time" class="restaurant-input time-input" value="${memoryConfig.notifyTime || '15:30'}">
+                    <p style="font-size:0.78rem; color:var(--text-muted); margin:0.4rem 0 0;">將於每天此時間自動通知尚未付清的使用者。關閉瀏覽器則不生效。</p>
+                </div>
+                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <button id="test-email-btn" class="primary-btn" style="flex:1; justify-content:center;">🔍 立即查看本週未付清名單</button>
                 </div>
             </div>`;
+
 
             // (系統設定密碼已刪除)
             html += `<button id="save-config-btn" class="primary-btn" style="width:100%;">儲存設定</button>`;
@@ -2333,18 +2338,16 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (activeSettingsTab === 'tab-config') {
             document.getElementById('save-config-btn').onclick = () => {
                 const t = document.getElementById('config-vote-time').value;
-                const emailEnabled = document.getElementById('email-notif-enabled').checked;
-                const emailTime = document.getElementById('email-notif-time').value;
+                const notifyTime = document.getElementById('notify-time')?.value || '';
 
                 memoryConfig.voteCutoffTime = t;
-                memoryConfig.emailNotifEnabled = String(emailEnabled); // v270
-                memoryConfig.emailNotifTime = emailTime; // v270
+                memoryConfig.notifyTime = notifyTime; // v292
 
                 const newConfig = [];
                 Object.keys(memoryConfig).forEach(k => {
                     let val = memoryConfig[k];
                     // 時間字串加單引號防止 Excel 自動轉換
-                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k === 'emailNotifTime') val = "'" + normalizeTime(val);
+                    if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k === 'notifyTime') val = "'" + normalizeTime(val);
                     newConfig.push({ key: k, value: val });
                 });
                 saveCloudData("saveConfig", newConfig);
@@ -2880,6 +2883,83 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(() => {}); // 靜默失敗，不影響正常使用
             }, 800); // 稍微延遲，讓登入動畫先完成
         }
+
+        // v292: 啟動自動排程計時器（每分鐘檢查一次是否到了通知時間）
+        startNotifyScheduler(name, role);
+    }
+
+    // v292: 自動通知排程器
+    let _notifySchedulerTimer = null;
+    let _notifiedDate = ''; // 記錄今天是否已通知過（避免重複）
+
+    function startNotifyScheduler(name, role) {
+        if (_notifySchedulerTimer) clearInterval(_notifySchedulerTimer); // 清除舊計時器
+        if (role === 'admin') return; // 管理員不需要自動通知
+
+        _notifySchedulerTimer = setInterval(() => {
+            const configuredTime = (memoryConfig.notifyTime || '').replace(/^'/, '').trim();
+            if (!configuredTime) return;
+
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const currentTime = `${hh}:${mm}`;
+            const today = now.toISOString().slice(0, 10);
+
+            // 時間符合 且 今天還沒通知過
+            if (currentTime === configuredTime && _notifiedDate !== today) {
+                _notifiedDate = today; // 標記今天已通知，避免重複觸發
+                fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getWeeklyUnpaidSummary' })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    const summary = res.summary || [];
+                    const myRecord = summary.find(item => item.name === name);
+                    if (!myRecord) return;
+
+                    const range = res.range || '本週';
+                    const detailLines = myRecord.details.map(d =>
+                        `<div style="font-size:0.85rem; color:#666; padding:0.3rem 0; border-bottom:1px solid #f0f0f0;">${d}</div>`
+                    ).join('');
+
+                    const existing = document.getElementById('unpaid-notify-modal');
+                    if (existing) existing.remove();
+
+                    const modal = document.createElement('div');
+                    modal.id = 'unpaid-notify-modal';
+                    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
+                    modal.innerHTML = `
+                        <div style="background:#ffffff; border-radius:1rem; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.2); overflow:hidden;">
+                            <div style="background:#ff4d4f; padding:1.25rem 1.5rem; color:#fff;">
+                                <h3 style="margin:0; font-size:1.1rem;">💰 您有本週未付清餐費</h3>
+                                <p style="margin:0.3rem 0 0; font-size:0.8rem; opacity:0.9;">${range}</p>
+                            </div>
+                            <div style="padding:1.25rem 1.5rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding:0.75rem; background:#fff5f5; border-radius:0.5rem; border:1px solid #ffccc7;">
+                                    <span style="font-size:0.95rem; color:#333;">本週尚欠總額</span>
+                                    <span style="font-size:1.4rem; font-weight:700; color:#ff4d4f;">$${myRecord.amount}</span>
+                                </div>
+                                <div style="margin-bottom:1rem;">
+                                    <p style="margin:0 0 0.5rem; font-size:0.85rem; color:#888; font-weight:600;">訂餐明細：</p>
+                                    ${detailLines}
+                                </div>
+                                <p style="margin:0; font-size:0.8rem; color:#888; text-align:center;">請記得找負責人結清喔！</p>
+                            </div>
+                            <div style="padding:0.75rem 1.5rem 1.25rem; text-align:center;">
+                                <button id="close-notify-modal-sched" style="background:#ff4d4f; color:#fff; border:none; border-radius:0.5rem; padding:0.6rem 2rem; font-size:0.95rem; cursor:pointer; font-weight:600; width:100%;">我知道了</button>
+                            </div>
+                        </div>`;
+
+                    document.body.appendChild(modal);
+                    document.getElementById('close-notify-modal-sched').onclick = () => modal.remove();
+                    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+                })
+                .catch(() => {});
+            }
+        }, 60000); // 每 60 秒檢查一次
     }
 
     function toggleRoleUI() {
