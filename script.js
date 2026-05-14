@@ -2189,16 +2189,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasOverrides) html += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">無特定日期設定 (皆使用上方預設時間)</td></tr>`;
             html += `</tbody></table></div>`;
 
-            // v292：週結算系統內通知（可設定自動通知時間）
+            // v293：週結算系統內通知（可設定自動通知時間與星期，並可手動發送）
+            const days = ['日', '一', '二', '三', '四', '五', '六'];
+            let dayOptions = '';
+            for (let i = 0; i < 7; i++) {
+                dayOptions += `<option value="${i}" ${memoryConfig.notifyDay === String(i) ? 'selected' : ''}>每週${days[i]}</option>`;
+            }
+
             html += `<div class="form-group" style="margin-top:1.5rem; padding:1.5rem; background:var(--input-bg); border:2px solid var(--primary); border-radius:0.75rem;">
                 <h4 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:0.5rem;">🔔 週結算通知設定</h4>
-                <div class="form-group">
-                    <label style="font-size:0.9rem;">每日自動通知時間</label>
-                    <input type="time" id="notify-time" class="restaurant-input time-input" value="${memoryConfig.notifyTime || '15:30'}">
-                    <p style="font-size:0.78rem; color:var(--text-muted); margin:0.4rem 0 0;">將於每天此時間自動通知尚未付清的使用者。關閉瀏覽器則不生效。</p>
+                <div class="form-group" style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.9rem;">每週通知日</label>
+                        <select id="notify-day" class="restaurant-input">${dayOptions}</select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.9rem;">每日自動通知時間</label>
+                        <input type="time" id="notify-time" class="restaurant-input time-input" value="${memoryConfig.notifyTime || '15:30'}">
+                    </div>
                 </div>
+                <p style="font-size:0.78rem; color:var(--text-muted); margin:0.4rem 0 0;">系統將在設定的「週幾」與「時間」，自動在使用者畫面上跳出尚未付清的提示。（註：使用者需開啟網頁才會觸發）</p>
                 <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-                    <button id="test-email-btn" class="primary-btn" style="flex:1; justify-content:center;">🔍 立即查看本週未付清名單</button>
+                    <button id="test-email-btn" class="secondary-btn" style="flex:1; justify-content:center;">🔍 預覽本週未付清名單</button>
+                    <button id="manual-notify-btn" class="primary-btn" style="flex:1; justify-content:center; background:#ff4d4f; border-color:#ff4d4f;">🚀 立即強制發送通知</button>
                 </div>
             </div>`;
 
@@ -2338,10 +2351,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (activeSettingsTab === 'tab-config') {
             document.getElementById('save-config-btn').onclick = () => {
                 const t = document.getElementById('config-vote-time').value;
+                const notifyDay = document.getElementById('notify-day')?.value || '5'; // 預設週五
                 const notifyTime = document.getElementById('notify-time')?.value || '';
 
                 memoryConfig.voteCutoffTime = t;
-                memoryConfig.notifyTime = notifyTime; // v292
+                memoryConfig.notifyDay = notifyDay; // v293
+                memoryConfig.notifyTime = notifyTime;
 
                 const newConfig = [];
                 Object.keys(memoryConfig).forEach(k => {
@@ -2355,6 +2370,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderSettingsTab();
                 renderVotingSection();
             };
+
+            // v293：強制手動發送通知按鈕
+            const manualNotifyBtn = document.getElementById('manual-notify-btn');
+            if (manualNotifyBtn) {
+                manualNotifyBtn.onclick = () => {
+                    if (!confirm('確定要立即強制發送「未付清通知」給所有正在線上的使用者嗎？\n(將會讓欠款者的畫面立刻跳出提示)')) return;
+
+                    showToast('正在發送強制通知信號...', 'info');
+                    
+                    memoryConfig.lastManualNotify = Date.now().toString();
+                    const newConfig = [];
+                    Object.keys(memoryConfig).forEach(k => {
+                        let val = memoryConfig[k];
+                        if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k === 'notifyTime') val = "'" + normalizeTime(val);
+                        newConfig.push({ key: k, value: val });
+                    });
+                    
+                    // 儲存設定，這會更新後台的 lastManualNotify，其他人的客戶端檢查到就會跳出
+                    saveCloudData("saveConfig", newConfig)
+                        .then(() => {
+                            showToast('✅ 強制發送成功！正在線上的欠款者會在一分鐘內收到通知。');
+                        })
+                        .catch(err => {
+                            showToast('網路錯誤，請重試', 'error');
+                        });
+                };
+            }
 
             // v290：查看本週未付清名單（系統內彈跳視窗）
             const testEmailBtn = document.getElementById('test-email-btn');
@@ -2399,7 +2441,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div style="background:#ffffff; border-radius:1rem; max-width:480px; width:100%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
                                         <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
                                             <div>
-                                                <h3 style="margin:0; font-size:1.1rem; color:#333;">🔔 本週未付清名單</h3>
+                                                <h3 style="margin:0; font-size:1.1rem; color:#333;">🔔 本週未付清名單預覽</h3>
                                                 <p style="margin:0.2rem 0 0; font-size:0.8rem; color:#888;">${range}</p>
                                             </div>
                                             <button id="close-unpaid-modal" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#aaa; line-height:1;">×</button>
@@ -2884,81 +2926,111 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 800); // 稍微延遲，讓登入動畫先完成
         }
 
-        // v292: 啟動自動排程計時器（每分鐘檢查一次是否到了通知時間）
+        // v293: 啟動自動排程計時器（每分鐘檢查一次）
         startNotifyScheduler(name, role);
     }
 
-    // v292: 自動通知排程器
+    // v293: 自動通知排程器與手動檢查
     let _notifySchedulerTimer = null;
-    let _notifiedDate = ''; // 記錄今天是否已通知過（避免重複）
+    let _notifiedDate = ''; // 記錄今天是否已通知過自動排程
+
+    function showUserUnpaidPopup(name, title = '💰 您有本週未付清餐費') {
+        fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getWeeklyUnpaidSummary' })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status !== 'success') return;
+            const summary = res.summary || [];
+            const myRecord = summary.find(item => item.name === name);
+            if (!myRecord) return; // 沒欠款不顯示
+
+            const range = res.range || '本週';
+            const detailLines = myRecord.details.map(d =>
+                `<div style="font-size:0.85rem; color:#666; padding:0.3rem 0; border-bottom:1px solid #f0f0f0;">${d}</div>`
+            ).join('');
+
+            const existing = document.getElementById('unpaid-notify-modal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'unpaid-notify-modal';
+            modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
+            modal.innerHTML = `
+                <div style="background:#ffffff; border-radius:1rem; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.2); overflow:hidden; animation: slideDown 0.3s ease-out;">
+                    <div style="background:#ff4d4f; padding:1.25rem 1.5rem; color:#fff;">
+                        <h3 style="margin:0; font-size:1.1rem;">${title}</h3>
+                        <p style="margin:0.3rem 0 0; font-size:0.8rem; opacity:0.9;">${range}</p>
+                    </div>
+                    <div style="padding:1.25rem 1.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding:0.75rem; background:#fff5f5; border-radius:0.5rem; border:1px solid #ffccc7;">
+                            <span style="font-size:0.95rem; color:#333;">本週尚欠總額</span>
+                            <span style="font-size:1.4rem; font-weight:700; color:#ff4d4f;">$${myRecord.amount}</span>
+                        </div>
+                        <div style="margin-bottom:1rem;">
+                            <p style="margin:0 0 0.5rem; font-size:0.85rem; color:#888; font-weight:600;">訂餐明細：</p>
+                            ${detailLines}
+                        </div>
+                        <p style="margin:0; font-size:0.8rem; color:#888; text-align:center;">請記得找負責人結清喔！</p>
+                    </div>
+                    <div style="padding:0.75rem 1.5rem 1.25rem; text-align:center;">
+                        <button id="close-notify-modal-sched" style="background:#ff4d4f; color:#fff; border:none; border-radius:0.5rem; padding:0.6rem 2rem; font-size:0.95rem; cursor:pointer; font-weight:600; width:100%;">我知道了</button>
+                    </div>
+                </div>`;
+
+            document.body.appendChild(modal);
+            document.getElementById('close-notify-modal-sched').onclick = () => modal.remove();
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        })
+        .catch(() => {});
+    }
 
     function startNotifyScheduler(name, role) {
         if (_notifySchedulerTimer) clearInterval(_notifySchedulerTimer); // 清除舊計時器
         if (role === 'admin') return; // 管理員不需要自動通知
 
         _notifySchedulerTimer = setInterval(() => {
+            // 1. 檢查是否到了排定時間 (週幾 + 時間)
+            const configuredDay = memoryConfig.notifyDay || '';
             const configuredTime = (memoryConfig.notifyTime || '').replace(/^'/, '').trim();
-            if (!configuredTime) return;
-
+            
             const now = new Date();
+            const dayOfWeek = String(now.getDay()); // 0=Sun, 1=Mon, ...
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
             const currentTime = `${hh}:${mm}`;
             const today = now.toISOString().slice(0, 10);
 
-            // 時間符合 且 今天還沒通知過
-            if (currentTime === configuredTime && _notifiedDate !== today) {
-                _notifiedDate = today; // 標記今天已通知，避免重複觸發
-                fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'getWeeklyUnpaidSummary' })
-                })
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status !== 'success') return;
-                    const summary = res.summary || [];
-                    const myRecord = summary.find(item => item.name === name);
-                    if (!myRecord) return;
-
-                    const range = res.range || '本週';
-                    const detailLines = myRecord.details.map(d =>
-                        `<div style="font-size:0.85rem; color:#666; padding:0.3rem 0; border-bottom:1px solid #f0f0f0;">${d}</div>`
-                    ).join('');
-
-                    const existing = document.getElementById('unpaid-notify-modal');
-                    if (existing) existing.remove();
-
-                    const modal = document.createElement('div');
-                    modal.id = 'unpaid-notify-modal';
-                    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;`;
-                    modal.innerHTML = `
-                        <div style="background:#ffffff; border-radius:1rem; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.2); overflow:hidden;">
-                            <div style="background:#ff4d4f; padding:1.25rem 1.5rem; color:#fff;">
-                                <h3 style="margin:0; font-size:1.1rem;">💰 您有本週未付清餐費</h3>
-                                <p style="margin:0.3rem 0 0; font-size:0.8rem; opacity:0.9;">${range}</p>
-                            </div>
-                            <div style="padding:1.25rem 1.5rem;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding:0.75rem; background:#fff5f5; border-radius:0.5rem; border:1px solid #ffccc7;">
-                                    <span style="font-size:0.95rem; color:#333;">本週尚欠總額</span>
-                                    <span style="font-size:1.4rem; font-weight:700; color:#ff4d4f;">$${myRecord.amount}</span>
-                                </div>
-                                <div style="margin-bottom:1rem;">
-                                    <p style="margin:0 0 0.5rem; font-size:0.85rem; color:#888; font-weight:600;">訂餐明細：</p>
-                                    ${detailLines}
-                                </div>
-                                <p style="margin:0; font-size:0.8rem; color:#888; text-align:center;">請記得找負責人結清喔！</p>
-                            </div>
-                            <div style="padding:0.75rem 1.5rem 1.25rem; text-align:center;">
-                                <button id="close-notify-modal-sched" style="background:#ff4d4f; color:#fff; border:none; border-radius:0.5rem; padding:0.6rem 2rem; font-size:0.95rem; cursor:pointer; font-weight:600; width:100%;">我知道了</button>
-                            </div>
-                        </div>`;
-
-                    document.body.appendChild(modal);
-                    document.getElementById('close-notify-modal-sched').onclick = () => modal.remove();
-                    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-                })
-                .catch(() => {});
+            let shouldNotifyScheduled = false;
+            // 判斷：是否有設定、是否星期相符、是否時間相符、今天是否還沒通知過
+            if (configuredDay && configuredTime && configuredDay === dayOfWeek && currentTime === configuredTime && _notifiedDate !== today) {
+                _notifiedDate = today; 
+                shouldNotifyScheduled = true;
             }
+
+            if (shouldNotifyScheduled) {
+                showUserUnpaidPopup(name, '⏰ 週結算通知');
+            }
+
+            // 2. 檢查管理員是否有手動強制觸發
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'checkNotify' })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success' && res.lastManualNotify) {
+                    const lastManual = parseInt(res.lastManualNotify, 10) || 0;
+                    const lastSeen = parseInt(localStorage.getItem('lunch_last_seen_notify'), 10) || 0;
+                    // 如果有新的強制通知，且尚未看過
+                    if (lastManual > lastSeen) {
+                        localStorage.setItem('lunch_last_seen_notify', lastManual.toString());
+                        showUserUnpaidPopup(name, '🔔 管理員提醒：請確認本週未付清餐費');
+                    }
+                }
+            })
+            .catch(() => {});
         }, 60000); // 每 60 秒檢查一次
     }
 
