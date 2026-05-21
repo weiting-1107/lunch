@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalImgSize = dataArray.reduce((acc, r) => acc + (r.menuImage ? r.menuImage.length : 0), 0);
             console.log(`[Debug] 餐廳資料包含圖片: ${hasImg ? '是' : '否'}, 圖片總字元數: ${totalImgSize.toLocaleString()}`);
 
-            if (totalImgSize > 500000) {
+            if (totalImgSize > 950000) {
                 console.warn("[Cloud Sync] 警告：圖片資料量極大 (" + totalImgSize + ")，建議縮小圖片或降低品質。");
             }
         }
@@ -3296,8 +3296,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     base64 = canvas.toDataURL('image/jpeg', 0.8);
                 }
 
-                // 檢查是否過大
-                if (base64.length > 450000) {
+                // 檢查是否過大 (v295: 提升至 90 萬字元)
+                if (base64.length > 900000) {
                     console.warn("圖片過大，嘗試進一步壓縮...");
                     base64 = canvas.toDataURL('image/webp', 0.6);
                 }
