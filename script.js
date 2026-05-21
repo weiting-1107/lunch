@@ -1036,8 +1036,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const orderFormContainer = document.getElementById('order-form-container');
         const votePrompt = document.getElementById('vote-needed-msg');
         if (orderFormContainer && votePrompt) {
-            const isTBD = (displayWinner === '待定...');
-            console.log(`[OrderForm] 餐廳狀態: ${displayWinner}, 是否隱藏表單: ${isTBD}`);
+            const isAdmin = (currentUser && currentUser.role === 'admin');
+            const isTBD = (displayWinner === '待定...' && !isAdmin);
+            console.log(`[OrderForm] 餐廳狀態: ${displayWinner}, 身分: ${currentUser ? currentUser.role : 'guest'}, 是否隱藏表單: ${isTBD}`);
             
             orderFormContainer.classList.toggle('hidden', isTBD);
             votePrompt.classList.toggle('hidden', !isTBD);
