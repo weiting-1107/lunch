@@ -2113,7 +2113,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     html += `<td data-label="店名">${menuBtn}<strong>${r.name}</strong>${r.address ? `<br><small style="color:var(--text-muted);">${r.address}</small>` : ''}</td>`;
                     html += `<td data-label="電話">${r.phone || '-'}</td>`;
                     html += `<td data-label="營業日" style="font-size:0.8rem;">${openDaysStr}</td>`;
-                    html += `<td data-label="操作" style="text-align:center;white-space:nowrap;"><button class="secondary-btn" onclick="editRestaurant('${r.id}')" style="margin-right:4px;">編輯</button><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td>`;
+                    const viewImgBtn = `<button class="secondary-btn" style="color:var(--primary); margin-right:4px;" onclick="openMenuViewer('${r.name}')">🖼️ 查看</button>`;
+                    html += `<td data-label="操作" style="text-align:center; white-space:nowrap;">${viewImgBtn}<button class="secondary-btn" onclick="editRestaurant('${r.id}')" style="margin-right:4px;">編輯</button><button class="secondary-btn" style="color:var(--danger);" onclick="deleteRestaurant('${r.id}')">刪除</button></td>`;
                     html += `</tr>`;
                 });
                 if (memoryRestaurants.length === 0) html += `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">尚無餐廳資料</td></tr>`;
