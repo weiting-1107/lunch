@@ -423,10 +423,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         return u;
                     });
                     memoryRestaurants = data.restaurants || [];
-                    memoryVotes = (data.votes || []).map(v => {
+                    const voteMap = new Map();
+                    (data.votes || []).forEach(v => {
                         v.date = normalizeDate(v.date);
-                        return v;
+                        voteMap.set(`${v.date}_${v.mealType}_${v.userName}`, v);
                     });
+                    memoryVotes = Array.from(voteMap.values());
                     memoryConfig = {};
                     (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
 
@@ -2800,21 +2802,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-switch-link').innerText = (authMode === 'login') ? '點我註冊' : '已有帳號？點我登入';
         document.getElementById('auth-switch-note').firstChild.textContent = (authMode === 'login') ? '還沒有帳號嗎？ ' : '';
         registerNote.style.display = (authMode === 'login') ? 'none' : 'block';
-        if (authEmailGroup) authEmailGroup.style.display = (authMode === 'login') ? 'none' : 'block';
     }
 
     function handleAuthSubmit() {
         const name = authNameInput.value.trim();
         const pass = authPassInput.value.trim();
-        const email = authEmailInput ? authEmailInput.value.trim() : '';
-
         if (!name || !pass) {
             showToast("請完整輸入姓名與密碼", "error");
-            return;
-        }
-
-        if (authMode === 'register' && !email) {
-            showToast("註冊時請輸入 Email 以接收通知", "error");
             return;
         }
 
@@ -2844,7 +2838,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const newUser = {
                 id: 'U' + Date.now(),
                 name: name,
-                email: email, // v270
                 password: pass,
                 role: 'user'
             };
@@ -3349,7 +3342,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (Array.isArray(cached.restaurants)) memoryRestaurants = cached.restaurants;
                 if (Array.isArray(cached.votes)) {
-                    memoryVotes = cached.votes.map(v => { v.date = normalizeDate(v.date); return v; });
+                    const voteMap = new Map();
+                    cached.votes.forEach(v => {
+                        v.date = normalizeDate(v.date);
+                        voteMap.set(`${v.date}_${v.mealType}_${v.userName}`, v);
+                    });
+                    memoryVotes = Array.from(voteMap.values());
                 }
                 if (Array.isArray(cached.config)) {
                     memoryConfig = {};
