@@ -1032,6 +1032,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // v296: 控制「填寫訂單」與「提示投票」區塊的顯示隱藏
+        const orderFormContainer = document.getElementById('order-form-container');
+        const votePrompt = document.getElementById('vote-needed-msg');
+        if (orderFormContainer && votePrompt) {
+            // 如果顯示為「待定...」，則隱藏表單顯示提示
+            if (displayWinner === '待定...') {
+                orderFormContainer.style.display = 'none';
+                votePrompt.style.display = 'block';
+            } else {
+                orderFormContainer.style.display = 'block';
+                votePrompt.style.display = 'none';
+            }
+        }
+
         // v247：確保每次狀態變更後，都重新刷新菜單按鈕的連結與顯示狀態
         if (typeof updateRestaurantMenuDisplay === 'function') updateRestaurantMenuDisplay();
 

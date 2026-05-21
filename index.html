@@ -235,6 +235,13 @@
                         儲存每週排餐設定</button>
                 </div>
 
+                <!-- 尚未決定餐廳時的提示區塊 (v296 新增) -->
+                <div id="vote-needed-msg" class="order-form-card" style="display:none; text-align:center; padding:3rem 1.5rem; border:2px dashed var(--warning); background:var(--bg-main);">
+                    <div style="font-size:3rem; margin-bottom:1rem;">🗳️</div>
+                    <h3 style="color:var(--warning); margin-bottom:0.5rem;">今日餐廳正在投票中</h3>
+                    <p style="color:var(--text-muted); line-height:1.6;">目前尚未選出勝選餐廳，請先在下方的「餐廳投票」區塊投下您神聖的一票。<br>待投票截止或有人開單後，即可開始點餐。</p>
+                </div>
+
                 <!-- 點餐表單 (手機版順序：最後) -->
                 <div class="order-form-card user-only" id="order-form-container">
                     <div class="form-header"
