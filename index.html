@@ -192,7 +192,7 @@
                                 <option value="午餐" selected>午餐</option>
                             </select>
                         </div>
-                        <div class="form-group" style="margin:0;">
+                        <div class="form-group" style="margin:0; display:none;">
                             <h4>🏢 今日餐廳</h4>
                             <div style="display:flex; gap:0.5rem; align-items:center;">
                                 <select id="admin-restaurant-name" class="restaurant-input"
@@ -347,8 +347,10 @@
             </div>
 
             <!-- 三大情境頁籤 Tabs -->
-            <div class="modal-tabs" style="display:none;">
+            <div class="modal-tabs">
                 <button class="modal-tab-btn active" data-tab="tab-details">流水記帳表</button>
+                <button class="modal-tab-btn admin-only" data-tab="tab-caller">電話叫餐表</button>
+                <button class="modal-tab-btn admin-only" data-tab="tab-person">個人結算總額</button>
             </div>
 
             <div class="modal-body">

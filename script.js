@@ -114,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Modal UI 變數 (之前被意外刪除)
     const currentWeekLabel = document.getElementById('current-week-label');
+    const tabBtns = document.querySelectorAll('.modal-tab-btn');
     let currentActiveTab = 'tab-details';
     let currentViewDate = new Date();
     let isSettingsAuthenticated = false; // 系統設定驗證狀態
@@ -206,22 +207,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 導覽邏輯 ---
     function openDetails() {
-        if (tabBtns.length > 0) {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            const detailTab = document.querySelector('[data-tab="tab-details"]');
-            if (detailTab) detailTab.classList.add('active');
-        }
+        tabBtns.forEach(b => b.classList.remove('active'));
+        const detailTab = document.querySelector('[data-tab="tab-details"]');
+        if (detailTab) detailTab.classList.add('active');
         currentActiveTab = 'tab-details';
         if (excelModal) excelModal.classList.remove('hidden');
         if (typeof renderOrders === 'function') renderOrders();
     }
 
     function openPerson() {
-        if (tabBtns.length > 0) {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            const personTab = document.querySelector('[data-tab="tab-person"]');
-            if (personTab) personTab.classList.add('active');
-        }
+        tabBtns.forEach(b => b.classList.remove('active'));
+        const personTab = document.querySelector('[data-tab="tab-person"]');
+        if (personTab) personTab.classList.add('active');
         currentActiveTab = 'tab-person';
         if (excelModal) excelModal.classList.remove('hidden');
         if (typeof renderOrders === 'function') renderOrders();
@@ -241,8 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function highlightTab(tabName) {
         currentActiveTab = tabName;
-        const allTabs = document.querySelectorAll('.tab-btn');
-        allTabs.forEach(b => {
+        tabBtns.forEach(b => {
             if (b.getAttribute('data-tab') === tabName) b.classList.add('active');
             else b.classList.remove('active');
         });
@@ -2980,7 +2976,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const mobSettingsRow = document.querySelector('.mobile-settings-row');
             if (mobSettingsRow) mobSettingsRow.style.display = 'none';
 
-            // 更新導航標籤 (個人 -> 總帳)
+            // v300: 根據角色隱藏報表分頁中的管理分頁
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            document.querySelectorAll('.modal-tab-btn.admin-only').forEach(el => {
+                el.style.display = isAdmin ? 'inline-block' : 'none';
+            });
+
+            // 預載資料後更新介面內容導航標籤 (個人 -> 總帳)
             const personBtnSpan = document.querySelector('.nav-person-btn span');
             if (personBtnSpan) personBtnSpan.textContent = '總帳';
         } else {
