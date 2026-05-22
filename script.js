@@ -625,21 +625,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 將設定維持在 LocalStorage，因為個人設定不需要全公司同步
     function getSettings() {
-        const defaultCutoffs = {
-            '早餐': '09:00',
-            '午餐': '11:00',
-            '下午茶': '15:30',
-            '晚餐': '18:00',
-            '宵夜': '22:30'
-        };
+        const defaultCutoffs = { '午餐': '11:00' };
         try {
             const s = JSON.parse(localStorage.getItem(SETTINGS_KEY));
             return {
                 mealCutoffs: s?.mealCutoffs || defaultCutoffs,
-                cutoffTime: s?.cutoffTime || '10:30' // 舊版相容
+                cutoffTime: s?.cutoffTime || '11:00'
             };
         } catch (e) {
-            return { mealCutoffs: defaultCutoffs, cutoffTime: '10:30' };
+            return { mealCutoffs: defaultCutoffs, cutoffTime: '11:00' };
         }
     }
 
@@ -656,13 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ★ 根據目前時間自動選擇預設餐期
     function getCurrentMealPeriod() {
-        const now = new Date();
-        const h = now.getHours();
-        if (h >= 6 && h < 10) return '早餐';
-        if (h >= 10 && h < 13) return '午餐';
-        if (h >= 13 && h < 16) return '下午茶';
-        if (h >= 16 && h < 21) return '晚餐';
-        return '宵夜'; // 21:00 ~ 06:00
+        return '午餐';
     }
 
     (function setDefaultMealType() {
@@ -814,32 +802,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 鎖單檢查 (包含日期、餐期順序與截止時間)
+    // 鎖單檢查 (v300: 簡化為日期與單一截止時間檢查)
     function isSessionLocked(dateStr, mealTypeStr) {
         const todayStr = getTodayString();
-        if (dateStr < todayStr) return true; // 過去日期一律鎖死
+        if (dateStr < todayStr) return true;
 
         if (dateStr === todayStr) {
-            // 1. 餐期順序檢查 (如果現在已經是後續餐期，則前面的餐期自動鎖定)
-            const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
-            const currentPeriod = getCurrentMealPeriod();
-            const selectedIdx = mealOrder.indexOf(mealTypeStr);
-            const currentIdx = mealOrder.indexOf(currentPeriod);
-            if (selectedIdx < currentIdx) return true;
-
-            // 2. 截止時間檢查
             const settings = getSettings();
-            const mealDefault = settings.mealCutoffs[mealTypeStr] || settings.cutoffTime || '10:30';
-
-            const orders = getOrders();
-            const sessionOrders = orders.filter(o => o.date === dateStr && o.mealType === mealTypeStr);
-
-            // 核心邏輯：優先使用已開單的時間，若無訂單則使用該餐期的系統預設時間
-            // 避免因為抓到 UI 殘留的舊資料 (例如午餐的 10:30) 導致誤鎖
-            let activeCutoff = mealDefault;
-            if (sessionOrders.length > 0 && sessionOrders[0].cutoffTime) {
-                activeCutoff = sessionOrders[0].cutoffTime;
-            }
+            const activeCutoff = getActiveCutoffTime();
 
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
@@ -887,13 +857,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 4. Fallback：每週排餐 (作為預設建議) (v228 支援多餐期設定)
-        const dow = new Date(date + 'T12:00:00').getDay();
-        const dowNum = (dow === 0 ? 7 : dow);
-        const weeklyKey = `weekly_${mealType}_${dowNum}`;
-        const oldWeeklyKey = `weekly_${dowNum}`; // 向後相容舊版
-        const weeklyRest = memoryConfig[weeklyKey] || (mealType === '午餐' ? memoryConfig[oldWeeklyKey] : '') || '';
-        if (weeklyRest) return { name: weeklyRest, source: 'weekly' };
+        // 4. Fallback：每月排餐 (v300: 使用日期制 1-31)
+        const dayOfMonth = new Date(date + 'T12:00:00').getDate();
+        const monthlyKey = `monthly_${mealType}_${dayOfMonth}`;
+        const monthlyRest = memoryConfig[monthlyKey] || '';
+        if (monthlyRest) return { name: monthlyRest, source: 'monthly' };
 
         return { name: '', source: 'none' };
     }
@@ -1054,17 +1022,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const menuLink = getMenuLinkHtml(anyOrder ? anyOrder.restaurant : (restaurantNameInput ? restaurantNameInput.value : ''));
 
                 // 判斷鎖定原因，讓訊息更精確
-                const currentPeriod = getCurrentMealPeriod();
-                const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
-                const selectedIdx = mealOrder.indexOf(selectedMealType);
-                const currentIdx = mealOrder.indexOf(currentPeriod);
-
                 let lockReason = '';
                 const todayStr = getTodayString();
                 if (selectedDate < todayStr) {
                     lockReason = '日期已過';
-                } else if (selectedDate === todayStr && selectedIdx < currentIdx) {
-                    lockReason = `目前已進入【${currentPeriod}】時段`;
                 } else {
                     lockReason = `已超過截止時間 ${getActiveCutoffTime()}`;
                 }
@@ -1627,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tbody.appendChild(tr);
             } else {
                 // ★ 核心優化：將餐期按照時間線排序
-                const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+                const mealOrder = ['午餐'];
                 const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))]
                     .sort((a, b) => mealOrder.indexOf(a) - mealOrder.indexOf(b));
 
@@ -1770,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayOrders = allOrders.filter(o => o.date === dateString);
             if (dayOrders.length === 0) return;
 
-            const mealOrder = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
+            const mealOrder = ['午餐'];
             const mealTypes = [...new Set(dayOrders.map(o => o.mealType || '午餐'))]
                 .sort((a, b) => mealOrder.indexOf(a) - mealOrder.indexOf(b));
 
@@ -2154,13 +2115,8 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="form-group" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);"><label>指定特定日期的投票截止時間 (優先於預設)</label>`;
             html += `<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
                 <input type="date" id="new-cutoff-date" class="restaurant-input time-input" style="flex:1; min-width:120px;" value="${todayStr}">
-                <select id="new-cutoff-meal" class="restaurant-input" style="flex:1; min-width:100px;">
-                    <option value="全天">全天 (通用)</option>
-                    <option value="早餐">早餐</option>
+                <select id="new-cutoff-meal" class="restaurant-input" style="flex:1; min-width:100px; display:none;">
                     <option value="午餐" selected>午餐</option>
-                    <option value="下午茶">下午茶</option>
-                    <option value="晚餐">晚餐</option>
-                    <option value="宵夜">宵夜</option>
                 </select>
                 <input type="time" id="new-cutoff-time" class="restaurant-input time-input" style="flex:1; min-width:100px;" value="${currentCutoff}">
                 <button id="add-cutoff-btn" class="primary-btn" style="flex:none;">新增設定</button>
@@ -3015,7 +2971,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 隱藏左下角的原設定區塊
             if (sidebarSettings) sidebarSettings.style.display = 'none';
 
-            // 渲染管理員面板的每週排餐表
+            // 渲染管理員面板的每月排餐表
             renderAdminWeeklySchedule();
             // 同步管理員面板的控制欄位與側邊欄值
             syncAdminDashboard();
@@ -3105,58 +3061,27 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRestaurantMenuDisplay();
     }
 
-    // 渲染管理員面板的每週排餐表
+    // 渲染管理員面板的每月排餐表 (v300: 1-31號)
     function renderAdminWeeklySchedule() {
         const container = document.getElementById('admin-weekly-schedule');
         if (!container) return;
 
-        // v228：支援按餐期設定每週排餐
-        if (!window._currentWeeklyMealType) window._currentWeeklyMealType = '午餐';
-        const mealType = window._currentWeeklyMealType;
+        const mealType = '午餐';
+        let html = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem; padding: 0.5rem;">`;
 
-        const meals = ['早餐', '午餐', '下午茶', '晚餐', '宵夜'];
-        let mealOptions = meals.map(m => `<option value="${m}" ${m === mealType ? 'selected' : ''}>${m}</option>`).join('');
-
-        let html = `<div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
-            <span style="font-weight:bold; color:var(--primary);">🗓️ 設定餐期預排：</span>
-            <select id="admin-weekly-meal-selector" class="restaurant-input" style="width:auto; min-width:120px; border:2px solid var(--primary);">
-                ${mealOptions}
-            </select>
-        </div>`;
-
-        html += `<table class="excel-table" style="font-size:0.9rem; min-width:100%;"><thead><tr>
-            <th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
-        </tr></thead><tbody><tr>`;
-
-        for (let i = 1; i <= 7; i++) {
-            const key = `weekly_${mealType}_${i}`;
-            const oldKey = `weekly_${i}`;
-            // 優先抓取餐期專用 key，若無且為午餐則抓取舊版 key
-            const val = memoryConfig[key] || (mealType === '午餐' ? memoryConfig[oldKey] : '') || '';
-            const dayIdx = (i === 7) ? 0 : i;
-
-            const openInDay = memoryRestaurants.filter(r => {
-                if (!r.openDays) return true;
-                const days = r.openDays.split(',').map(d => parseInt(d.trim()));
-                return days.includes(dayIdx);
-            });
-
-            html += `<td><select class="admin-weekly-select" data-day="${i}" style="width:100%; padding:4px; border-radius:4px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-main);">
-                <option value="">(無)</option>
-                ${openInDay.map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
-            </select></td>`;
+        for (let i = 1; i <= 31; i++) {
+            const key = `monthly_${mealType}_${i}`;
+            const val = memoryConfig[key] || '';
+            html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-radius:0.4rem; padding:0.5rem;">
+                <div style="font-size:0.75rem; font-weight:bold; color:var(--primary); margin-bottom:0.25rem;">${i}號</div>
+                <select class="admin-weekly-select" data-day="${i}" style="width:100%; font-size:0.8rem; padding:2px; border:1px solid var(--border); border-radius:4px;">
+                    <option value="">(無)</option>
+                    ${memoryRestaurants.map(r => `<option value="${r.name}" ${val === r.name ? 'selected' : ''}>${r.name}</option>`).join('')}
+                </select>
+            </div>`;
         }
-        html += `</tr></tbody></table>`;
+        html += `</div>`;
         container.innerHTML = html;
-
-        // 綁定切換事件
-        const selector = document.getElementById('admin-weekly-meal-selector');
-        if (selector) {
-            selector.onchange = (e) => {
-                window._currentWeeklyMealType = e.target.value;
-                renderAdminWeeklySchedule();
-            };
-        }
     }
 
     window.updateOrderPrice = function (id, newPrice) {
@@ -3176,19 +3101,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 儲存每週排餐功能 (v197, v228 支援餐期)
+    // 儲存每月排餐功能 (v300)
     window.handleSaveWeekly = function () {
-        const mealType = window._currentWeeklyMealType || '午餐';
+        const mealType = '午餐';
         const selects = document.querySelectorAll('.admin-weekly-select');
         selects.forEach(sel => {
             const day = sel.getAttribute('data-day');
-            memoryConfig[`weekly_${mealType}_${day}`] = sel.value;
+            memoryConfig[`monthly_${mealType}_${day}`] = sel.value;
         });
 
         const newConfig = Object.entries(memoryConfig).map(([key, value]) => {
-            // 對於時間或排餐設定，確保儲存為字串格式
             let val = value;
-            if (key === 'voteCutoffTime' || key.startsWith('cutoff_') || key.startsWith('weekly_') || key.startsWith('restaurant_')) {
+            if (key === 'voteCutoffTime' || key.startsWith('cutoff_') || key.startsWith('monthly_') || key.startsWith('restaurant_')) {
                 val = "'" + String(value).replace(/^'/, '');
             }
             return { key, value: val };
@@ -3196,7 +3120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         saveCloudData("saveConfig", newConfig).then(success => {
             if (success) {
-                showToast(`✅ 每週排餐設定已儲存！`, "success");
+                showToast(`✅ 每月排餐設定已儲存！`, "success");
                 handleFormState();
                 renderSettingsTab();
             }
@@ -3264,13 +3188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     safeListen(document.getElementById('admin-save-weekly-btn'), 'click', () => {
-        const mealType = window._currentWeeklyMealType || '午餐';
-        document.querySelectorAll('.admin-weekly-select').forEach(sel => {
-            const day = sel.getAttribute('data-day');
-            memoryConfig[`weekly_${mealType}_${day}`] = sel.value;
-        });
-        // 重用已有的儲存邏輯
-        if (typeof handleSaveWeekly === 'function') handleSaveWeekly();
+        handleSaveWeekly();
     });
 
     // --- 輔助工具：高品質圖片處理 (v186) ---
