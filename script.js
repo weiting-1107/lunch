@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Modal UI 變數 (之前被意外刪除)
     const currentWeekLabel = document.getElementById('current-week-label');
-    const tabBtns = document.querySelectorAll('.modal-tab-btn');
+    let tabBtns = document.querySelectorAll('.modal-tab-btn');
     let currentActiveTab = 'tab-details';
     let currentViewDate = new Date();
     let isSettingsAuthenticated = false; // 系統設定驗證狀態
@@ -238,7 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function highlightTab(tabName) {
         currentActiveTab = tabName;
-        tabBtns.forEach(b => {
+        // 重新獲取一次，確保動態生成的按鈕也能被選到
+        const allReportTabs = document.querySelectorAll('.modal-tab-btn');
+        allReportTabs.forEach(b => {
             if (b.getAttribute('data-tab') === tabName) b.classList.add('active');
             else b.classList.remove('active');
         });
@@ -1444,14 +1446,23 @@ document.addEventListener('DOMContentLoaded', () => {
         excelModal.classList.add('hidden');
     });
 
-    // 使用事件委派 (Event Delegation) 處理報表分頁切換
+    // 使用事件委派 (Event Delegation) 處理報表與設定分頁切換 (v302 強化版)
     document.addEventListener('click', (e) => {
-        // v301: 統一支援 .tab-btn 與 .modal-tab-btn
-        const target = e.target.closest('.tab-btn, .modal-tab-btn');
-        if (!target || target.closest('.settings-tab-btn')) return; // 排除設定分頁
+        const target = e.target.closest('.modal-tab-btn, .settings-tab-btn, .tab-btn');
+        if (!target) return;
 
         const tabName = target.getAttribute('data-tab');
-        if (tabName) {
+        if (!tabName) return;
+
+        // 判斷是報表分頁還是系統設定分頁
+        if (target.classList.contains('settings-tab-btn')) {
+            // 系統設定分頁邏輯
+            settingsTabs.forEach(b => b.classList.remove('active'));
+            target.classList.add('active');
+            activeSettingsTab = tabName;
+            renderSettingsTab();
+        } else {
+            // 報表中心分頁邏輯
             highlightTab(tabName);
             renderOrders();
         }
@@ -1973,14 +1984,12 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.add('hidden');
     });
 
+    // v302：移除舊有的重複綁定，統一由全域事件委派處理
+    /*
     settingsTabs.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            settingsTabs.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeSettingsTab = btn.getAttribute('data-tab');
-            renderSettingsTab();
-        });
+        ...
     });
+    */
 
     function renderSettingsTab() {
         const container = document.getElementById('settings-dynamic-content');
