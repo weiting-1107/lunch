@@ -1446,7 +1446,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 使用事件委派 (Event Delegation) 處理報表分頁切換
     document.addEventListener('click', (e) => {
-        const target = e.target.closest('.tab-btn');
+        // v301: 統一支援 .tab-btn 與 .modal-tab-btn
+        const target = e.target.closest('.tab-btn, .modal-tab-btn');
         if (!target || target.closest('.settings-tab-btn')) return; // 排除設定分頁
 
         const tabName = target.getAttribute('data-tab');
