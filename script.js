@@ -832,24 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return { name: cloudRest, source: 'cloud' };
         }
 
-        // 3. 投票結果 (adminOnly 時跳過)
-        if (!adminOnly) {
-            const todaysVotes = memoryVotes.filter(v => v.date === date && v.mealType === mealType);
-            if (todaysVotes.length > 0) {
-                const counts = {};
-                let maxCount = 0;
-                todaysVotes.forEach(v => {
-                    counts[v.restaurantName] = (counts[v.restaurantName] || 0) + 1;
-                    if (counts[v.restaurantName] > maxCount) maxCount = counts[v.restaurantName];
-                });
-                const tiedRests = Object.entries(counts).filter(e => e[1] === maxCount).map(e => e[0]).sort();
-                const seedStr = date + mealType;
-                let hash = 0;
-                for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
-                const winner = tiedRests[Math.abs(hash | 0) % tiedRests.length];
-                return { name: winner, source: 'vote' };
-            }
-        }
+
 
         // 4. Fallback：每月排餐 (v300: 使用日期制 1-31)
         const dayOfMonth = new Date(date + 'T12:00:00').getDate();

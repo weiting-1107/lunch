@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍱 大家吃啥 (v300)</title>
+    <title>🍱 大家吃啥 (v302)</title>
     <!-- 引入 Google Fonts 提升排版美感 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,11 +79,11 @@
             </nav>
             <div id="sidebar-settings-group" class="sidebar-settings-group desktop-only">
                 <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
-                <div class="sidebar-setting-item">
+                <div class="sidebar-setting-item admin-only">
                     <label><span class="step-badge">1</span>📅 訂餐日期</label>
                     <input type="date" id="order-date" class="date-input">
                 </div>
-                <div class="sidebar-setting-item">
+                <div class="sidebar-setting-item admin-only">
                     <label>🕐 餐期類型</label>
                     <select id="meal-type" class="meal-type-select-sidebar">
                         <option value="午餐" selected>午餐</option>
@@ -110,27 +110,7 @@
             </div>
         </aside>
 
-        <!-- 投票區 (電腦版將透過 CSS Grid 移至右側；手機版排在點餐單之前) -->
-        <div id="voting-section" class="order-form-card hidden voting-sidebar-card">
-            <h3
-                style="margin-top:0; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
-                <span><span class="step-badge warning">!</span>📊 今日餐廳投票</span>
-                <span id="voting-countdown"
-                    style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;"></span>
-            </h3>
-            <div class="form-group">
-                <label for="vote-person">投票人 <span class="required">*</span></label>
-                <select id="vote-person" required>
-                    <option value="" disabled selected>請選擇姓名</option>
-                </select>
-            </div>
-            <div id="voting-options" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;">
-            </div>
-            <div id="already-voted-note"
-                style="display:none; margin-top:0.75rem; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:0.5rem; border-left:3px solid var(--success); font-size:0.85rem; color:var(--success);">
-            </div>
-            <button id="submit-vote-btn" class="primary-btn" style="margin-top:1rem;">🗳️ 確認送出投票</button>
-        </div>
+
 
         <div class="main-container">
             <!-- 手機版頂部 Header (包含切換按鈕) -->
@@ -141,7 +121,7 @@
                     <button id="logout-btn-mob" class="mobile-header-btn" title="登出">🚪</button>
                 </div>
                 <div class="mobile-settings-row mobile-only">
-                    <div class="mobile-setting-item">
+                    <div class="mobile-setting-item admin-only">
                         <label><span class="step-badge">1</span>📅 日期與餐期</label>
                         <div style="display:flex; gap:0.5rem;">
                             <input type="date" id="order-date-mob" class="date-input">
@@ -223,12 +203,7 @@
                         儲存每月排餐設定</button>
                 </div>
 
-                <!-- 尚未決定餐廳時的提示區塊 (v296 新增) -->
-                <div id="vote-needed-msg" class="order-form-card hidden" style="text-align:center; padding:3rem 1.5rem; border:2px dashed var(--warning); background:var(--bg-main);">
-                    <div style="font-size:3rem; margin-bottom:1rem;">🗳️</div>
-                    <h3 style="color:var(--warning); margin-bottom:0.5rem;">今日餐廳正在投票中</h3>
-                    <p style="color:var(--text-muted); line-height:1.6;">目前尚未選出勝選餐廳，請先在下方的「餐廳投票」區塊投下您神聖的一票。<br>待投票截止或有人開單後，即可開始點餐。</p>
-                </div>
+
 
                 <!-- 今日訂餐資訊簡報區 (v301 新增) -->
                 <div id="order-info-banner" class="order-form-card" style="margin-bottom: 1rem; border-left: 5px solid var(--primary); padding: 1.25rem;">

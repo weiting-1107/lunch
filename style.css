@@ -212,9 +212,9 @@ body.admin-mode .order-form-card {
 @media (min-width: 1024px) {
     .app-layout {
         display: grid;
-        grid-template-columns: 260px 1fr 340px;
+        grid-template-columns: 260px 1fr;
         grid-template-rows: 100vh;
-        grid-template-areas: "sidebar main right";
+        grid-template-areas: "sidebar main";
         width: 100%;
         max-width: 100%;
         gap: 0;
@@ -236,13 +236,8 @@ body.admin-mode .order-form-card {
     }
 
 
-    #voting-section:not(.hidden) {
-        display: block;
-        grid-area: right;
-        margin: 2rem 2rem 2rem 0;
-        height: fit-content;
-        position: sticky;
-        top: 2rem;
+    #voting-section {
+        display: none !important;
     }
 
     .mobile-header,
