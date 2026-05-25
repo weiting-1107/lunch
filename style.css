@@ -603,6 +603,19 @@ header p {
     display: none !important;
 }
 
+.admin-only {
+    display: none !important;
+}
+
+body.admin-mode .admin-only {
+    display: block !important;
+}
+
+body.admin-mode button.admin-only,
+body.admin-mode span.admin-only {
+    display: inline-block !important;
+}
+
 /* Order Form */
 .order-form-card {
     background: var(--card-bg);
