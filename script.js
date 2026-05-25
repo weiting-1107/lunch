@@ -1642,6 +1642,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         chk.type = 'checkbox';
                         chk.className = 'paid-checkbox';
                         chk.checked = order.paid;
+                        chk.disabled = !isAdmin; // v303: 只有管理員可以勾選
                         chk.addEventListener('change', (e) => window.togglePaid(order.id, e.target.checked));
                         tdPaid.appendChild(chk);
                         tr.appendChild(tdPaid);

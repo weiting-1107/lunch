@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍱 大家吃啥 (v302)</title>
+    <title>🍱 大家吃啥 (v303)</title>
     <!-- 引入 Google Fonts 提升排版美感 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -89,7 +89,7 @@
                         <option value="午餐" selected>午餐</option>
                     </select>
                 </div>
-                <div class="sidebar-setting-item">
+                <div class="sidebar-setting-item admin-only">
                     <label>🏢 今日餐廳</label>
                     <div style="display:flex; gap:0.5rem; align-items:center;">
                         <input type="text" id="restaurant-name" class="restaurant-input" value="待定..." readonly
@@ -346,6 +346,8 @@
             <!-- 三大情境頁籤 Tabs -->
             <div class="modal-tabs">
                 <button class="tab-btn active" data-tab="tab-details">📝 流水記帳表</button>
+                <button class="tab-btn admin-only" data-tab="tab-caller">📞 電話叫餐表</button>
+                <button class="tab-btn admin-only" data-tab="tab-person">💸 收錢總帳表</button>
             </div>
 
             <div class="modal-body">
