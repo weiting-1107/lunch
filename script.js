@@ -994,20 +994,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // v303: 更新今日訂餐資訊橫幅
-        const bannerDate = document.getElementById('banner-date');
-        const bannerRest = document.getElementById('banner-restaurant');
-        const bannerCutoff = document.getElementById('banner-cutoff');
-        if (bannerDate) bannerDate.textContent = selectedDate;
-        if (bannerRest) bannerRest.textContent = displayWinner;
-        if (bannerCutoff) bannerCutoff.textContent = currentOrderCutoff;
+        // v301: 更新今日訂餐資訊橫幅
+        const bDate = document.getElementById('display-order-date');
+        const bRest = document.getElementById('display-restaurant');
+        const bTime = document.getElementById('display-cutoff-time');
+        const bMenu = document.getElementById('display-rest-menu-banner');
 
-        // v297: 控制「填寫訂單」區塊 (v303: 移除投票邏輯，如有勝出餐廳或管理員身分則顯示)
+        if (bDate) bDate.textContent = selectedDate;
+        if (bRest) bRest.textContent = displayWinner;
+        if (bTime) bTime.textContent = currentOrderCutoff;
+        if (bMenu) {
+            bMenu.onclick = () => openMenuViewer(displayWinner);
+            bMenu.classList.toggle('hidden', displayWinner === '待定...');
+        }
+
+        // v297/v301: 控制「填寫訂單」與「提示投票」區塊的顯示隱藏
         const orderFormContainer = document.getElementById('order-form-container');
-        if (orderFormContainer) {
+        const votePrompt = document.getElementById('vote-needed-msg');
+        if (orderFormContainer && votePrompt) {
             const isAdmin = (currentUser && currentUser.role === 'admin');
             const isTBD = (displayWinner === '待定...' && !isAdmin);
-            orderFormContainer.classList.toggle('hidden', isTBD && !isAdmin);
+            
+            orderFormContainer.classList.toggle('hidden', isTBD);
+            votePrompt.classList.toggle('hidden', !isTBD);
         }
 
         // 鎖單視覺與按鈕控制

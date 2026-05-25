@@ -72,7 +72,7 @@
             <nav class="sidebar-nav">
                 <button class="nav-btn nav-home-btn active">🏠 點餐首頁</button>
                 <button class="nav-btn nav-details-btn">📝 查看明細</button>
-                <button class="nav-btn nav-person-btn">💸 收錢總帳</button>
+                <button class="nav-btn nav-person-btn admin-only">💸 收錢總帳</button>
                 <button class="nav-btn nav-settings-btn admin-only">⚙️ 系統設定</button>
                 <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
                     登出系統</button>
@@ -230,6 +230,27 @@
                     <p style="color:var(--text-muted); line-height:1.6;">目前尚未選出勝選餐廳，請先在下方的「餐廳投票」區塊投下您神聖的一票。<br>待投票截止或有人開單後，即可開始點餐。</p>
                 </div>
 
+                <!-- 今日訂餐資訊簡報區 (v301 新增) -->
+                <div id="order-info-banner" class="order-form-card" style="margin-bottom: 1rem; border-left: 5px solid var(--primary); padding: 1.25rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
+                        <div class="info-item">
+                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">📅 訂餐日期</label>
+                            <span id="display-order-date" style="font-weight: bold; font-size: 1.1rem;">----/--/--</span>
+                        </div>
+                        <div class="info-item">
+                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">🏢 今日餐廳</label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span id="display-restaurant" style="font-weight: bold; font-size: 1.1rem; color: var(--primary);">待定...</span>
+                                <button id="display-rest-menu-banner" class="action-btn-mini" style="padding: 2px 8px; font-size: 0.7rem; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">📄 菜單</button>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">⛔ 鎖單截止時間</label>
+                            <span id="display-cutoff-time" class="cutoff-display" style="font-size: 1.1rem;">--:--</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 點餐表單 (手機版順序：最後) -->
                 <div class="order-form-card user-only" id="order-form-container">
                     <div class="form-header"
@@ -290,7 +311,7 @@
                 </svg>
                 <span>明細</span>
             </button>
-            <button class="nav-item nav-person-btn">
+            <button class="nav-item nav-person-btn admin-only">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
