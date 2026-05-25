@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍱 大家吃啥</title>
+    <title>🍱 大家吃啥 (v300)</title>
     <!-- 引入 Google Fonts 提升排版美感 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=304">
+    <link rel="stylesheet" href="style.css?v=177">
 </head>
 
 <body>
@@ -71,8 +71,8 @@
             </div>
             <nav class="sidebar-nav">
                 <button class="nav-btn nav-home-btn active">🏠 點餐首頁</button>
-                <button class="nav-btn nav-details-btn">📝 查看明细</button>
-                <button class="nav-btn nav-person-btn admin-only">💸 收錢總帳</button>
+                <button class="nav-btn nav-details-btn">📝 查看明細</button>
+                <button class="nav-btn nav-person-btn">💸 收錢總帳</button>
                 <button class="nav-btn nav-settings-btn admin-only">⚙️ 系統設定</button>
                 <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
                     登出系統</button>
@@ -83,7 +83,7 @@
                     <label><span class="step-badge">1</span>📅 訂餐日期</label>
                     <input type="date" id="order-date" class="date-input">
                 </div>
-                <div class="sidebar-setting-item" style="display:none;">
+                <div class="sidebar-setting-item">
                     <label>🕐 餐期類型</label>
                     <select id="meal-type" class="meal-type-select-sidebar">
                         <option value="午餐" selected>午餐</option>
@@ -142,10 +142,10 @@
                 </div>
                 <div class="mobile-settings-row mobile-only">
                     <div class="mobile-setting-item">
-                        <label><span class="step-badge">1</span>📅 訂購日期</label>
+                        <label><span class="step-badge">1</span>📅 日期與餐期</label>
                         <div style="display:flex; gap:0.5rem;">
                             <input type="date" id="order-date-mob" class="date-input">
-                            <select id="meal-type-mob" class="meal-type-select" style="display:none;">
+                            <select id="meal-type-mob" class="meal-type-select">
                                 <option value="午餐" selected>午餐</option>
                             </select>
                         </div>
@@ -186,13 +186,13 @@
                             <input type="date" id="admin-order-date" class="date-input restaurant-input"
                                 style="width:100%;">
                         </div>
-                        <div class="form-group" style="margin:0; display:none;">
+                        <div class="form-group" style="margin:0;">
                             <label>🕐 餐期類型</label>
                             <select id="admin-meal-type" class="restaurant-input" style="width:100%;">
                                 <option value="午餐" selected>午餐</option>
                             </select>
                         </div>
-                        <div class="form-group" style="margin:0; display:none;">
+                        <div class="form-group" style="margin:0;">
                             <h4>🏢 今日餐廳</h4>
                             <div style="display:flex; gap:0.5rem; align-items:center;">
                                 <select id="admin-restaurant-name" class="restaurant-input"
@@ -215,11 +215,12 @@
                         </div>
                     </div>
                     <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
-                    <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每月預定排餐</h4>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">若當天無投票結果，系統會依「日期」自動套用此設定。
+                    <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每月預定排餐表</h4>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">若當天投票截止後無人投票，系統會自動套用此設定。
                     </p>
-                    <div id="admin-weekly-schedule" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:0.5rem; padding:0.5rem; background:var(--bg-main);"></div>
-                    <button id="admin-save-weekly-btn" class="primary-btn" style="width:100%; margin-top:1rem;">💾 儲存每月排餐設定</button>
+                    <div id="admin-weekly-schedule" style="overflow-x:auto;"></div>
+                    <button id="admin-save-weekly-btn" class="primary-btn" style="width:100%; margin-top:1rem;">💾
+                        儲存每月排餐設定</button>
                 </div>
 
                 <!-- 尚未決定餐廳時的提示區塊 (v296 新增) -->
@@ -289,7 +290,7 @@
                 </svg>
                 <span>明細</span>
             </button>
-            <button class="nav-item nav-person-btn admin-only">
+            <button class="nav-item nav-person-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
@@ -348,9 +349,7 @@
 
             <!-- 三大情境頁籤 Tabs -->
             <div class="modal-tabs">
-                <button class="modal-tab-btn active" data-tab="tab-details">流水記帳表</button>
-                <button class="modal-tab-btn admin-only" data-tab="tab-caller">電話叫餐表</button>
-                <button class="modal-tab-btn admin-only" data-tab="tab-person">個人結算總額</button>
+                <button class="tab-btn active" data-tab="tab-details">📝 流水記帳表</button>
             </div>
 
             <div class="modal-body">
@@ -483,14 +482,9 @@
     </div>
 
 
-    <div style="font-size: 0.7rem; color: var(--text-muted); opacity: 0.4; margin: 1rem 0; text-align: center;">v300 | 簡化餐期與每月排餐版</div>
     <div id="sync-loader" class="sync-loader"></div>
     <div id="toast-container" class="toast-container"></div>
     <script src="script.js?v=300"></script>
-    <script>
-        // 強制初始化報表頁籤
-        window.currentActiveTab = 'tab-details';
-    </script>
 </body>
 
 </html>
