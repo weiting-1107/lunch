@@ -563,11 +563,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getCommonInputs() {
+        // 首先讀取管理員控制面板的值，再 fallback 到隱藏輸入
+        const adminDate = document.getElementById('admin-order-date')?.value;
+        const adminMeal = document.getElementById('admin-meal-type')?.value;
+        const adminRest = document.getElementById('admin-restaurant-name')?.value;
+        const adminCutoff = document.getElementById('admin-cutoff-time')?.value;
         return {
-            date: document.getElementById('order-date')?.value || document.getElementById('order-date-mob')?.value || getTodayString(),
-            meal: document.getElementById('meal-type')?.value || document.getElementById('meal-type-mob')?.value || '午餐',
-            rest: document.getElementById('restaurant-name')?.value || document.getElementById('restaurant-name-mob')?.value || '',
-            cutoff: document.getElementById('cutoff-time')?.value || document.getElementById('cutoff-time-mob')?.value || '10:30'
+            date: adminDate || document.getElementById('order-date')?.value || getTodayString(),
+            meal: adminMeal || document.getElementById('meal-type')?.value || '午餐',
+            rest: adminRest || document.getElementById('restaurant-name')?.value || '',
+            cutoff: adminCutoff || document.getElementById('cutoff-time')?.value || '10:30'
         };
     }
 
@@ -738,6 +743,31 @@ document.addEventListener('DOMContentLoaded', () => {
     prevWeekBtn.onclick = () => { currentViewDate.setDate(currentViewDate.getDate() - 7); renderOrders(); };
     nextWeekBtn.onclick = () => { currentViewDate.setDate(currentViewDate.getDate() + 7); renderOrders(); };
     currentWeekBtn.onclick = () => { currentViewDate = new Date(); renderOrders(); };
+
+    // 確定鎖單時間 (側邊欄 desktop)
+    const saveCutoffTime = (timeVal) => {
+        if (!timeVal) return;
+        const inputs = getCommonInputs();
+        const key = `cutoff_${inputs.date}_${inputs.meal}`;
+        memoryConfig[key] = timeVal;
+        const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
+            key: k,
+            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
+        }));
+        saveCloudData("saveConfig", configArr).then(() => {
+            handleFormState();
+            showToast(`鎖單時間已設為 ${timeVal}`, 'success');
+        });
+    };
+    safeListen(document.getElementById('confirm-cutoff-btn'), 'click', () => {
+        saveCutoffTime(document.getElementById('cutoff-time')?.value);
+    });
+    safeListen(document.getElementById('admin-confirm-cutoff-btn'), 'click', () => {
+        saveCutoffTime(document.getElementById('admin-cutoff-time')?.value);
+    });
+    safeListen(document.getElementById('confirm-cutoff-mob-btn'), 'click', () => {
+        saveCutoffTime(document.getElementById('cutoff-time-mob')?.value);
+    });
     
     // 復原匯出 CSV 與清理歷史邏輯
     if (exportCsvBtn) {
@@ -877,6 +907,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         } else if (activeSettingsTab === 'tab-restaurants') {
+            const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+            const dayKeys   = ['mon','tue','wed','thu','fri','sat','sun'];
             container.innerHTML = `
                 <div style="background:var(--card-bg); padding:1rem; border-radius:0.5rem; margin-bottom:1rem; border:1px solid var(--border);">
                     <h4 style="margin-top:0;">新增餐廳</h4>
@@ -884,6 +916,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <input id="new-r-name" class="restaurant-input" placeholder="餐廳名稱 (必填)">
                         <input id="new-r-phone" class="restaurant-input" placeholder="電話 (選填)">
                         <input id="new-r-url" class="restaurant-input" placeholder="菜單網址 (選填)">
+                        <div>
+                            <label style="font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:0.4rem;">📅 每週開店日（可複選）</label>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                ${dayLabels.map((d, idx) => `
+                                    <label style="display:flex; align-items:center; gap:3px; font-size:0.85rem; cursor:pointer; background:var(--input-bg); padding:3px 8px; border-radius:4px; border:1px solid var(--border);">
+                                        <input type="checkbox" class="new-r-day" value="${dayKeys[idx]}"> 週${d}
+                                    </label>`).join('')}
+                            </div>
+                        </div>
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <label style="font-size:0.85rem; color:var(--text-muted); flex-shrink:0;">照片：</label>
                             <input type="file" id="new-r-file" accept="image/*" class="restaurant-input" style="padding:0.4rem;">
@@ -891,20 +932,31 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button onclick="window.addR()" id="add-r-btn" class="primary-btn" style="margin-top:0.5rem;">儲存並新增</button>
                     </div>
                 </div>
-                <div style="display:grid; gap:0.5rem;">
-                    ${memoryRestaurants.map((r, i) => `
-                        <div style="display:flex; flex-direction:column; background:var(--input-bg); padding:0.75rem; border-radius:0.5rem; border:1px solid var(--border);">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:grid; gap:0.75rem;">
+                    ${memoryRestaurants.map((r, i) => {
+                        const openDays = r.openDays || [];
+                        const dayBadges = dayLabels.map((d, idx) => {
+                            const isOpen = openDays.includes(dayKeys[idx]);
+                            return `<span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; background:${isOpen ? 'var(--primary)' : 'var(--input-bg)'}; color:${isOpen ? 'white' : 'var(--text-muted)'}; border:1px solid var(--border);">週${d}</span>`;
+                        }).join('');
+                        return `
+                        <div style="background:var(--input-bg); padding:0.75rem; border-radius:0.5rem; border:1px solid var(--border);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
                                 <strong>${r.name}</strong>
-                                <button onclick="window.delR(${i})" style="color:var(--danger); border:none; background:none; cursor:pointer; font-weight:bold;">刪除</button>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <button onclick="window.editR(${i})" style="font-size:0.8rem; padding:3px 8px; border:1px solid var(--primary); background:none; color:var(--primary); border-radius:4px; cursor:pointer;">✏️ 編輯</button>
+                                    <button onclick="window.delR(${i})" style="color:var(--danger); border:none; background:none; cursor:pointer; font-weight:bold;">🗑️ 刪除</button>
+                                </div>
                             </div>
-                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">
-                                ${r.phone ? `☎️ ${r.phone}` : ''}
-                                ${r.menuUrl ? ` 🔗有網址` : ''}
-                                ${r.menuImage && r.menuImage.length > 100 ? ` 📸有照片` : ''}
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.4rem;">
+                                ${r.phone ? `☎️ ${r.phone} ` : ''}${r.menuUrl ? `🔗 <a href="${r.menuUrl}" target="_blank" style="color:var(--primary);">菜單連結</a> ` : ''}${r.menuImage && r.menuImage.length > 100 ? `📸 有菜單照片` : ''}
                             </div>
-                        </div>
-                    `).join('')}
+                            <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+                                <span style="font-size:0.75rem; color:var(--text-muted); margin-right:4px;">營業日：</span>
+                                ${dayBadges}
+                            </div>
+                        </div>`;
+                    }).join('')}
                 </div>
             `;
         } else {
@@ -925,10 +977,54 @@ document.addEventListener('DOMContentLoaded', () => {
     window.delU = (i) => { if(confirm('確定刪除此人?')) { memoryUsers.splice(i,1); saveCloudData("saveUsers", memoryUsers).then(()=>renderSettingsTab()); } };
     window.addR = () => {
         const btn = document.getElementById('add-r-btn');
-        const n = document.getElementById('new-r-name').value;
-        const p = document.getElementById('new-r-phone').value;
-        const u = document.getElementById('new-r-url').value;
+        const n = document.getElementById('new-r-name').value.trim();
+        const p = document.getElementById('new-r-phone').value.trim();
+        const u = document.getElementById('new-r-url').value.trim();
         const f = document.getElementById('new-r-file').files[0];
+        const openDays = [...document.querySelectorAll('.new-r-day:checked')].map(cb => cb.value);
+        if (!n) return alert('需填寫餐廳名稱');
+        btn.disabled = true; btn.innerText = '處理圖片及上傳中...';
+        handleImageFile(f, (base64Img) => {
+            memoryRestaurants.push({ id: Date.now(), name: n, phone: p, menuUrl: u, menuImage: base64Img, openDays });
+            saveCloudData('saveRestaurants', memoryRestaurants).then(() => {
+                renderSettingsTab(); syncAdminDash();
+                showToast(`餐廳 ${n} 已新增`, 'success');
+            });
+        });
+    };
+    window.delR = (i) => { if (confirm('確定刪除此餐廳?')) { memoryRestaurants.splice(i, 1); saveCloudData('saveRestaurants', memoryRestaurants).then(() => { renderSettingsTab(); syncAdminDash(); }); } };
+    window.editR = (i) => {
+        const r = memoryRestaurants[i]; if (!r) return;
+        const dayLabels = ['一','二','三','四','五','六','日'];
+        const dayKeys   = ['mon','tue','wed','thu','fri','sat','sun'];
+        const openDays  = r.openDays || [];
+        const existing = document.getElementById('edit-r-modal');
+        if (existing) existing.remove();
+        const modal = document.createElement('div');
+        modal.id = 'edit-r-modal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '4000';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:440px;">
+                <h3 style="margin-top:0;">✏️ 編輯餐廳資料</h3>
+                <div class="form-group"><label>餐廳名稱</label><input id="er-name" class="restaurant-input" value="${r.name}"></div>
+                <div class="form-group"><label>電話</label><input id="er-phone" class="restaurant-input" value="${r.phone || ''}"></div>
+                <div class="form-group"><label>菜單網址</label><input id="er-url" class="restaurant-input" value="${r.menuUrl || ''}"></div>
+                <div class="form-group">
+                    <label>📅 每週開店日</label>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.4rem;">
+                        ${dayLabels.map((d, idx) => '<label style="display:flex;align-items:center;gap:3px;font-size:0.85rem;cursor:pointer;backgroun    window.saveSysConfig = () => {
+        const c = document.getElementById('sys-default-cutoff').value;
+        if (c) memoryConfig.defaultCutoffTime = c;
+        saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('設定已儲存', 'success'));
+    };Dash();
+            showToast(`餐廳 ${r.name} 已更新`, 'success');
+        });
+    };
+    window.saveSysConfig = () => {
+        const c = document.getElementById('sys-default-cutoff').value;
+        if (c) memoryConfig.defaultCutoffTime = c;
+        saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('設定已儲存', 'success'));
         if(!n) return alert('需填寫餐廳名稱');
         
         btn.disabled = true; btn.innerText = "處理圖片及上傳中...";
