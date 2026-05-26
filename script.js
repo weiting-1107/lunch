@@ -538,6 +538,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitOrderBtn) { submitOrderBtn.disabled = false; submitOrderBtn.innerHTML = '🚀 送出訂單'; }
         }
         lastViewedDate = selectedDate; lastViewedMeal = selectedMealType;
+        updateOrderInfoBanner();
+    }
+
+    function updateOrderInfoBanner() {
+        const inputs = getCommonInputs();
+        const dispDate = document.getElementById('display-order-date');
+        const dispRest = document.getElementById('display-restaurant');
+        const dispCut = document.getElementById('display-cutoff-time');
+        if(dispDate) dispDate.innerText = inputs.date;
+        const recommendation = getRecommendedRestaurant(inputs.date, inputs.meal);
+        const winner = recommendation.name;
+        const isTimeUp = isSessionLocked(inputs.date, inputs.meal);
+        const anyOrder = getOrders().filter(o => o.date === inputs.date && o.mealType === inputs.meal).length > 0;
+        let displayWinner = '待定...';
+        if (anyOrder || isTimeUp || (winner && winner !== '待定...')) displayWinner = winner || '待定...';
+        if(dispRest) dispRest.innerText = displayWinner;
+        
+        const settings = getSettings();
+        const sessionKey = `${inputs.date}_${inputs.meal}`;
+        const cloudCutoff = memoryConfig[`cutoff_${sessionKey}`];
+        const activeCutoff = cloudCutoff || settings.mealCutoffs[inputs.meal] || settings.cutoffTime || '10:30';
+        if(dispCut) dispCut.innerText = activeCutoff;
     }
 
     function getCommonInputs() {
@@ -952,21 +974,51 @@ document.addEventListener('DOMContentLoaded', () => {
         renderOrders();
     }
 
+    function renderAdminSchedule() {
+        const container = document.getElementById('admin-weekly-schedule'); if (!container) return;
+        let h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
+        for(let i=1;i<=31;i++) {
+            const stored = memoryConfig[`monthly_午餐_${i}`] || "";
+            h += `<div style="border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;background:var(--card-bg);">
+                    <div style="font-size:0.75rem;font-weight:bold;margin-bottom:2px;">${i}日</div>
+                    <select data-day="${i}" class="mon-sel restaurant-input" style="width:100%;font-size:0.8rem;height:auto;padding:2px;">
+                        <option value="">-</option>
+                        ${memoryRestaurants.map(r=>`<option value="${r.name}" ${r.name===stored?'selected':''}>${r.name}</option>`).join('')}
+                    </select>
+                  </div>`;
+        }
+        container.innerHTML = h + '</div>';
+    }
+
+    window.saveMon = () => {
+        document.querySelectorAll('.mon-sel').forEach(s => memoryConfig[`monthly_午餐_${s.dataset.day}`] = s.value);
+        saveCloudData("saveConfig", Object.entries(memoryConfig).map(([k,v])=>{ 
+            let val = v;
+            if (k.startsWith('monthly_')) val = "'" + String(v).replace(/^'/, '');
+            return {key:k, value:val};
+        })).then(() => showToast("每月排餐設定已儲存！", "success"));
+    };
+
     function syncAdminDash() {
-        document.getElementById('admin-order-date').value = document.getElementById('order-date').value;
+        const dInput = document.getElementById('admin-order-date');
+        const oInput = document.getElementById('order-date');
+        if(dInput && oInput && !dInput.value && oInput.value) dInput.value = oInput.value;
+        
         const sel = document.getElementById('admin-restaurant-name');
         if (sel) {
-            const currentVal = sel.value;
+            const inputs = getCommonInputs();
+            const recommend = getRecommendedRestaurant(inputs.date, inputs.meal);
+            
             sel.innerHTML = '<option value="">請選擇餐廳...</option>' + memoryRestaurants.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
-            sel.value = currentVal;
+            sel.value = recommend.name || "";
             
             // 綁定管理員切換今日餐廳同步功能 (只綁定一次)
             if (!sel.dataset.bound) {
                 sel.dataset.bound = true;
                 sel.addEventListener('change', (e) => {
                     const rName = e.target.value;
-                    const inputs = getCommonInputs();
-                    memoryConfig[`restaurant_${inputs.date}_${inputs.meal}`] = rName;
+                    const cInputs = getCommonInputs();
+                    memoryConfig[`restaurant_${cInputs.date}_${cInputs.meal}`] = rName;
                     
                     const newConfig = Object.entries(memoryConfig).map(([k,v])=>{
                         let val = v;
@@ -1047,6 +1099,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 60000);
     }
     // ==========================================
+
+    function startClock() {
+        setInterval(() => {
+            const timeEl = document.getElementById('current-system-time');
+            if(timeEl) timeEl.innerText = '🕒 ' + new Date().toLocaleTimeString('zh-TW', {hour12: false});
+        }, 1000);
+    }
+    startClock();
 
     function checkAuth() {
         const u = localStorage.getItem('lunch_user');
