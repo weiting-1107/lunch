@@ -616,6 +616,10 @@ body.admin-mode span.admin-only {
     display: inline-block !important;
 }
 
+body.admin-mode .user-only {
+    display: none !important;
+}
+
 /* Order Form */
 .order-form-card {
     background: var(--card-bg);

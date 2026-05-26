@@ -515,10 +515,18 @@ document.addEventListener('DOMContentLoaded', () => {
             input.style.color = (displayWinner === '待定...') ? "var(--text-muted)" : "var(--text-main)";
         });
         const isAdmin = currentUser && currentUser.role === 'admin';
-        const isTBD = (displayWinner === '待定...' && !isAdmin);
-        if (orderFormContainer) orderFormContainer.classList.toggle('hidden', isTBD);
-        const votePrompt = document.getElementById('vote-needed-msg');
-        if (votePrompt) votePrompt.classList.toggle('hidden', !isTBD);
+        const isTBD = (displayWinner === '待定...');
+        
+        // 使用者看到「待定...」時，隱藏表單
+        if (orderFormContainer && !isAdmin) {
+            orderFormContainer.classList.toggle('hidden', isTBD);
+        }
+
+        const userTbdWarning = document.getElementById('user-tbd-warning');
+        const adminTbdWarning = document.getElementById('admin-tbd-warning');
+        
+        if (userTbdWarning) userTbdWarning.classList.toggle('hidden', !isTBD);
+        if (adminTbdWarning) adminTbdWarning.classList.toggle('hidden', !isTBD);
         if (isTimeUp) {
             if (lockedWarning) {
                 lockedWarning.classList.remove('hidden');
@@ -631,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.triggerEdit = function(id) {
-        const order = getOrders().find(o => o.id === id);
+        const order = getOrders().find(o => String(o.id) === String(id));
         if (!order) return;
         const isAdmin = currentUser && currentUser.role === 'admin';
         if (isAdmin) { window.openEditOrderModal(id); }
@@ -708,29 +716,229 @@ document.addEventListener('DOMContentLoaded', () => {
     prevWeekBtn.onclick = () => { currentViewDate.setDate(currentViewDate.getDate() - 7); renderOrders(); };
     nextWeekBtn.onclick = () => { currentViewDate.setDate(currentViewDate.getDate() + 7); renderOrders(); };
     currentWeekBtn.onclick = () => { currentViewDate = new Date(); renderOrders(); };
+    
+    // 復原匯出 CSV 與清理歷史邏輯
+    if (exportCsvBtn) {
+        exportCsvBtn.onclick = () => {
+            const { weekOrders } = getWeekData(currentViewDate);
+            if (weekOrders.length === 0) return alert('本週無資料可匯出');
+            
+            let csv = '\uFEFF';
+            
+            if (currentActiveTab === 'tab-details') {
+                csv += "日期,餐期,餐廳,姓名,餐點名稱,金額,付款狀態\r\n";
+                weekOrders.forEach(o => {
+                    const m = (o.mealType || '午餐').replace(/"/g, '""');
+                    const r = (o.restaurant || '未指定').replace(/"/g, '""');
+                    const n = (o.name || '').replace(/"/g, '""');
+                    const i = (o.item || '').replace(/"/g, '""');
+                    const p = o.paid ? '已付清' : '未付';
+                    csv += `"${o.date}","${m}","${r}","${n}","${i}","${o.price}","${p}"\r\n`;
+                });
+            } else if (currentActiveTab === 'tab-caller') {
+                csv += "日期,餐期,餐廳,餐點明細匯總,該餐期總計金額\r\n";
+                const sessionMap = {};
+                weekOrders.forEach(o => {
+                    const sKey = `${o.date}_${o.mealType || '午餐'}`;
+                    if (!sessionMap[sKey]) sessionMap[sKey] = [];
+                    sessionMap[sKey].push(o);
+                });
+                Object.values(sessionMap).forEach(sessionOrders => {
+                    const date = sessionOrders[0].date;
+                    const mType = (sessionOrders[0].mealType || '午餐').replace(/"/g, '""');
+                    const restName = (sessionOrders.find(o => o.restaurant)?.restaurant || '未指定').replace(/"/g, '""');
+                    let sessionTotal = 0;
+                    const itemMap = {};
+                    sessionOrders.forEach(o => {
+                        sessionTotal += o.price;
+                        const item = o.item || '未填寫';
+                        if (!itemMap[item]) itemMap[item] = 0;
+                        itemMap[item]++;
+                    });
+                    const summaryStr = Object.entries(itemMap).map(([k, v]) => `${k} x ${v}`).join(' / ');
+                    csv += `"${date}","${mType}","${restName}","${summaryStr}","${sessionTotal}"\r\n`;
+                });
+            } else if (currentActiveTab === 'tab-person') {
+                csv += "姓名,點餐次數,本週總花費,已繳交,尚欠款,結清狀態\r\n";
+                const personMap = {};
+                weekOrders.forEach(o => {
+                    if (!personMap[o.name]) personMap[o.name] = { count: 0, total: 0, paidTotal: 0, orderIds: [] };
+                    personMap[o.name].count++;
+                    personMap[o.name].total += o.price;
+                    if (o.paid) personMap[o.name].paidTotal += o.price;
+                    personMap[o.name].orderIds.push(o.id);
+                });
+                Object.entries(personMap).forEach(([name, data]) => {
+                    const remains = data.total - data.paidTotal;
+                    const status = remains === 0 ? '已結清' : '未結清';
+                    csv += `"${name.replace(/"/g, '""')}","${data.count}筆","${data.total}","${data.paidTotal}","${remains}","${status}"\r\n`;
+                });
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `訂餐報表_${getTodayString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('✅ 報表匯出成功！', 'success');
+        };
+    }
+    
+    if (clearHistoryBtn) {
+        clearHistoryBtn.onclick = () => {
+            const action = prompt('⚠️ 系統大掃除 ⚠️\n\n輸入「1」：清除 30 天以前的舊紀錄\n輸入「ALL」：徹底刪除整體系統資料\n\n請輸入代碼：');
+            if (action === '1') {
+                const limitDate = new Date(); limitDate.setDate(limitDate.getDate() - 30);
+                const limitStr = limitDate.toISOString().split('T')[0];
+                const orders = getOrders();
+                const keepOrders = orders.filter(o => o.date >= limitStr);
+                const deletedCount = orders.length - keepOrders.length;
+                if (deletedCount > 0) {
+                    saveOrders(keepOrders); showToast(`永久清除了 ${deletedCount} 筆超過 30 天的舊紀錄。`);
+                    renderOrders(); updateGrandTotal();
+                } else {
+                    showToast('目前沒有超過 30 天的舊帳。', 'info');
+                }
+            } else if (action === 'ALL') {
+                if (confirm('🚨 警告：這將會永久清空「所有的訂單」與「個人的歷史設定」！確定嗎？')) {
+                    saveOrders([]); localStorage.removeItem(SETTINGS_KEY); location.reload();
+                }
+            }
+        };
+    }
+
+    function handleImageFile(file, callback) {
+        if (!file || !file.type.startsWith('image/')) return callback('');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width; let height = img.height;
+                const MAX_WIDTH = 1200; const MAX_HEIGHT = 1600;
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/webp', 0.6));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
 
     function renderSettingsTab() {
         const container = document.getElementById('settings-dynamic-content'); if (!container) return;
         if (activeSettingsTab === 'tab-users') {
-            let h = `<input type="text" id="new-user-name" placeholder="姓名"><button onclick="window.addUser()">新增</button><table class="excel-table">`;
-            memoryUsers.forEach(u => h += `<tr><td>${u.name}</td><td><button onclick="window.deleteUser('${u.id}')">刪</button></td></tr>`);
-            container.innerHTML = h + `</table>`;
+            container.innerHTML = `
+                <div style="background:var(--card-bg); padding:1rem; border-radius:0.5rem; margin-bottom:1rem; border:1px solid var(--border);">
+                    <h4 style="margin-top:0;">新增人員</h4>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input id="new-u-name" class="restaurant-input" placeholder="姓名" style="flex:2;">
+                        <select id="new-u-role" class="restaurant-input" style="flex:1;">
+                            <option value="user">一般點餐者</option><option value="admin">管理員</option>
+                        </select>
+                        <button onclick="window.addU()" class="primary-btn" style="width:auto; margin:0;">新增</button>
+                    </div>
+                </div>
+                <div style="display:grid; gap:0.5rem;">
+                    ${memoryUsers.map((u, i) => `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--input-bg); padding:0.75rem; border-radius:0.5rem; border:1px solid var(--border);">
+                            <div><strong>${u.name}</strong> <span style="font-size:0.8rem; color:var(--text-muted);">(${u.role})</span></div>
+                            <button onclick="window.delU(${i})" style="color:var(--danger); border:none; background:none; cursor:pointer; font-weight:bold;">刪除</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         } else if (activeSettingsTab === 'tab-restaurants') {
-            let h = `<input type="text" id="new-rest-name" placeholder="店名"><button onclick="window.addRest()">新增</button><table class="excel-table">`;
-            memoryRestaurants.forEach(r => h += `<tr><td>${r.name}</td><td><button onclick="window.deleteRest('${r.id}')">刪</button></td></tr>`);
-            container.innerHTML = h + `</table>`;
+            container.innerHTML = `
+                <div style="background:var(--card-bg); padding:1rem; border-radius:0.5rem; margin-bottom:1rem; border:1px solid var(--border);">
+                    <h4 style="margin-top:0;">新增餐廳</h4>
+                    <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                        <input id="new-r-name" class="restaurant-input" placeholder="餐廳名稱 (必填)">
+                        <input id="new-r-phone" class="restaurant-input" placeholder="電話 (選填)">
+                        <input id="new-r-url" class="restaurant-input" placeholder="菜單網址 (選填)">
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <label style="font-size:0.85rem; color:var(--text-muted); flex-shrink:0;">照片：</label>
+                            <input type="file" id="new-r-file" accept="image/*" class="restaurant-input" style="padding:0.4rem;">
+                        </div>
+                        <button onclick="window.addR()" id="add-r-btn" class="primary-btn" style="margin-top:0.5rem;">儲存並新增</button>
+                    </div>
+                </div>
+                <div style="display:grid; gap:0.5rem;">
+                    ${memoryRestaurants.map((r, i) => `
+                        <div style="display:flex; flex-direction:column; background:var(--input-bg); padding:0.75rem; border-radius:0.5rem; border:1px solid var(--border);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong>${r.name}</strong>
+                                <button onclick="window.delR(${i})" style="color:var(--danger); border:none; background:none; cursor:pointer; font-weight:bold;">刪除</button>
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">
+                                ${r.phone ? `☎️ ${r.phone}` : ''}
+                                ${r.menuUrl ? ` 🔗有網址` : ''}
+                                ${r.menuImage && r.menuImage.length > 100 ? ` 📸有照片` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div style="padding:1rem;">
+                    <p style="color:var(--text-muted); margin-bottom:1rem;">系統基本參數配置。</p>
+                    <div class="form-group">
+                        <label>🕒 預設鎖單時間</label>
+                        <input type="time" id="sys-default-cutoff" class="restaurant-input" value="${memoryConfig.defaultCutoffTime || '10:30'}">
+                    </div>
+                    <button onclick="window.saveSysConfig()" class="primary-btn" style="margin-top:1rem;">儲存設定</button>
+                </div>
+            `;
         }
     }
-    window.addUser = () => { const n = document.getElementById('new-user-name').value; if(n) saveUsers([...memoryUsers, {id:'U'+Date.now(), name:n}]); renderSettingsTab(); };
-    window.deleteUser = (id) => { if(confirm('刪除？')) saveUsers(memoryUsers.filter(u=>u.id!==id)); renderSettingsTab(); };
-    window.addRest = () => { const n = document.getElementById('new-rest-name').value; if(n) saveRestaurants([...memoryRestaurants, {id:'R'+Date.now(), name:n}]); renderSettingsTab(); };
-    window.deleteRest = (id) => { if(confirm('刪除？')) saveRestaurants(memoryRestaurants.filter(r=>r.id!==id)); renderSettingsTab(); };
+
+    window.addU = () => { const n = document.getElementById('new-u-name').value; const r = document.getElementById('new-u-role').value; if(!n)return; memoryUsers.push({id:Date.now(), name:n, password:"", role:r}); saveCloudData("saveUsers", memoryUsers).then(()=>renderSettingsTab()); };
+    window.delU = (i) => { if(confirm('確定刪除此人?')) { memoryUsers.splice(i,1); saveCloudData("saveUsers", memoryUsers).then(()=>renderSettingsTab()); } };
+    window.addR = () => {
+        const btn = document.getElementById('add-r-btn');
+        const n = document.getElementById('new-r-name').value;
+        const p = document.getElementById('new-r-phone').value;
+        const u = document.getElementById('new-r-url').value;
+        const f = document.getElementById('new-r-file').files[0];
+        if(!n) return alert('需填寫餐廳名稱');
+        
+        btn.disabled = true; btn.innerText = "處理圖片及上傳中...";
+        handleImageFile(f, (base64Img) => {
+            memoryRestaurants.push({ id:Date.now(), name:n, phone:p, menuUrl:u, menuImage:base64Img });
+            saveCloudData("saveRestaurants", memoryRestaurants).then(()=> {
+                renderSettingsTab();
+                syncAdminDash();
+                showToast(`餐廳 ${n} 已新增`);
+            });
+        });
+    };
+    window.delR = (i) => { if (confirm('確定刪除此餐廳?')) { memoryRestaurants.splice(i,1); saveCloudData("saveRestaurants", memoryRestaurants).then(()=>{ renderSettingsTab(); syncAdminDash(); }); } };
+    window.saveSysConfig = () => {
+        const c = document.getElementById('sys-default-cutoff').value;
+        if(c) memoryConfig.defaultCutoffTime = c;
+        saveCloudData("saveConfig", Object.entries(memoryConfig).map(([k,v])=>({key:k, value:v}))).then(()=> showToast('設定已儲存', 'success'));
+    };
 
     document.addEventListener('click', (e) => {
         const tab = e.target.closest('.tab-btn, .settings-tab-btn'); if (!tab) return;
         const name = tab.dataset.tab;
-        if (tab.classList.contains('settings-tab-btn')) { activeSettingsTab = name; renderSettingsTab(); }
-        else { highlightTab(name); renderOrders(); }
+        if (tab.classList.contains('settings-tab-btn')) {
+            activeSettingsTab = name;
+            document.querySelectorAll('.settings-tab-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === name);
+            });
+            renderSettingsTab();
+        } else {
+            highlightTab(name);
+            renderOrders();
+        }
     });
 
     function toggleRoleUI() {
@@ -747,14 +955,34 @@ document.addEventListener('DOMContentLoaded', () => {
     function syncAdminDash() {
         document.getElementById('admin-order-date').value = document.getElementById('order-date').value;
         const sel = document.getElementById('admin-restaurant-name');
-        sel.innerHTML = '<option value="">請選擇...</option>' + memoryRestaurants.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
-    }
-
-    function renderAdminSchedule() {
-        const container = document.getElementById('admin-weekly-schedule'); if (!container) return;
-        let h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
-        for(let i=1;i<=31;i++) h += `<div style="border:1px solid #ccc;padding:2px;">${i}<select data-day="${i}" class="mon-sel"><option value="">-</option>${memoryRestaurants.map(r=>`<option value="${r.name}">${r.name}</option>`).join('')}</select></div>`;
-        container.innerHTML = h + '</div><button onclick="window.saveMon()">儲存排餐</button>';
+        if (sel) {
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">請選擇餐廳...</option>' + memoryRestaurants.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+            sel.value = currentVal;
+            
+            // 綁定管理員切換今日餐廳同步功能 (只綁定一次)
+            if (!sel.dataset.bound) {
+                sel.dataset.bound = true;
+                sel.addEventListener('change', (e) => {
+                    const rName = e.target.value;
+                    const inputs = getCommonInputs();
+                    memoryConfig[`restaurant_${inputs.date}_${inputs.meal}`] = rName;
+                    
+                    const newConfig = Object.entries(memoryConfig).map(([k,v])=>{
+                        let val = v;
+                        if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_')) {
+                            val = "'" + String(v).replace(/^'/, '');
+                        }
+                        return {key:k, value:val};
+                    });
+                    
+                    saveCloudData("saveConfig", newConfig).then(() => {
+                        syncAndRefresh(document.querySelectorAll('#restaurant-name, #restaurant-name-mob'), rName, true);
+                        showToast(`已將今日餐廳設定為：${rName || '待定...'}`);
+                    });
+                });
+            }
+        }
     }
     window.saveMon = () => {
         document.querySelectorAll('.mon-sel').forEach(s => memoryConfig[`monthly_午餐_${s.dataset.day}`] = s.value);
@@ -762,9 +990,67 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast("已儲存！");
     };
 
+    // ==========================================
+    // 系統排程器 (欠款通知與廣播)
+    // ==========================================
+    function showUserUnpaidPopup(detailsHtml) {
+        if (document.getElementById('unpaid-popup')) return; // 避免重複
+        const d = document.createElement('div');
+        d.id = 'unpaid-popup';
+        d.className = 'modal-overlay';
+        d.style.zIndex = '3000';
+        d.innerHTML = `
+            <div class="modal-content" style="max-width: 400px; text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🚨</div>
+                <h3 style="color: var(--danger); margin-bottom: 1rem;">未結清款項提醒</h3>
+                <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 1.5rem;">您本週尚有未結清的款項，請盡快將錢交給管理員！</p>
+                <div style="background: var(--input-bg); border-radius: 0.5rem; padding: 1rem; text-align: left; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+                    ${detailsHtml}
+                </div>
+                <button onclick="document.getElementById('unpaid-popup').remove()" class="primary-btn" style="width: 100%;">我知道了，這就去繳</button>
+            </div>
+        `;
+        document.body.appendChild(d);
+    }
+
+    let lastNotifiedTime = "0";
+    function startNotifyScheduler() {
+        if (!currentUser || currentUser.role === 'admin') return;
+        
+        // 1. 預設檢查一次
+        fetch(API_URL + "?action=checkNotify")
+            .then(res => res.json())
+            .then(data => { if (data.status === 'success') lastNotifiedTime = data.lastManualNotify; })
+            .catch(() => {});
+
+        // 2. 設定週期性檢查 (每 1 分鐘)
+        setInterval(() => {
+            fetch(API_URL + "?action=checkNotify")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.lastManualNotify !== "0" && data.lastManualNotify !== lastNotifiedTime) {
+                        lastNotifiedTime = data.lastManualNotify;
+                        fetch(API_URL, {
+                            method: "POST",
+                            body: JSON.stringify({ action: "getWeeklyUnpaidSummary", data: {} })
+                        }).then(r => r.json()).then(res => {
+                            if (res.status === 'success' && res.summary) {
+                                const myData = res.summary.find(s => s.name === currentUser.name);
+                                if (myData && myData.amount > 0) {
+                                    const detailsHtml = myData.details.map(d => `• ${d}`).join('<br>');
+                                    showUserUnpaidPopup(`欠款總計：<strong>$${myData.amount}</strong><br>` + detailsHtml);
+                                }
+                            }
+                        });
+                    }
+                }).catch(err => console.error("Notify check err:", err));
+        }, 60000);
+    }
+    // ==========================================
+
     function checkAuth() {
         const u = localStorage.getItem('lunch_user');
-        if (u) { currentUser = JSON.parse(u); loginOverlay.style.display = 'none'; toggleRoleUI(); }
+        if (u) { currentUser = JSON.parse(u); loginOverlay.style.display = 'none'; toggleRoleUI(); startNotifyScheduler(); }
         else loginOverlay.style.display = 'flex';
     }
 
@@ -774,7 +1060,9 @@ document.addEventListener('DOMContentLoaded', () => {
         else { const u = memoryUsers.find(u=>u.name===n && u.password===p); if(u) loginSuccess(n, 'user'); else showToast("錯誤","error"); }
     };
     function loginSuccess(n, r) { currentUser = {name:n, role:r}; localStorage.setItem('lunch_user', JSON.stringify(currentUser)); location.reload(); }
-    safeListen(document.getElementById('logout-btn'), 'click', () => { localStorage.removeItem('lunch_user'); location.reload(); });
+    const doLogout = () => { if (confirm("確定要登出嗎？")) { localStorage.removeItem('lunch_user'); location.reload(); } };
+    safeListen(document.getElementById('logout-btn'), 'click', doLogout);
+    safeListen(document.getElementById('logout-btn-mob'), 'click', doLogout);
 
     try { checkAuth(); } catch(e){}
     const cached = localStorage.getItem(CLOUD_CACHE_KEY);
