@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentWeekLabel = document.getElementById('current-week-label');
     let tabBtns = document.querySelectorAll('.tab-btn');
     let currentActiveTab = 'tab-details';
+    let activeSettingsTab = 'tab-users'; // BUG-06 fix: 宣告 activeSettingsTab 避免未宣告即使用
     let currentViewDate = new Date();
     let isSettingsAuthenticated = false;
 
@@ -200,12 +201,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     safeListenAll('.nav-settings-btn', 'click', () => {
+        // BUG-04 fix: 不再繞過密碼驗證，根據 isSettingsAuthenticated 狀態決定顯示哪個層
         if (!settingsModal) return;
-        isSettingsAuthenticated = true;
-        document.getElementById('settings-auth-wrapper').style.display = 'none';
-        document.getElementById('settings-main-content').style.display = 'block';
+        if (!isSettingsAuthenticated) {
+            document.getElementById('settings-auth-wrapper').style.display = '';
+            document.getElementById('settings-main-content').style.display = 'none';
+            document.getElementById('settings-password-input').value = '';
+            document.getElementById('auth-error-msg').style.display = 'none';
+        } else {
+            document.getElementById('settings-auth-wrapper').style.display = 'none';
+            document.getElementById('settings-main-content').style.display = 'block';
+            renderSettingsTab();
+        }
         settingsModal.classList.remove('hidden');
-        renderSettingsTab();
     });
 
     const unlockSettings = () => {
@@ -468,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeCutoff = getActiveCutoffTime();
             const now = new Date();
             const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            if (currentTimeStr >= normalizeTime(activeCutoff)) return true;
+            if (currentTimeStr > normalizeTime(activeCutoff)) return true; // BUG-10 fix: 改為 > 讓截止時間那一分鐘內仍可送出
         }
         return false;
     }
@@ -485,11 +493,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getActiveCutoffTime() {
+        // BUG-09 fix: 改用 admin-dashboard 可見性判斷，不依賴不可靠的 offsetParent
+        const adminDash = document.getElementById('admin-dashboard');
+        const isAdminView = adminDash && adminDash.style.display !== 'none' && adminDash.style.display !== '';
+        if (isAdminView) {
+            const ca = document.getElementById('admin-cutoff-time');
+            if (ca && ca.value) return ca.value;
+        }
         const c1 = document.getElementById('cutoff-time');
         const c2 = document.getElementById('cutoff-time-mob');
-        if (c1 && c1.offsetParent !== null) return c1.value;
-        if (c2 && c2.offsetParent !== null) return c2.value;
-        return (c1 ? c1.value : (c2 ? c2.value : '10:30')) || '10:30';
+        return (c1 && c1.value) || (c2 && c2.value) || '10:30';
     }
 
     function handleFormState() {
@@ -517,9 +530,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const isAdmin = currentUser && currentUser.role === 'admin';
         const isTBD = (displayWinner === '待定...');
         
-        // 使用者看到「待定...」時，隱藏表單
+        // BUG-07 fix: 使用 inline style 取代 class，避免與 toggleRoleUI 的 style.display 設定衝突
         if (orderFormContainer && !isAdmin) {
-            orderFormContainer.classList.toggle('hidden', isTBD);
+            orderFormContainer.style.display = isTBD ? 'none' : '';
         }
 
         const userTbdWarning = document.getElementById('user-tbd-warning');
@@ -648,6 +661,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 dayOrders.forEach((order, idx) => {
                     const isAdmin = currentUser && currentUser.role === 'admin';
                     const isLocked = isSessionLocked(order.date, order.mealType);
+                    // BUG-12 fix: 加入 isOwnOrder 判斷，確保一般使用者只能操作自己的訂單
+                    const isOwnOrder = currentUser && order.name === currentUser.name;
+                    const canEdit = isAdmin || (!isLocked && isOwnOrder);
                     const tr = document.createElement('tr');
                     if (order.paid) tr.classList.add('row-paid');
                     tr.innerHTML = `
@@ -655,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${order.name}</td><td>${order.item}</td><td>$${order.price}</td>
                         <td style="text-align:center;"><input type="checkbox" ${order.paid ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} onchange="window.togglePaid('${order.id}', this.checked)"></td>
                         <td>
-                            ${isAdmin || !isLocked ? `<button class="edit-record-btn" onclick="window.triggerEdit('${order.id}')">✏️</button><button class="delete-record-btn" onclick="window.deleteOrder('${order.id}')">🗑️</button>` : '🔒'}
+                            ${canEdit ? `<button class="edit-record-btn" onclick="window.triggerEdit('${order.id}')">✏️</button><button class="delete-record-btn" onclick="window.deleteOrder('${order.id}')">🗑️</button>` : (isLocked ? '🔒' : '')}
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -735,8 +751,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (idx !== -1) {
             orders[idx].item = document.getElementById('edit-order-item').value;
             orders[idx].price = parseFloat(document.getElementById('edit-order-price').value) || 0;
+            orders[idx].note = document.getElementById('edit-order-note').value; // BUG-11 fix: 補上備註欄位儲存
             orders[idx].paid = document.getElementById('edit-order-paid').checked;
-            saveOrders(orders, "updateOrder", orders[idx]); closeEditOrderModal(); renderOrders(); updateGrandTotal();
+            saveOrders(orders, "updateOrder", orders[idx]); window.closeEditOrderModal(); renderOrders(); updateGrandTotal();
         }
     };
 
@@ -992,56 +1009,63 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     };
-    window.delR = (i) => { if (confirm('確定刪除此餐廳?')) { memoryRestaurants.splice(i, 1); saveCloudData('saveRestaurants', memoryRestaurants).then(() => { renderSettingsTab(); syncAdminDash(); }); } };
+
+    // BUG-01/02/03 fix: editR 完整實作（移除所有孤兒程式碼）
     window.editR = (i) => {
         const r = memoryRestaurants[i]; if (!r) return;
         const dayLabels = ['一','二','三','四','五','六','日'];
         const dayKeys   = ['mon','tue','wed','thu','fri','sat','sun'];
-        const openDays  = r.openDays || [];
+        const openDays  = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',') : []);
         const existing = document.getElementById('edit-r-modal');
         if (existing) existing.remove();
         const modal = document.createElement('div');
         modal.id = 'edit-r-modal';
         modal.className = 'modal-overlay';
         modal.style.zIndex = '4000';
-        modal.innerHTML = `
-            <div class="modal-content" style="max-width:440px;">
-                <h3 style="margin-top:0;">✏️ 編輯餐廳資料</h3>
-                <div class="form-group"><label>餐廳名稱</label><input id="er-name" class="restaurant-input" value="${r.name}"></div>
-                <div class="form-group"><label>電話</label><input id="er-phone" class="restaurant-input" value="${r.phone || ''}"></div>
-                <div class="form-group"><label>菜單網址</label><input id="er-url" class="restaurant-input" value="${r.menuUrl || ''}"></div>
-                <div class="form-group">
-                    <label>📅 每週開店日</label>
-                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.4rem;">
-                        ${dayLabels.map((d, idx) => '<label style="display:flex;align-items:center;gap:3px;font-size:0.85rem;cursor:pointer;backgroun    window.saveSysConfig = () => {
-        const c = document.getElementById('sys-default-cutoff').value;
-        if (c) memoryConfig.defaultCutoffTime = c;
-        saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('設定已儲存', 'success'));
-    };Dash();
-            showToast(`餐廳 ${r.name} 已更新`, 'success');
-        });
+        const dayCheckboxes = dayLabels.map((d, idx) =>
+            `<label style="display:flex;align-items:center;gap:3px;font-size:0.85rem;cursor:pointer;background:var(--input-bg);padding:3px 8px;border-radius:4px;border:1px solid var(--border);">` +
+            `<input type="checkbox" class="er-day" value="${dayKeys[idx]}" ${openDays.includes(dayKeys[idx]) ? 'checked' : ''}> 週${d}</label>`
+        ).join('');
+        const safeVal = (v) => (v || '').replace(/"/g, '&quot;');
+        modal.innerHTML =
+            `<div class="modal-content" style="max-width:440px;">` +
+            `<h3 style="margin-top:0;">✏️ 編輯餐廳資料</h3>` +
+            `<div class="form-group"><label>餐廳名稱</label><input id="er-name" class="restaurant-input" value="${safeVal(r.name)}"></div>` +
+            `<div class="form-group"><label>電話</label><input id="er-phone" class="restaurant-input" value="${safeVal(r.phone)}"></div>` +
+            `<div class="form-group"><label>菜單網址</label><input id="er-url" class="restaurant-input" value="${safeVal(r.menuUrl)}"></div>` +
+            `<div class="form-group"><label>📅 每週開店日</label>` +
+            `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.4rem;">${dayCheckboxes}</div></div>` +
+            `<div class="form-group" style="display:flex;align-items:center;gap:0.5rem;">` +
+            `<label style="font-size:0.85rem;color:var(--text-muted);flex-shrink:0;">更換照片：</label>` +
+            `<input type="file" id="er-file" accept="image/*" class="restaurant-input" style="padding:0.4rem;"></div>` +
+            `<div style="display:flex;gap:1rem;margin-top:1rem;">` +
+            `<button onclick="document.getElementById('edit-r-modal').remove()" class="nav-btn" style="flex:1;">取消</button>` +
+            `<button id="er-save-btn" class="primary-btn" style="flex:2;">💾 儲存修改</button></div></div>`;
+        document.body.appendChild(modal);
+        modal.querySelector('#er-save-btn').onclick = () => {
+            const newName = document.getElementById('er-name').value.trim();
+            const newPhone = document.getElementById('er-phone').value.trim();
+            const newUrl = document.getElementById('er-url').value.trim();
+            const newOpenDays = [...document.querySelectorAll('.er-day:checked')].map(cb => cb.value);
+            const newFile = document.getElementById('er-file').files[0];
+            if (!newName) return alert('需填寫餐廳名稱');
+            const btn = document.getElementById('er-save-btn');
+            btn.disabled = true; btn.innerText = '處理中...';
+            const doSave = (imgData) => {
+                memoryRestaurants[i] = { ...r, name: newName, phone: newPhone, menuUrl: newUrl, openDays: newOpenDays, menuImage: imgData !== null ? imgData : r.menuImage };
+                saveRestaurants(memoryRestaurants).then(() => {
+                    modal.remove(); renderSettingsTab(); syncAdminDash();
+                    showToast(`餐廳 ${newName} 已更新`, 'success');
+                });
+            };
+            if (newFile) { handleImageFile(newFile, (base64Img) => doSave(base64Img)); }
+            else { doSave(null); }
+        };
     };
     window.saveSysConfig = () => {
         const c = document.getElementById('sys-default-cutoff').value;
         if (c) memoryConfig.defaultCutoffTime = c;
         saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('設定已儲存', 'success'));
-        if(!n) return alert('需填寫餐廳名稱');
-        
-        btn.disabled = true; btn.innerText = "處理圖片及上傳中...";
-        handleImageFile(f, (base64Img) => {
-            memoryRestaurants.push({ id:Date.now(), name:n, phone:p, menuUrl:u, menuImage:base64Img });
-            saveCloudData("saveRestaurants", memoryRestaurants).then(()=> {
-                renderSettingsTab();
-                syncAdminDash();
-                showToast(`餐廳 ${n} 已新增`);
-            });
-        });
-    };
-    window.delR = (i) => { if (confirm('確定刪除此餐廳?')) { memoryRestaurants.splice(i,1); saveCloudData("saveRestaurants", memoryRestaurants).then(()=>{ renderSettingsTab(); syncAdminDash(); }); } };
-    window.saveSysConfig = () => {
-        const c = document.getElementById('sys-default-cutoff').value;
-        if(c) memoryConfig.defaultCutoffTime = c;
-        saveCloudData("saveConfig", Object.entries(memoryConfig).map(([k,v])=>({key:k, value:v}))).then(()=> showToast('設定已儲存', 'success'));
     };
 
     document.addEventListener('click', (e) => {
@@ -1132,11 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    window.saveMon = () => {
-        document.querySelectorAll('.mon-sel').forEach(s => memoryConfig[`monthly_午餐_${s.dataset.day}`] = s.value);
-        saveCloudData("saveConfig", Object.entries(memoryConfig).map(([k,v])=>({key:k, value:"'"+v})));
-        showToast("已儲存！");
-    };
+    // BUG-03 fix: 移除重複的 window.saveMon 定義（正確版本在上方 L1089）
 
     // ==========================================
     // 系統排程器 (欠款通知與廣播)
@@ -1165,15 +1185,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function startNotifyScheduler() {
         if (!currentUser || currentUser.role === 'admin') return;
         
+        // BUG-08 fix: 改為 POST 請求，因為後端 doGet 不處理 checkNotify action
         // 1. 預設檢查一次
-        fetch(API_URL + "?action=checkNotify")
+        fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'checkNotify' }) })
             .then(res => res.json())
             .then(data => { if (data.status === 'success') lastNotifiedTime = data.lastManualNotify; })
             .catch(() => {});
 
         // 2. 設定週期性檢查 (每 1 分鐘)
         setInterval(() => {
-            fetch(API_URL + "?action=checkNotify")
+            fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'checkNotify' }) })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success' && data.lastManualNotify !== "0" && data.lastManualNotify !== lastNotifiedTime) {
@@ -1211,9 +1232,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     authSubmitBtn.onclick = () => {
+        // BUG-05 fix: 不再硬編碼 admin/1234，改從 memoryConfig 讀取（有 fallback）
         const n = authNameInput.value.trim(); const p = authPassInput.value.trim();
-        if (n==='admin' && p==='1234') { loginSuccess(n, 'admin'); }
-        else { const u = memoryUsers.find(u=>u.name===n && u.password===p); if(u) loginSuccess(n, 'user'); else showToast("錯誤","error"); }
+        const adminName = String(memoryConfig.adminName || 'admin');
+        const adminPwd = String(memoryConfig.adminPwd || '1234');
+        if (n === adminName && p === adminPwd) { loginSuccess(n, 'admin'); }
+        else { const u = memoryUsers.find(u=>u.name===n && u.password===p); if(u) loginSuccess(n, u.role || 'user'); else showToast("帳號或密碼錯誤","error"); }
     };
     function loginSuccess(n, r) { currentUser = {name:n, role:r}; localStorage.setItem('lunch_user', JSON.stringify(currentUser)); location.reload(); }
     const doLogout = () => { if (confirm("確定要登出嗎？")) { localStorage.removeItem('lunch_user'); location.reload(); } };
