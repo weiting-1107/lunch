@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             if (changed) {
-                saveOrders(orders, "updateOrder", { batch: true });
+                saveOrders(orders);
                 updateGrandTotal();
                 renderOrders();
                 showToast(`已結清 ${name} 的欠款`, 'success');
