@@ -984,7 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const p = document.getElementById('new-r-phone').value.trim();
         const u = document.getElementById('new-r-url').value.trim();
         const f = document.getElementById('new-r-file').files[0];
-        const openDays = [...document.querySelectorAll('.new-r-day:checked')].map(cb => cb.value);
+        const openDays = [...document.querySelectorAll('.new-r-day:checked')].map(cb => cb.value).join(',');
         if (!n) return alert('需填寫餐廳名稱');
         btn.disabled = true; btn.innerText = '處理圖片及上傳中...';
         handleImageFile(f, (base64Img) => {
@@ -1032,7 +1032,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newName = document.getElementById('er-name').value.trim();
             const newPhone = document.getElementById('er-phone').value.trim();
             const newUrl = document.getElementById('er-url').value.trim();
-            const newOpenDays = [...document.querySelectorAll('.er-day:checked')].map(cb => cb.value);
+            const newOpenDays = [...document.querySelectorAll('.er-day:checked')].map(cb => cb.value).join(',');
             const newFile = document.getElementById('er-file').files[0];
             if (!newName) return alert('需填寫餐廳名稱');
             const btn = document.getElementById('er-save-btn');
