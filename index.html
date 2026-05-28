@@ -77,17 +77,6 @@
                 <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
                     登出系統</button>
             </nav>
-            <div id="sidebar-settings-group" class="sidebar-settings-group desktop-only">
-                <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
-                <div class="sidebar-setting-item admin-only">
-                    <label>⚙️ 鎖單時間設定</label>
-                    <div style="display:flex; gap:0.5rem; align-items:center;">
-                        <input type="time" id="cutoff-time" value="10:30" class="time-input" style="width:50%;">
-                        <button id="confirm-cutoff-btn" class="primary-btn"
-                            style="width:50%; padding:0.4rem 0.6rem; font-size:0.8rem;">確定</button>
-                    </div>
-                </div>
-            </div>
         </aside>
 
         <!-- 隱藏輸入，供 JS 讀取日期/餐期 (UI 已移至管理員控制面板) -->
@@ -135,6 +124,15 @@
             </header>
 
             <main>
+                <!-- 管理員提示區 -->
+                <div id="admin-tbd-warning" class="locked-warning hidden admin-only" style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
+                    ⚠️ 您目前尚未設定今日餐廳，點餐者將暫時無法下單。請至頁面左方「設定」區域或「系統設定」進行配置。
+                </div>
+                <!-- 一般使用者提示區 -->
+                <div id="user-tbd-warning" class="locked-warning hidden user-only" style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
+                    ⏳ 今日餐廳「待定中」，目前暫時無法下單。請稍後再回來查看，或聯絡管理員設定。
+                </div>
+
                 <!-- 鎖單警告提示塊 (手機版順序：投票之後) -->
                 <div id="locked-warning" class="locked-warning hidden">
                     ⚠️ 本日訂單已過截止時間，狀態已鎖定不開放新增或修改。
@@ -178,25 +176,8 @@
                             </div>
                         </div>
                     </div>
-                    <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
-                    <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每月預定排餐表</h4>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">若當天投票截止後無人投票，系統會自動套用此設定。
-                    </p>
-                    <div id="admin-weekly-schedule" style="overflow-x:auto;"></div>
-                    <button id="admin-save-weekly-btn" onclick="window.saveMon()" class="primary-btn" style="width:100%; margin-top:1rem;">💾
-                        儲存每月排餐設定</button>
                 </div>
 
-
-
-                <!-- 管理員提示區 (v304 新增) -->
-                <div id="admin-tbd-warning" class="locked-warning hidden admin-only" style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
-                    ⚠️ 您目前尚未設定今日餐廳，點餐者將暫時無法下單。請至頁面左方「設定」區域或「系統設定」進行配置。
-                </div>
-                <!-- 一般使用者提示區 (待定時顯示) -->
-                <div id="user-tbd-warning" class="locked-warning hidden user-only" style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
-                    ⏳ 今日餐廳「待定中」，目前暫時無法下單。請稍後再回來查看，或聯絡管理員設定。
-                </div>
 
                 <!-- 今日訂餐資訊簡報區 (v301 新增) -->
                 <div id="order-info-banner" class="order-form-card" style="margin-bottom: 1rem; border-left: 5px solid var(--primary); padding: 1.25rem;">
@@ -341,7 +322,6 @@
             <!-- 三大情境頁籤 Tabs -->
             <div class="modal-tabs">
                 <button class="tab-btn active" data-tab="tab-details">📝 流水記帳表</button>
-                <button class="tab-btn admin-only" data-tab="tab-caller">📞 電話叫餐表</button>
                 <button class="tab-btn admin-only" data-tab="tab-person">💸 收錢總帳表</button>
             </div>
 

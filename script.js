@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const recommendation = getRecommendedRestaurant(selectedDate, selectedMealType);
         const winner = recommendation.name;
         let displayWinner = '待定...';
-        if (anyOrder || isTimeUp) displayWinner = winner || '待定...';
+        if (anyOrder || isTimeUp || (winner && winner !== '待定...')) displayWinner = winner || '待定...';
         restaurantInputs.forEach(input => {
             input.value = displayWinner; input.disabled = true;
             input.style.color = (displayWinner === '待定...') ? "var(--text-muted)" : "var(--text-main)";
