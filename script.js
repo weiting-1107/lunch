@@ -508,10 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSessionChanged = (selectedDate !== lastViewedDate || selectedMealType !== lastViewedMeal);
         const sessionOrders = getOrders().filter(o => o.date === selectedDate && o.mealType === selectedMealType);
         const anyOrder = sessionOrders.length > 0;
-        const settings = getSettings();
-        const sessionKey = `${selectedDate}_${selectedMealType}`;
-        const cloudCutoff = memoryConfig[`cutoff_${sessionKey}`];
-        const mealDefault = cloudCutoff || settings.mealCutoffs[selectedMealType] || settings.cutoffTime || '10:30';
+        const mealDefault = getActiveCutoffTime();
         if (isSessionChanged && !anyOrder) cutoffInputs.forEach(input => { if (input) input.value = mealDefault; });
         const isTimeUp = isSessionLocked(selectedDate, selectedMealType);
         const currentOrderCutoff = getActiveCutoffTime();
@@ -562,10 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (anyOrder || isTimeUp || (winner && winner !== '待定...')) displayWinner = winner || '待定...';
         if(dispRest) dispRest.innerText = displayWinner;
         
-        const settings = getSettings();
-        const sessionKey = `${inputs.date}_${inputs.meal}`;
-        const cloudCutoff = memoryConfig[`cutoff_${sessionKey}`];
-        const activeCutoff = cloudCutoff || settings.mealCutoffs[inputs.meal] || settings.cutoffTime || '10:30';
+        const activeCutoff = getActiveCutoffTime();
         if(dispCut) dispCut.innerText = activeCutoff;
     }
 
