@@ -1100,10 +1100,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isAdmin) el.classList.remove('hidden');
             else el.classList.add('hidden');
         });
-        document.getElementById('admin-dashboard').style.display = isAdmin ? '' : 'none';
+        const dash = document.getElementById('admin-dashboard');
+        dash.style.display = isAdmin ? '' : 'none';
         document.getElementById('order-form-container').style.display = isAdmin ? 'none' : '';
         if (isAdmin) {
-            if (!fromFetch) {
+            const isTyping = dash.contains(document.activeElement) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+            if (!fromFetch || !isTyping) {
                 renderAdminSchedule(); 
                 syncAdminDash(); 
             }
