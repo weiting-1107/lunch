@@ -985,6 +985,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <input type="time" id="sys-default-cutoff" class="restaurant-input" value="${memoryConfig.defaultCutoffTime || '10:30'}">
                     </div>
                     <button onclick="window.saveSysConfig()" class="primary-btn" style="margin-top:1rem;">儲存設定</button>
+                    <hr style="border:0; border-top:1px solid var(--border); margin:1.5rem 0;">
+                    <h4 style="margin-top:0;">📢 系統通知廣播</h4>
+                    <button onclick="window.notifyUnpaid()" class="secondary-btn" style="width:100%; border-color:var(--warning); color:var(--warning); padding:0.8rem; border-radius:0.5rem; border-width:2px; border-style:solid; cursor:pointer; font-weight:bold;">發送欠款提醒通知</button>
                 </div>
             `;
         }
@@ -1033,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `<div class="form-group"><label>餐廳名稱</label><input id="er-name" class="restaurant-input" value="${safeVal(r.name)}"></div>` +
             `<div class="form-group"><label>電話</label><input id="er-phone" class="restaurant-input" value="${safeVal(r.phone)}"></div>` +
             `<div class="form-group"><label>菜單網址</label><input id="er-url" class="restaurant-input" value="${safeVal(r.menuUrl)}"></div>` +
-            `<div class="form-group"><label>📅 每週開店日</label>` +
+            `<div style="margin-bottom: 1rem;"><label style="font-size:0.95rem; font-weight:600; color:var(--text-main); margin-bottom:0.5rem; display:block;">📅 每週開店日</label>` +
             `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.4rem;">${dayCheckboxes}</div></div>` +
             `<div class="form-group" style="display:flex;align-items:center;gap:0.5rem;">` +
             `<label style="font-size:0.85rem;color:var(--text-muted);flex-shrink:0;">更換照片：</label>` +
@@ -1066,6 +1069,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const c = document.getElementById('sys-default-cutoff').value;
         if (c) memoryConfig.defaultCutoffTime = c;
         saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('設定已儲存', 'success'));
+    };
+
+    window.notifyUnpaid = () => {
+        if (!confirm('確定要發送欠款提醒通知給所有人嗎？')) return;
+        memoryConfig.lastManualNotify = Date.now().toString();
+        saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('已發送通知', 'success'));
     };
 
     document.addEventListener('click', (e) => {

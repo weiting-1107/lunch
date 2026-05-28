@@ -175,31 +175,13 @@
                                     style="padding:0.4rem 0.8rem; font-size:0.85rem;">確定</button>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-
-                <!-- 今日訂餐資訊簡報區 (v301 新增) -->
-                <div id="order-info-banner" class="order-form-card" style="margin-bottom: 1rem; border-left: 5px solid var(--primary); padding: 1.25rem;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
-                        <div class="info-item">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">📅 訂餐日期</label>
-                            <span id="display-order-date" style="font-weight: bold; font-size: 1.1rem;">----/--/--</span>
-                        </div>
-                        <div class="info-item">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">🏢 今日餐廳</label>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span id="display-restaurant" style="font-weight: bold; font-size: 1.1rem; color: var(--primary);">待定...</span>
-                                <button id="display-rest-menu-banner" class="action-btn-mini"
-                                    onclick="window.openMenuViewer(document.getElementById('display-restaurant').innerText)"
-                                    style="padding: 2px 8px; font-size: 0.7rem; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">📄 菜單</button>
-                            </div>
-                        </div>
-                        <div class="info-item">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">⛔ 鎖單截止時間</label>
-                            <span id="display-cutoff-time" class="cutoff-display" style="font-size: 1.1rem;">--:--</span>
                         </div>
                     </div>
+                    <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
+                    <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每月預定排餐表</h4>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">若當天投票截止後無人投票，系統會自動套用此設定。</p>
+                    <div id="admin-weekly-schedule" style="overflow-x:auto;"></div>
+                    <button id="admin-save-weekly-btn" onclick="window.saveMon()" class="primary-btn" style="width:100%; margin-top:1rem;">💾 儲存每月排餐設定</button>
                 </div>
 
                 <!-- 點餐表單 (手機版順序：最後) -->
@@ -322,6 +304,7 @@
             <!-- 三大情境頁籤 Tabs -->
             <div class="modal-tabs">
                 <button class="tab-btn active" data-tab="tab-details">📝 流水記帳表</button>
+                <button class="tab-btn admin-only" data-tab="tab-caller">📞 電話叫餐表</button>
                 <button class="tab-btn admin-only" data-tab="tab-person">💸 收錢總帳表</button>
             </div>
 
