@@ -291,13 +291,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateLocalCache();
                 updateDatalists();
                 updateGrandTotal();
-                if (!excelModal.classList.contains('hidden')) renderOrders();
+                renderOrders();
                 const sModal = document.getElementById('settings-modal');
                 const isUserTyping = sModal && !sModal.classList.contains('hidden') && sModal.contains(document.activeElement) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
                 if (sModal && !sModal.classList.contains('hidden') && !isUserTyping) renderSettingsTab();
             }
             handleFormState();
-            toggleRoleUI();
+            toggleRoleUI(true);
         } catch (err) { console.error("雲端同步失敗", err); }
     }
 
@@ -1059,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
             key: k,
-            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
+            value: (k === 'lastManualNotify' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_')) ? "'" + String(v).replace(/^'/, '') : v
         }));
         saveCloudData('saveConfig', configArr).then(() => {
             handleFormState();
@@ -1092,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function toggleRoleUI() {
+    function toggleRoleUI(fromFetch = false) {
         if (!currentUser) return; const isAdmin = currentUser.role === 'admin';
         document.body.classList.toggle('admin-mode', isAdmin);
         document.querySelectorAll('.admin-only').forEach(el => {
@@ -1102,9 +1102,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.getElementById('admin-dashboard').style.display = isAdmin ? '' : 'none';
         document.getElementById('order-form-container').style.display = isAdmin ? 'none' : '';
-        if (isAdmin) { renderAdminSchedule(); syncAdminDash(); }
+        if (isAdmin) {
+            if (!fromFetch) {
+                renderAdminSchedule(); 
+                syncAdminDash(); 
+            }
+        }
         else { if(personNameInput) { personNameInput.value = currentUser.name; personNameInput.disabled = true; } }
-        renderOrders();
+        if (!fromFetch) renderOrders();
     }
 
     function renderAdminSchedule() {
