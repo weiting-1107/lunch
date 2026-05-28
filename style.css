@@ -616,7 +616,11 @@ body.admin-mode span.admin-only {
     display: inline-block !important;
 }
 
-body.admin-mode button.nav-item.admin-only,
+body.admin-mode button.nav-item.admin-only {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
 body.admin-mode button.nav-btn.admin-only {
     display: flex !important;
 }
