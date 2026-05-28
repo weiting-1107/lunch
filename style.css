@@ -1861,3 +1861,10 @@ input[type="number"] {
 .sync-active .sync-loader {
     display: block;
 }
+
+/* 確保 hidden 狀態能夠覆蓋 flex */
+.tab-btn.hidden,
+.modal-tab-btn.hidden,
+.settings-tab-btn.hidden {
+    display: none !important;
+}

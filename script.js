@@ -980,12 +980,6 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = `
                 <div style="padding:1rem;">
                     <p style="color:var(--text-muted); margin-bottom:1rem;">系統基本參數配置。</p>
-                    <div class="form-group">
-                        <label>🕒 預設鎖單時間</label>
-                        <input type="time" id="sys-default-cutoff" class="restaurant-input" value="${memoryConfig.defaultCutoffTime || '10:30'}">
-                    </div>
-                    <button onclick="window.saveSysConfig()" class="primary-btn" style="margin-top:1rem;">儲存設定</button>
-                    <hr style="border:0; border-top:1px solid var(--border); margin:1.5rem 0;">
                     <h4 style="margin-top:0;">📢 系統通知廣播</h4>
                     <button onclick="window.notifyUnpaid()" class="secondary-btn" style="width:100%; border-color:var(--warning); color:var(--warning); padding:0.8rem; border-radius:0.5rem; border-width:2px; border-style:solid; cursor:pointer; font-weight:bold;">發送欠款提醒通知</button>
                 </div>
@@ -1133,6 +1127,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function syncAdminDash() {
+        const sysCutoff = document.getElementById('sys-default-cutoff');
+        if (sysCutoff) sysCutoff.value = memoryConfig.defaultCutoffTime || '10:30';
+
         const dInput = document.getElementById('admin-order-date');
         const oInput = document.getElementById('order-date');
         if(dInput && oInput && !dInput.value && oInput.value) dInput.value = oInput.value;
