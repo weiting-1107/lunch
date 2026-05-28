@@ -1247,13 +1247,48 @@ document.addEventListener('DOMContentLoaded', () => {
         else loginOverlay.style.display = 'flex';
     }
 
+    authSwitchLink.onclick = (e) => {
+        e.preventDefault();
+        authMode = authMode === 'login' ? 'register' : 'login';
+        if (authMode === 'register') {
+            loginTitle.textContent = '註冊帳號';
+            loginSubtitle.textContent = '建立新帳號開始點餐';
+            authSubmitBtn.textContent = '立即註冊';
+            authSwitchLink.textContent = '點我登入';
+            registerNote.style.display = 'block';
+        } else {
+            loginTitle.textContent = '系統登入';
+            loginSubtitle.textContent = '午餐訂餐系統';
+            authSubmitBtn.textContent = '立即登入';
+            authSwitchLink.textContent = '點我註冊';
+            registerNote.style.display = 'none';
+        }
+    };
+
     authSubmitBtn.onclick = () => {
-        // BUG-05 fix: 不再硬編碼 admin/1234，改從 memoryConfig 讀取（有 fallback）
         const n = authNameInput.value.trim(); const p = authPassInput.value.trim();
+        if (!n || !p) { showToast("請輸入姓名與密碼", "error"); return; }
         const adminName = String(memoryConfig.adminName || 'admin');
         const adminPwd = String(memoryConfig.adminPwd || '1234');
-        if (n === adminName && p === adminPwd) { loginSuccess(n, 'admin'); }
-        else { const u = memoryUsers.find(u=>u.name===n && u.password===p); if(u) loginSuccess(n, u.role || 'user'); else showToast("帳號或密碼錯誤","error"); }
+
+        if (authMode === 'login') {
+            if (n === adminName && p === adminPwd) { loginSuccess(n, 'admin'); }
+            else { 
+                const u = memoryUsers.find(u=>u.name===n && u.password===p); 
+                if(u) loginSuccess(n, u.role || 'user'); 
+                else showToast("帳號或密碼錯誤","error"); 
+            }
+        } else {
+            if (n === adminName || memoryUsers.find(u => u.name === n)) {
+                showToast("此姓名已被註冊", "error");
+            } else {
+                memoryUsers.push({ id: Date.now(), name: n, password: p, role: 'user' });
+                saveCloudData("saveUsers", memoryUsers).then(() => {
+                    showToast("註冊成功，已自動登入！", "success");
+                    loginSuccess(n, 'user');
+                });
+            }
+        }
     };
     function loginSuccess(n, r) { currentUser = {name:n, role:r}; localStorage.setItem('lunch_user', JSON.stringify(currentUser)); location.reload(); }
     const doLogout = () => { if (confirm("確定要登出嗎？")) { localStorage.removeItem('lunch_user'); location.reload(); } };
