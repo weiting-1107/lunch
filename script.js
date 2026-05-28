@@ -76,9 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const excelModal = document.getElementById('excel-modal');
     const settingsModal = document.getElementById('settings-modal');
 
-    const dateInputs = document.querySelectorAll('#order-date, #order-date-mob');
-    const mealTypeInputs = document.querySelectorAll('#meal-type, #meal-type-mob');
-    const restaurantInputs = document.querySelectorAll('#restaurant-name, #restaurant-name-mob');
+    const dateInputs = document.querySelectorAll('#order-date, #admin-order-date');
+    const mealTypeInputs = document.querySelectorAll('#meal-type, #admin-meal-type');
+    const restaurantInputs = document.querySelectorAll('#restaurant-name');
     const cutoffInputs = document.querySelectorAll('#cutoff-time, #cutoff-time-mob');
 
     const personNameInput = document.getElementById('person-name');
@@ -532,10 +532,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const userTbdWarning = document.getElementById('user-tbd-warning');
-        const adminTbdWarning = document.getElementById('admin-tbd-warning');
         
         if (userTbdWarning) userTbdWarning.classList.toggle('hidden', !isTBD);
-        if (adminTbdWarning) adminTbdWarning.classList.toggle('hidden', !isTBD);
         if (isTimeUp) {
             if (lockedWarning) {
                 lockedWarning.classList.remove('hidden');
@@ -1085,7 +1083,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.notifyUnpaid = () => {
         if (!confirm('確定要發送欠款提醒通知給所有人嗎？')) return;
         memoryConfig.lastManualNotify = Date.now().toString();
-        saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('已發送通知', 'success'));
+        const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
+            key: k,
+            value: (k === 'lastManualNotify' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_')) ? "'" + String(v).replace(/^'/, '') : v
+        }));
+        saveCloudData('saveConfig', configArr).then(() => showToast('已發送通知', 'success'));
     };
 
     document.addEventListener('click', (e) => {
@@ -1240,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 }).catch(err => console.error("Notify check err:", err));
-        }, 60000);
+        }, 15000);
     }
     // ==========================================
 
