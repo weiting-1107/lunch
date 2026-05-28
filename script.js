@@ -493,16 +493,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getActiveCutoffTime() {
-        // BUG-09 fix: 改用 admin-dashboard 可見性判斷，不依賴不可靠的 offsetParent
-        const adminDash = document.getElementById('admin-dashboard');
-        const isAdminView = adminDash && adminDash.style.display !== 'none' && adminDash.style.display !== '';
-        if (isAdminView) {
-            const ca = document.getElementById('admin-cutoff-time');
-            if (ca && ca.value) return ca.value;
+        const inputs = getCommonInputs();
+        if (inputs && inputs.date && inputs.meal) {
+            const override = memoryConfig[`cutoff_${inputs.date}_${inputs.meal}`];
+            if (override) return override;
         }
-        const c1 = document.getElementById('cutoff-time');
-        const c2 = document.getElementById('cutoff-time-mob');
-        return (c1 && c1.value) || (c2 && c2.value) || '10:30';
+        return memoryConfig.defaultCutoffTime || '10:30';
     }
 
     function handleFormState() {
@@ -532,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // BUG-07 fix: 使用 inline style 取代 class，避免與 toggleRoleUI 的 style.display 設定衝突
         if (orderFormContainer && !isAdmin) {
-            orderFormContainer.style.display = isTBD ? 'none' : '';
+            orderFormContainer.style.display = (isTBD || isTimeUp) ? 'none' : '';
         }
 
         const userTbdWarning = document.getElementById('user-tbd-warning');

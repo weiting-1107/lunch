@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍱 大家吃啥 (v304)</title>
+    <title>🍱 大家吃啥</title>
     <!-- 引入 Google Fonts 提升排版美感 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -74,6 +74,8 @@
                 <button class="nav-btn nav-details-btn">📝 查看明細</button>
                 <button class="nav-btn nav-person-btn admin-only">💸 收錢總帳</button>
                 <button class="nav-btn nav-settings-btn admin-only">⚙️ 系統設定</button>
+                <button onclick="window.notifyUnpaid()" class="nav-btn admin-only"
+                    style="color:var(--warning); margin-top: 1rem; border: 1px solid var(--warning);">📢 系統通知廣播</button>
                 <button id="logout-btn" class="nav-btn" style="color:var(--danger); opacity:0.8; margin-top: auto;">🚪
                     登出系統</button>
             </nav>
@@ -125,11 +127,13 @@
 
             <main>
                 <!-- 管理員提示區 -->
-                <div id="admin-tbd-warning" class="locked-warning hidden admin-only" style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
+                <div id="admin-tbd-warning" class="locked-warning hidden admin-only"
+                    style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
                     ⚠️ 您目前尚未設定今日餐廳，點餐者將暫時無法下單。請至頁面左方「設定」區域或「系統設定」進行配置。
                 </div>
                 <!-- 一般使用者提示區 -->
-                <div id="user-tbd-warning" class="locked-warning hidden user-only" style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
+                <div id="user-tbd-warning" class="locked-warning hidden user-only"
+                    style="background:#fff3e0; border-color:#ffe0b2; color:#e65100; margin-bottom:1rem;">
                     ⏳ 今日餐廳「待定中」，目前暫時無法下單。請稍後再回來查看，或聯絡管理員設定。
                 </div>
 
@@ -169,7 +173,8 @@
                         <div class="form-group" style="margin:0;">
                             <label>⛔ 鎖單時間</label>
                             <div style="display:flex; gap:0.5rem; align-items:center;">
-                                <input type="time" id="sys-default-cutoff" class="time-input restaurant-input" style="flex:1;">
+                                <input type="time" id="sys-default-cutoff" class="time-input restaurant-input"
+                                    style="flex:1;">
                                 <button onclick="window.saveSysConfig()" class="primary-btn"
                                     style="padding:0.4rem 0.8rem; font-size:0.85rem;">儲存</button>
                             </div>
@@ -177,30 +182,42 @@
                     </div>
                     <hr style="border:0; border-top:1px solid var(--border); margin:1rem 0;">
                     <h4 style="margin:0 0 0.75rem; color:var(--primary);">📅 每月預定排餐表</h4>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">若當天投票截止後無人投票，系統會自動套用此設定。</p>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 0.75rem;">當天系統會自動套用此設定。</p>
                     <div id="admin-weekly-schedule" style="overflow-x:auto;"></div>
-                    <button id="admin-save-weekly-btn" onclick="window.saveMon()" class="primary-btn" style="width:100%; margin-top:1rem;">💾 儲存每月排餐設定</button>
+                    <button id="admin-save-weekly-btn" onclick="window.saveMon()" class="primary-btn"
+                        style="width:100%; margin-top:1rem;">💾 儲存每月排餐設定</button>
                 </div>
 
                 <!-- 今日訂餐資訊簡報區 (原 order-info-banner) -->
-                <div id="order-info-banner" class="order-form-card user-only" style="margin-bottom: 1rem; border-left: 5px solid var(--primary); padding: 1.25rem;">
+                <div id="order-info-banner" class="order-form-card user-only"
+                    style="margin-bottom: 1rem; border-left: 5px solid var(--primary); padding: 1.25rem;">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
                         <div class="info-item">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">📅 訂餐日期</label>
-                            <span id="display-order-date" style="font-weight: bold; font-size: 1.1rem;">----/--/--</span>
+                            <label
+                                style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">📅
+                                訂餐日期</label>
+                            <span id="display-order-date"
+                                style="font-weight: bold; font-size: 1.1rem;">----/--/--</span>
                         </div>
                         <div class="info-item">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">🏢 今日餐廳</label>
+                            <label
+                                style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">🏢
+                                今日餐廳</label>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span id="display-restaurant" style="font-weight: bold; font-size: 1.1rem; color: var(--primary);">待定...</span>
+                                <span id="display-restaurant"
+                                    style="font-weight: bold; font-size: 1.1rem; color: var(--primary);">待定...</span>
                                 <button id="display-rest-menu-banner" class="action-btn-mini"
                                     onclick="window.openMenuViewer(document.getElementById('display-restaurant').innerText)"
-                                    style="padding: 2px 8px; font-size: 0.7rem; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">📄 菜單</button>
+                                    style="padding: 2px 8px; font-size: 0.7rem; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">📄
+                                    菜單</button>
                             </div>
                         </div>
                         <div class="info-item">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">⛔ 鎖單截止時間</label>
-                            <span id="display-cutoff-time" class="cutoff-display" style="font-size: 1.1rem;">--:--</span>
+                            <label
+                                style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">⛔
+                                鎖單截止時間</label>
+                            <span id="display-cutoff-time" class="cutoff-display"
+                                style="font-size: 1.1rem;">--:--</span>
                         </div>
                     </div>
                 </div>
@@ -393,7 +410,6 @@
                 <div class="modal-tabs">
                     <button class="settings-tab-btn active" data-tab="tab-users">👥 人員維護</button>
                     <button class="settings-tab-btn" data-tab="tab-restaurants">🏪 便當店維護</button>
-                    <button class="settings-tab-btn" data-tab="tab-config">⚙️ 其他設定</button>
                 </div>
                 <div class="modal-body">
                     <div id="settings-dynamic-content" style="min-height: 300px;"></div>
