@@ -653,12 +653,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const table = document.createElement('table'); table.className = 'excel-table';
         table.innerHTML = `<thead><tr><th>日期 / 餐廳</th><th>姓名</th><th>餐點</th><th>金額</th><th>付清</th><th>操作</th></tr></thead>`;
         const tbody = document.createElement('tbody');
+        let weekTotal = 0;
         weekDates.forEach(({ dateString, dayLabel }) => {
             const dayOrders = allOrders.filter(o => o.date === dateString);
             if (dayOrders.length === 0) {
                 tbody.innerHTML += `<tr><td>${dateString} ${dayLabel}</td><td colspan="5" style="text-align:center;color:var(--text-muted);">無紀錄</td></tr>`;
             } else {
                 dayOrders.forEach((order, idx) => {
+                    weekTotal += order.price;
                     const isAdmin = currentUser && currentUser.role === 'admin';
                     const isLocked = isSessionLocked(order.date, order.mealType);
                     // BUG-12 fix: 加入 isOwnOrder 判斷，確保一般使用者只能操作自己的訂單
@@ -678,7 +680,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-        table.appendChild(tbody); container.appendChild(table);
+        table.appendChild(tbody);
+        
+        const tfoot = document.createElement('tfoot');
+        tfoot.innerHTML = `<tr><th colspan="3" style="text-align:right;">本週總計金額：</th><th colspan="3" style="color:var(--danger); font-size:1.1em; text-align:left;">$${weekTotal}</th></tr>`;
+        table.appendChild(tfoot);
+        
+        container.appendChild(table);
     }
 
     window.triggerEdit = function(id) {
@@ -1061,8 +1069,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.saveSysConfig = () => {
         const c = document.getElementById('sys-default-cutoff').value;
-        if (c) memoryConfig.defaultCutoffTime = c;
-        saveCloudData('saveConfig', Object.entries(memoryConfig).map(([k, v]) => ({ key: k, value: v }))).then(() => showToast('設定已儲存', 'success'));
+        if (c) {
+            memoryConfig.defaultCutoffTime = c;
+            const inputs = getCommonInputs();
+            if (inputs && inputs.date && inputs.meal) {
+                memoryConfig[`cutoff_${inputs.date}_${inputs.meal}`] = c;
+            }
+        }
+        const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
+            key: k,
+            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
+        }));
+        saveCloudData('saveConfig', configArr).then(() => {
+            handleFormState();
+            showToast('鎖單時間已儲存', 'success');
+        });
     };
 
     window.notifyUnpaid = () => {
