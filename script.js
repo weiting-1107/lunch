@@ -678,36 +678,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPersonTable(weekOrders, container) {
-        const topBar = document.createElement('div');
-        topBar.style = 'display:flex; justify-content:flex-end; margin-bottom: 1rem;';
-        const settleAllBtn = document.createElement('button');
-        settleAllBtn.className = 'primary-btn';
-        settleAllBtn.style = 'background-color: var(--success); width: auto; padding: 0.5rem 1rem;';
-        settleAllBtn.innerHTML = '💰 一鍵結清本週帳款';
-        settleAllBtn.onclick = () => {
-            if (confirm('確定要將畫面上所有未結清的款項標記為「已付款」嗎？')) {
-                const orders = getOrders();
-                let changed = false;
-                weekOrders.forEach(wo => {
-                    if (!wo.paid) {
-                        const target = orders.find(o => o.id === wo.id);
-                        if (target) { target.paid = true; changed = true; }
-                    }
-                });
-                if (changed) {
-                    saveOrders(orders, "updateOrder", { batch: true });
-                    updateGrandTotal();
-                    renderOrders();
-                } else {
-                    showToast('目前沒有未結清的款項', 'success');
-                }
-            }
-        };
-        topBar.appendChild(settleAllBtn);
-        container.appendChild(topBar);
-
         const table = document.createElement('table'); table.className = 'excel-table';
-        table.innerHTML = `<thead><tr><th>姓名</th><th>次數</th><th>總額</th><th>狀態</th></tr></thead>`;
+        table.innerHTML = `<thead><tr><th>姓名</th><th>次數</th><th>總額</th><th>狀態</th><th>操作</th></tr></thead>`;
         const tbody = document.createElement('tbody');
         const map = {};
         weekOrders.forEach(o => {
@@ -715,10 +687,33 @@ document.addEventListener('DOMContentLoaded', () => {
             map[o.name].count++; map[o.name].total += o.price; if (!o.paid) map[o.name].unpaid += o.price;
         });
         Object.entries(map).forEach(([name, d]) => {
-            tbody.innerHTML += `<tr><td>${name}</td><td>${d.count}</td><td>$${d.total}</td><td>${d.unpaid === 0 ? '✅ 已清' : `❌ 欠$${d.unpaid}`}</td></tr>`;
+            const statusHtml = d.unpaid === 0 ? '✅ 已清' : `<span style="color:var(--danger)">❌ 欠$${d.unpaid}</span>`;
+            const actionHtml = d.unpaid === 0 ? '' : `<button class="primary-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; margin: 0;" onclick="window.settlePerson('${name.replace(/'/g, "\\'")}')">結清</button>`;
+            tbody.innerHTML += `<tr><td>${name}</td><td>${d.count}</td><td>$${d.total}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
         });
         table.appendChild(tbody); container.appendChild(table);
     }
+
+    window.settlePerson = function(name) {
+        if (confirm(`確定要將「${name}」本週的所有欠款標記為已付款嗎？`)) {
+            const orders = getOrders();
+            let changed = false;
+            // 找出所有符合這個名字且未付款的本週訂單
+            const currentWeekOrders = filterOrdersByWeek(orders, currentViewDate);
+            currentWeekOrders.forEach(wo => {
+                if (wo.name === name && !wo.paid) {
+                    const target = orders.find(o => o.id === wo.id);
+                    if (target) { target.paid = true; changed = true; }
+                }
+            });
+            if (changed) {
+                saveOrders(orders, "updateOrder", { batch: true });
+                updateGrandTotal();
+                renderOrders();
+                showToast(`已結清 ${name} 的欠款`, 'success');
+            }
+        }
+    };
 
     window.togglePaid = function(id, paid) {
         const orders = getOrders(); const idx = orders.findIndex(o => o.id === id);
