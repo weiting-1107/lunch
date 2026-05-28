@@ -1095,7 +1095,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleRoleUI() {
         if (!currentUser) return; const isAdmin = currentUser.role === 'admin';
         document.body.classList.toggle('admin-mode', isAdmin);
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = isAdmin ? '' : 'none';
+            if (isAdmin) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        });
         document.getElementById('admin-dashboard').style.display = isAdmin ? '' : 'none';
         document.getElementById('order-form-container').style.display = isAdmin ? 'none' : '';
         if (isAdmin) { renderAdminSchedule(); syncAdminDash(); }
