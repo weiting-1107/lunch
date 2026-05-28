@@ -699,8 +699,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const orders = getOrders();
             let changed = false;
             // 找出所有符合這個名字且未付款的本週訂單
-            const currentWeekOrders = filterOrdersByWeek(orders, currentViewDate);
-            currentWeekOrders.forEach(wo => {
+            const { weekOrders } = getWeekData(currentViewDate);
+            weekOrders.forEach(wo => {
                 if (wo.name === name && !wo.paid) {
                     const target = orders.find(o => o.id === wo.id);
                     if (target) { target.paid = true; changed = true; }
