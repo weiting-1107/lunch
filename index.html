@@ -94,35 +94,6 @@
                     <h1>🍱 訂餐系統</h1>
                     <button id="logout-btn-mob" class="mobile-header-btn" title="登出">🚪</button>
                 </div>
-                <div class="mobile-settings-row mobile-only">
-                    <div class="mobile-setting-item admin-only">
-                        <label><span class="step-badge">1</span>📅 日期與餐期</label>
-                        <div style="display:flex; gap:0.5rem;">
-                            <input type="date" id="order-date-mob" class="date-input">
-                            <select id="meal-type-mob" class="meal-type-select">
-                                <option value="午餐" selected>午餐</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mobile-setting-item">
-                        <label>🏢 今日餐廳</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <input type="text" id="restaurant-name-mob" class="restaurant-input" value="待定..." readonly
-                                style="background:var(--input-bg); color:var(--text-muted); cursor:not-allowed; width:calc(100% - 75px); min-width:0;">
-                            <button id="display-rest-menu-mob" class="action-btn-mini"
-                                style="background:var(--primary); border:none; white-space:nowrap; font-size:0.75rem; padding:0.4rem 0.6rem; color:white; border-radius:0.5rem; border:1px solid var(--primary); cursor:pointer; flex-shrink:0;">📄
-                                菜單</button>
-                        </div>
-                    </div>
-                    <div class="mobile-setting-item admin-only">
-                        <label>⛔ 鎖單時間</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <input type="time" id="cutoff-time-mob" value="10:30" class="time-input" style="width:50%;">
-                            <button id="confirm-cutoff-mob-btn" class="primary-btn"
-                                style="width:50%; padding:0.4rem 0.6rem; font-size:0.8rem;">確定</button>
-                        </div>
-                    </div>
-                </div>
             </header>
 
             <main>
