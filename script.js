@@ -109,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentActiveTab = 'tab-details';
     let activeSettingsTab = 'tab-users'; // BUG-06 fix: 宣告 activeSettingsTab 避免未宣告即使用
     let currentViewDate = new Date();
-    let isSettingsAuthenticated = false;
 
     const prevWeekBtn = document.getElementById('prev-week-btn');
     const nextWeekBtn = document.getElementById('next-week-btn');
@@ -201,39 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     safeListenAll('.nav-settings-btn', 'click', () => {
-        // BUG-04 fix: 不再繞過密碼驗證，根據 isSettingsAuthenticated 狀態決定顯示哪個層
         if (!settingsModal) return;
-        if (!isSettingsAuthenticated) {
-            document.getElementById('settings-auth-wrapper').style.display = '';
-            document.getElementById('settings-main-content').style.display = 'none';
-            document.getElementById('settings-password-input').value = '';
-            document.getElementById('auth-error-msg').style.display = 'none';
-        } else {
-            document.getElementById('settings-auth-wrapper').style.display = 'none';
-            document.getElementById('settings-main-content').style.display = 'block';
-            renderSettingsTab();
-        }
+        renderSettingsTab();
         settingsModal.classList.remove('hidden');
     });
-
-    const unlockSettings = () => {
-        const input = document.getElementById('settings-password-input');
-        const errorMsg = document.getElementById('auth-error-msg');
-        const corePassword = String(memoryConfig.adminPwd || '1234');
-        if (input.value === corePassword) {
-            isSettingsAuthenticated = true;
-            document.getElementById('settings-auth-wrapper').style.display = 'none';
-            document.getElementById('settings-main-content').style.display = 'block';
-            renderSettingsTab();
-        } else {
-            errorMsg.style.display = 'block';
-            input.value = '';
-            input.focus();
-        }
-    };
-
-    safeListen(document.getElementById('unlock-settings-btn'), 'click', unlockSettings);
-    safeListen(document.getElementById('settings-password-input'), 'keypress', (e) => { if (e.key === 'Enter') unlockSettings(); });
 
     const updateThemeIcons = (isDark) => {
         document.querySelectorAll('.theme-toggle').forEach(btn => {
