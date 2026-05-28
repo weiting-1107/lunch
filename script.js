@@ -1109,14 +1109,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderAdminSchedule() {
         const container = document.getElementById('admin-weekly-schedule'); if (!container) return;
-        let h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
-        for(let i=1;i<=31;i++) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+
+        let h = `<div style="margin-bottom: 0.5rem; font-weight: bold; color: var(--primary); font-size: 0.9rem;">📅 目前設定月份：${year}年${month+1}月</div>`;
+        h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
+        
+        for(let i=1;i<=daysInMonth;i++) {
+            const dateObj = new Date(year, month, i);
+            const dayOfWeek = dateObj.getDay();
+            const dayKey = dayKeys[dayOfWeek];
+            const dayLabel = dayLabels[dayOfWeek];
+            
             const stored = memoryConfig[`monthly_午餐_${i}`] || "";
+            
+            const availableRestaurants = memoryRestaurants.filter(r => {
+                const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s=>s.trim()) : []);
+                return openDays.length === 0 || openDays.includes(dayKey);
+            });
+            
+            const hasStoredButNotAvailable = stored && !availableRestaurants.find(r => r.name === stored);
+            let optionsHtml = '<option value="">-</option>';
+            if (hasStoredButNotAvailable) optionsHtml += `<option value="${stored}" selected>${stored} (未營業)</option>`;
+            
+            optionsHtml += availableRestaurants.map(r => `<option value="${r.name}" ${r.name===stored?'selected':''}>${r.name}</option>`).join('');
+
             h += `<div style="border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;background:var(--card-bg);">
-                    <div style="font-size:0.75rem;font-weight:bold;margin-bottom:2px;">${i}日</div>
+                    <div style="font-size:0.75rem;font-weight:bold;margin-bottom:2px;color:${(dayOfWeek===0||dayOfWeek===6)?'var(--danger)':'var(--text-main)'};">${i}日 (週${dayLabel})</div>
                     <select data-day="${i}" class="mon-sel restaurant-input" style="width:100%;font-size:0.8rem;height:auto;padding:2px;">
-                        <option value="">-</option>
-                        ${memoryRestaurants.map(r=>`<option value="${r.name}" ${r.name===stored?'selected':''}>${r.name}</option>`).join('')}
+                        ${optionsHtml}
                     </select>
                   </div>`;
         }
