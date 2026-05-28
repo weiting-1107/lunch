@@ -678,6 +678,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPersonTable(weekOrders, container) {
+        const topBar = document.createElement('div');
+        topBar.style = 'display:flex; justify-content:flex-end; margin-bottom: 1rem;';
+        const settleAllBtn = document.createElement('button');
+        settleAllBtn.className = 'primary-btn';
+        settleAllBtn.style = 'background-color: var(--success); width: auto; padding: 0.5rem 1rem;';
+        settleAllBtn.innerHTML = '💰 一鍵結清本週帳款';
+        settleAllBtn.onclick = () => {
+            if (confirm('確定要將畫面上所有未結清的款項標記為「已付款」嗎？')) {
+                const orders = getOrders();
+                let changed = false;
+                weekOrders.forEach(wo => {
+                    if (!wo.paid) {
+                        const target = orders.find(o => o.id === wo.id);
+                        if (target) { target.paid = true; changed = true; }
+                    }
+                });
+                if (changed) {
+                    saveOrders(orders, "updateOrder", { batch: true });
+                    updateGrandTotal();
+                    renderOrders();
+                } else {
+                    showToast('目前沒有未結清的款項', 'success');
+                }
+            }
+        };
+        topBar.appendChild(settleAllBtn);
+        container.appendChild(topBar);
+
         const table = document.createElement('table'); table.className = 'excel-table';
         table.innerHTML = `<thead><tr><th>姓名</th><th>次數</th><th>總額</th><th>狀態</th></tr></thead>`;
         const tbody = document.createElement('tbody');
