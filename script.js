@@ -1001,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = memoryRestaurants[i]; if (!r) return;
         const dayLabels = ['一','二','三','四','五','六','日'];
         const dayKeys   = ['mon','tue','wed','thu','fri','sat','sun'];
-        const openDays  = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',') : []);
+        const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s => s.trim()) : []);
         const existing = document.getElementById('edit-r-modal');
         if (existing) existing.remove();
         const modal = document.createElement('div');
