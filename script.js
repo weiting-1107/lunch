@@ -456,10 +456,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sessionOrders.length > 0) return { name: sessionOrders[0].restaurant, source: 'order' };
         const cloudRest = memoryConfig[`restaurant_${date}_${mealType}`];
         if (cloudRest) return { name: cloudRest, source: 'cloud' };
-        const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-        const dayOfWeek = new Date(date + 'T12:00:00').getDay();
-        const weeklyRest = memoryConfig[`weekly_${mealType}_${dayKeys[dayOfWeek]}`] || '';
-        if (weeklyRest) return { name: weeklyRest, source: 'weekly' };
+        const dayOfMonth = new Date(date + 'T12:00:00').getDate();
+        const monthlyRest = memoryConfig[`monthly_${mealType}_${dayOfMonth}`] || '';
+        if (monthlyRest) return { name: monthlyRest, source: 'monthly' };
         return { name: '', source: 'none' };
     }
 
@@ -759,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
         memoryConfig[key] = timeVal;
         const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
             key: k,
-            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('weekly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
+            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
         }));
         saveCloudData("saveConfig", configArr).then(() => {
             handleFormState();
@@ -1060,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
             key: k,
-            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('weekly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
+            value: k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_') ? "'" + String(v).replace(/^'/, '') : v
         }));
         saveCloudData('saveConfig', configArr).then(() => {
             handleFormState();
@@ -1073,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
         memoryConfig.lastManualNotify = Date.now().toString();
         const configArr = Object.entries(memoryConfig).map(([k, v]) => ({
             key: k,
-            value: (k === 'lastManualNotify' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('weekly_') || k.startsWith('restaurant_')) ? "'" + String(v).replace(/^'/, '') : v
+            value: (k === 'lastManualNotify' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_')) ? "'" + String(v).replace(/^'/, '') : v
         }));
         saveCloudData('saveConfig', configArr).then(() => showToast('已發送通知', 'success'));
     };
@@ -1110,18 +1109,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderAdminSchedule() {
         const container = document.getElementById('admin-weekly-schedule'); if (!container) return;
-        const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-        const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
 
-        let h = `<div style="margin-bottom: 0.5rem; font-weight: bold; color: var(--primary); font-size: 0.9rem;">📅 預設每週排餐設定</div>`;
+        let h = `<div style="margin-bottom: 0.5rem; font-weight: bold; color: var(--primary); font-size: 0.9rem;">📅 目前設定月份：${year}年${month+1}月</div>`;
         h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
         
-        for(let i=0; i<7; i++) {
-            const dayKey = dayKeys[i];
-            const dayLabel = dayLabels[i];
-            const isWeekend = dayKey === 'sat' || dayKey === 'sun';
+        for(let i=1;i<=daysInMonth;i++) {
+            const dateObj = new Date(year, month, i);
+            const dayOfWeek = dateObj.getDay();
+            const dayKey = dayKeys[dayOfWeek];
+            const dayLabel = dayLabels[dayOfWeek];
             
-            const stored = memoryConfig[`weekly_午餐_${dayKey}`] || "";
+            const stored = memoryConfig[`monthly_午餐_${i}`] || "";
             
             const availableRestaurants = memoryRestaurants.filter(r => {
                 const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s=>s.trim()) : []);
@@ -1135,8 +1139,8 @@ document.addEventListener('DOMContentLoaded', () => {
             optionsHtml += availableRestaurants.map(r => `<option value="${r.name}" ${r.name===stored?'selected':''}>${r.name}</option>`).join('');
 
             h += `<div style="border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;background:var(--card-bg);">
-                    <div style="font-size:0.75rem;font-weight:bold;margin-bottom:2px;color:${isWeekend?'var(--danger)':'var(--text-main)'};">週${dayLabel}</div>
-                    <select data-day="${dayKey}" class="mon-sel restaurant-input" style="width:100%;font-size:0.8rem;height:auto;padding:2px;">
+                    <div style="font-size:0.75rem;font-weight:bold;margin-bottom:2px;color:${(dayOfWeek===0||dayOfWeek===6)?'var(--danger)':'var(--text-main)'};">${i}日 (週${dayLabel})</div>
+                    <select data-day="${i}" class="mon-sel restaurant-input" style="width:100%;font-size:0.8rem;height:auto;padding:2px;">
                         ${optionsHtml}
                     </select>
                   </div>`;
@@ -1145,12 +1149,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.saveMon = () => {
-        document.querySelectorAll('.mon-sel').forEach(s => memoryConfig[`weekly_午餐_${s.dataset.day}`] = s.value);
+        document.querySelectorAll('.mon-sel').forEach(s => memoryConfig[`monthly_午餐_${s.dataset.day}`] = s.value);
         saveCloudData("saveConfig", Object.entries(memoryConfig).map(([k,v])=>{ 
             let val = v;
-            if (k.startsWith('monthly_') || k.startsWith('weekly_')) val = "'" + String(v).replace(/^'/, '');
+            if (k.startsWith('monthly_')) val = "'" + String(v).replace(/^'/, '');
             return {key:k, value:val};
-        })).then(() => showToast("每週排餐設定已儲存！", "success"));
+        })).then(() => showToast("每月排餐設定已儲存！", "success"));
     };
 
     function syncAdminDash() {
@@ -1179,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const newConfig = Object.entries(memoryConfig).map(([k,v])=>{
                         let val = v;
-                        if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('weekly_') || k.startsWith('restaurant_')) {
+                        if (k === 'voteCutoffTime' || k.startsWith('cutoff_') || k.startsWith('monthly_') || k.startsWith('restaurant_')) {
                             val = "'" + String(v).replace(/^'/, '');
                         }
                         return {key:k, value:val};
