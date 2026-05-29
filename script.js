@@ -945,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div style="display:grid; gap:0.75rem;">
                     ${memoryRestaurants.map((r, i) => {
-                        const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s => s.trim()) : []);
+                        const openDays = Array.isArray(r.openDays) ? r.openDays.filter(Boolean) : (r.openDays ? String(r.openDays).split(',').map(s => s.trim()).filter(Boolean) : []);
                         const dayBadges = dayLabels.map((d, idx) => {
                             const isOpen = openDays.includes(dayKeys[idx]);
                             return `<span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; background:${isOpen ? 'var(--primary)' : 'var(--input-bg)'}; color:${isOpen ? 'white' : 'var(--text-muted)'}; border:1px solid var(--border);">週${d}</span>`;
@@ -1006,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = memoryRestaurants[i]; if (!r) return;
         const dayLabels = ['一','二','三','四','五','六','日'];
         const dayKeys   = ['mon','tue','wed','thu','fri','sat','sun'];
-        const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s => s.trim()) : []);
+        const openDays = Array.isArray(r.openDays) ? r.openDays.filter(Boolean) : (r.openDays ? String(r.openDays).split(',').map(s => s.trim()).filter(Boolean) : []);
         const existing = document.getElementById('edit-r-modal');
         if (existing) existing.remove();
         const modal = document.createElement('div');
@@ -1141,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const stored = memoryConfig[`monthly_午餐_${i}`] || "";
             
             const availableRestaurants = memoryRestaurants.filter(r => {
-                const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s=>s.trim()) : []);
+                const openDays = Array.isArray(r.openDays) ? r.openDays.filter(Boolean) : (r.openDays ? String(r.openDays).split(',').map(s=>s.trim()).filter(Boolean) : []);
                 return openDays.length === 0 || openDays.includes(dayKey);
             });
             
