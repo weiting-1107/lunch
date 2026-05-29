@@ -262,7 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentSyncID = Date.now();
         lastFetchID = currentSyncID;
         const lastSave = parseInt(localStorage.getItem('lunch_last_save') || '0');
-        if (Date.now() - lastSave < 5000) return;
+        const isFirstFetch = lastFetchID === currentSyncID && Object.keys(memoryConfig).length === 0 && memoryRestaurants.length === 0;
+        if (!isFirstFetch && Date.now() - lastSave < 5000) return;
         try {
             const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchData' }) });
             if (!res.ok) return;
@@ -286,7 +287,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     memoryRestaurants = data.restaurants || [];
                     memoryConfig = {};
-                    (data.config || []).forEach(c => { memoryConfig[c.key] = c.value; });
+                    (data.config || []).forEach(c => {
+                        // Strip the leading single-quote that GAS adds to prevent Excel auto-formatting
+                        memoryConfig[c.key] = (typeof c.value === 'string' && c.value.startsWith("'")) ? c.value.slice(1) : c.value;
+                    });
                 }
                 updateLocalCache();
                 updateDatalists();
@@ -457,7 +461,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const cloudRest = memoryConfig[`restaurant_${date}_${mealType}`];
         if (cloudRest) return { name: cloudRest, source: 'cloud' };
         const dayOfMonth = new Date(date + 'T12:00:00').getDate();
-        const monthlyRest = memoryConfig[`monthly_${mealType}_${dayOfMonth}`] || '';
+        const rawMonthly = memoryConfig[`monthly_${mealType}_${dayOfMonth}`] || '';
+        const monthlyRest = rawMonthly.startsWith("'") ? rawMonthly.slice(1) : rawMonthly;
         if (monthlyRest) return { name: monthlyRest, source: 'monthly' };
         return { name: '', source: 'none' };
     }
@@ -940,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div style="display:grid; gap:0.75rem;">
                     ${memoryRestaurants.map((r, i) => {
-                        const openDays = r.openDays || [];
+                        const openDays = Array.isArray(r.openDays) ? r.openDays : (r.openDays ? String(r.openDays).split(',').map(s => s.trim()) : []);
                         const dayBadges = dayLabels.map((d, idx) => {
                             const isOpen = openDays.includes(dayKeys[idx]);
                             return `<span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; background:${isOpen ? 'var(--primary)' : 'var(--input-bg)'}; color:${isOpen ? 'white' : 'var(--text-muted)'}; border:1px solid var(--border);">週${d}</span>`;
@@ -1105,7 +1110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('order-form-container').style.display = isAdmin ? 'none' : '';
         if (isAdmin) {
             const isTyping = dash.contains(document.activeElement) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
-            if (!fromFetch || !isTyping) {
+            const hadNoRestaurants = memoryRestaurants.length === 0;
+            if (!fromFetch || !isTyping || hadNoRestaurants) {
                 renderAdminSchedule(); 
                 syncAdminDash(); 
             }
